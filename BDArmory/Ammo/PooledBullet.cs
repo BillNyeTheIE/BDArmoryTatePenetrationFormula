@@ -848,8 +848,12 @@ namespace BDArmory.Bullets
                 
                 //calculate bullet deformation
                 float newCaliber = caliber;
+
+                /*
                 if (Ductility > 0.05)
                 {
+                */
+
                     if (!sabot)
                     {
                         // Moved the bulletEnergy and armorStrength calculations here because
@@ -875,6 +879,8 @@ namespace BDArmory.Bullets
                     }
                     //penetration = ProjectileUtils.CalculatePenetration(caliber, newCaliber, bulletMass, impactSpeed, Ductility, Density, Strength, thickness, apBulletMod, sabot);
                     penetration = ProjectileUtils.CalculatePenetration(caliber, impactSpeed, bulletMass, apBulletMod, Strength, vFactor, muParam1, muParam2, muParam3, sabot);
+                
+                /*
                 }
                 else
                 {
@@ -883,6 +889,8 @@ namespace BDArmory.Bullets
                     newCaliber = ProjectileUtils.CalculateDeformation(armorStrength, bulletEnergy, caliber, impactSpeed, hardness, Density, HERatio, apBulletMod, sabot);
                     penetration = ProjectileUtils.CalculateCeramicPenetration(caliber, newCaliber, bulletMass, impactSpeed, Ductility, Density, Strength, thickness, apBulletMod, sabot);
                 }
+                */
+
                 caliber = newCaliber; //update bullet with new caliber post-deformation(if any)
                 penetrationFactor = ProjectileUtils.CalculateArmorPenetration(hitPart, penetration, thickness);
                 //Reactive Armor calcs
@@ -1001,8 +1009,22 @@ namespace BDArmory.Bullets
             }
             else //penetration >= 1
             {
-                currentVelocity = currentVelocity * (1 - (float)Math.Sqrt(thickness / penetration));
-                impactVelocity = impactVelocity * (1 - (float)Math.Sqrt(thickness / penetration));
+                //currentVelocity = currentVelocity * (1 - (float)Math.Sqrt(thickness / penetration));
+                //impactVelocity = impactVelocity * (1 - (float)Math.Sqrt(thickness / penetration));
+
+                float adjustedPenRatio = (1 - (float)Math.Sqrt(thickness / penetration));
+
+                if (impactSpeed > 1200f)
+                {
+                    bulletMass = bulletMass * 0.95f * adjustedPenRatio;
+                    currentVelocity = currentVelocity * (0.95f + 0.05f* adjustedPenRatio);
+                    impactVelocity = impactVelocity * (0.95f + 0.05f * adjustedPenRatio);
+                }
+                else
+                {
+                    currentVelocity = currentVelocity * adjustedPenRatio;
+                    impactVelocity = impactVelocity * adjustedPenRatio;
+                }
 
                 currentSpeed = currentVelocity.magnitude;
                 timeElapsedSinceCurrentSpeedWasAdjusted = 0;
