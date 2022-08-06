@@ -826,6 +826,7 @@ namespace BDArmory.Bullets
             //calculate armor strength
             float penetration = 0;
             float penetrationFactor = 0;
+            float length = 0;
             var Armor = hitPart.FindModuleImplementing<HitpointTracker>();
             if (Armor != null)
             {
@@ -848,13 +849,15 @@ namespace BDArmory.Bullets
                 
                 //calculate bullet deformation
                 float newCaliber = caliber;
+                length = ((bulletMass * 1000.0f * 400.0f) / ((caliber * caliber *
+                    Mathf.PI) * (sabot ? 19.0f : 11.34f)) + 1.0f) * 10.0f;
 
                 /*
                 if (Ductility > 0.05)
                 {
                 */
 
-                    if (!sabot)
+                if (!sabot)
                     {
                         // Moved the bulletEnergy and armorStrength calculations here because
                         // they are no longer needed for CalculatePenetration. This should
@@ -878,8 +881,13 @@ namespace BDArmory.Bullets
                         muParam3 = Armor.muParam3S;
                     }
                     //penetration = ProjectileUtils.CalculatePenetration(caliber, newCaliber, bulletMass, impactSpeed, Ductility, Density, Strength, thickness, apBulletMod, sabot);
-                    penetration = ProjectileUtils.CalculatePenetration(caliber, impactSpeed, bulletMass, apBulletMod, Strength, vFactor, muParam1, muParam2, muParam3, sabot);
+                    penetration = ProjectileUtils.CalculatePenetration(caliber, impactSpeed, bulletMass, apBulletMod, Strength, vFactor, muParam1, muParam2, muParam3, sabot, length);
                 
+                if (BDArmorySettings.DEBUG_WEAPONS)
+                {
+                    Debug.Log("[BDArmory.PooledBullet] Penetration: " + penetration + "mm. impactSpeed: " + impactSpeed + "m/s. bulletMass = " + bulletMass + "kg. Caliber: " + caliber + "mm. Length: " + length + "mm. Sabot: " + sabot);
+                }
+
                 /*
                 }
                 else
@@ -1016,9 +1024,25 @@ namespace BDArmory.Bullets
 
                 if (impactSpeed > 1200f)
                 {
-                    bulletMass = bulletMass * 0.95f * adjustedPenRatio;
-                    currentVelocity = currentVelocity * (0.95f + 0.05f* adjustedPenRatio);
-                    impactVelocity = impactVelocity * (0.95f + 0.05f * adjustedPenRatio);
+                    float massRatio = 0.95f * adjustedPenRatio;
+
+                    if (impactSpeed > 2500f)
+                    {
+                        massRatio = 2375f/impactSpeed * adjustedPenRatio;
+                    }
+
+                    bulletMass = bulletMass * massRatio;
+
+                    if (length * massRatio / caliber > 1f)
+                    {
+                        currentVelocity = currentVelocity * (0.99f + 0.01f * adjustedPenRatio);
+                        impactVelocity = impactVelocity * (0.99f + 0.01f * adjustedPenRatio);
+                    }
+                    else
+                    {
+                        currentVelocity = currentVelocity * adjustedPenRatio;
+                        impactVelocity = impactVelocity * adjustedPenRatio;
+                    }
                 }
                 else
                 {

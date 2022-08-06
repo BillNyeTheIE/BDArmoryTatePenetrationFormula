@@ -709,11 +709,16 @@ namespace BDArmory.Utils
 
         public static float CalculatePenetration(float caliber, float bulletVelocity,
             float bulletMass, float apBulletMod, float Strength, float vFactor,
-            float muParam1, float muParam2, float muParam3, bool sabot = false)
+            float muParam1, float muParam2, float muParam3, bool sabot = false,
+            float length = 0)
         {
             // Calculate the length of the projectile
-            float length = ((bulletMass * 1000.0f * 400.0f) / ((caliber * caliber *
+            if (length == 0)
+            {
+                length = ((bulletMass * 1000.0f * 400.0f) / ((caliber * caliber *
                     Mathf.PI) * (sabot ? 19.0f : 11.34f)) + 1.0f) * 10.0f;
+            }
+            
             float penetration = 0;
             // 1400 is an arbitrary velocity around where the linear function used to
             // simplify diverges from the result predicted by the Frank and Zook S2 based
