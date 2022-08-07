@@ -1024,17 +1024,17 @@ namespace BDArmory.Bullets
 
                 if (impactSpeed > 1200f)
                 {
-                    float massRatio = 0.95f * adjustedPenRatio;
-
-                    if (impactSpeed > 2500f)
+                    if (length / caliber > 1f)
                     {
-                        massRatio = 2375f/impactSpeed * adjustedPenRatio;
-                    }
+                        float massRatio = 0.95f * adjustedPenRatio;
 
-                    bulletMass = bulletMass * massRatio;
+                        if (impactSpeed > 2500f)
+                        {
+                            massRatio = 2375f / impactSpeed * adjustedPenRatio;
+                        }
 
-                    if (length * massRatio / caliber > 1f)
-                    {
+                        bulletMass = Mathf.Max(bulletMass * massRatio, bulletMass * caliber / length);
+
                         currentVelocity = currentVelocity * (0.99f + 0.01f * adjustedPenRatio);
                         impactVelocity = impactVelocity * (0.99f + 0.01f * adjustedPenRatio);
                     }
