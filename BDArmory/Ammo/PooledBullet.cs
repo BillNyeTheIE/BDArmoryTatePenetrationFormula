@@ -157,6 +157,10 @@ namespace BDArmory.Bullets
         private List<Part> partsHit = new List<Part>();
 
         private double distanceTraveled = 0;
+        private double distanceLastHit = double.PositiveInfinity;
+
+        private float kDist = 1;
+
         public double DistanceTraveled { get { return distanceTraveled; } }
 
         void Awake()
@@ -466,6 +470,7 @@ namespace BDArmory.Bullets
             // Full-timestep position change (leapfrog integrator)
             transform.position += currentVelocity * period; //move bullet
             distanceTraveled += currentVelocity.magnitude * period; // calculate flight distance for achievement purposes
+
             if (!underwater && FlightGlobals.getAltitudeAtPos(transform.position) <= 0) // Check if the bullet is now underwater.
             {
                 float hitAngle = Vector3.Angle(GetDragAdjustedVelocity(), -VectorUtils.GetUpDirection(transform.position));
@@ -760,6 +765,73 @@ namespace BDArmory.Bullets
                 impactVelocity -= (hitPart.rb.velocity + Krakensbane.GetFrameVelocityV3f());
             }
 
+            impactSpeed = impactVelocity.magnitude;
+
+            float length = ((bulletMass * 1000.0f * 400.0f) / ((caliber * caliber *
+                    Mathf.PI) * (sabot ? 19.0f : 11.34f)) + 1.0f) * 10.0f;
+
+            // New system to wear down hypervelocity projectiles over distance
+            // This is based on an equation that was derived for shaped charges. Now this isn't
+            // exactly accurate in our case, or rather it's not accurate at all, but it's something
+            // in the ballpark and it's also more-or-less going to give the proper behavior for
+            // spaced armor at high velocities. This is sourced from https://www.diva-portal.org/smash/get/diva2:643824/FULLTEXT01.pdf
+            // and once again, I must emphasize. This is for shaped charges, it's not for post-penetration
+            // behavior of hypervelocity projectiles, but I'm going to hand-wave away the difference between
+            // the plasma that flies out after a penetration and the armor-piercing jet of a shaped charge.
+            if (impactSpeed > 2500 || !double.IsPositiveInfinity(distanceLastHit))
+            {
+                // This only applies to anything that will actually survive an impact so EMP, impulse and any HE rounds that explode right away are out
+                if (!EMP || impulse != 0 || ((HERatio > 0) && (fuzeType != BulletFuzeTypes.Penetrating || fuzeType != BulletFuzeTypes.Delay)))
+                {
+
+                    // This is just because if distanceSinceHit < (7f * caliber * 10f) penetration will be worse, this behavior is true of 
+                    // shaped charges due to the jet formation distance, however we're going to ignore it since it isn't true of a hypervelocity
+                    // projectile that's just smashed through some armor.
+                    //if ((distanceTraveled + hit.distance - distanceLastHit) * 1000f > (7f * caliber * 10f))
+
+                    // Changed from the previous 7 * caliber * 10 maximum to just > caliber since that no longer exists.
+                    if ((distanceTraveled + hit.distance - distanceLastHit) * 1000f > caliber)
+                    {
+                        // The formula is based on distance and the caliber of the shaped charge, now since in our case we are talking
+                        // about projectiles rather than shaped charges we'll take the projectile diameter and call that the jet size.
+                        // Shaped charge jets have a diameter generally around 5% of the shaped charge's caliber, however in our case
+                        // this means these projectiles wouldn't bleed off that hard with distance, thus we'll say they're 10% of the
+                        // shaped charge's caliber.
+                        // Calculating this term once since division is expensive
+                        //float kTerm = ((float)(distanceTraveled + hit.distance - distanceLastHit) * 1000f - 7f * 10f *caliber) / (14f * 10f * caliber);
+                        // Modified this from the original formula, commented out above to remove the standoff distance required for jet formation.
+                        // Just makes more sense to me not to have it in there.
+                        float kTerm = ((float)(distanceTraveled + hit.distance - distanceLastHit) * 1000f) / (14f * 10f * caliber);
+                        kDist = 1f / (kDist * (1f + kTerm * kTerm)); // Then using it in the formula
+                        
+                        // If the projectile gets too small things go wonky with the formulas for penetration
+                        // they'll still work honestly, but I'd rather avoid those situations
+                        if ((kDist * length) < 1.2f * caliber)
+                        {
+                            float massFactor = (1.2f * caliber / length);
+                            bulletMass = bulletMass * massFactor;
+                            length = (length - 10) * massFactor + 10;
+                        }
+                        else
+                        {
+                            bulletMass = bulletMass * kDist;
+                            length = (length - 10) * kDist + 10;
+                        }
+
+                        if (BDArmorySettings.DEBUG_WEAPONS)
+                        {
+                            Debug.Log("[BDArmory.PooledBullet] kDist: " + kDist + ". Distance Since Last Hit: " + (distanceTraveled + hit.distance - distanceLastHit) + " m.");
+                        }
+                    }
+
+                    if (double.IsPositiveInfinity(distanceLastHit))
+                    {
+                        // Add the distance since this hit so the next part that gets hit has the proper distance
+                        distanceLastHit = distanceTraveled + hit.distance;
+                    }
+                }
+            }
+
             float hitAngle = Vector3.Angle(impactVelocity, -hit.normal);
             float dist = hitPart != null && hitPart.vessel != null && rayLength.ContainsKey(hitPart.vessel) ? rayLength[hitPart.vessel] : currentVelocity.magnitude * period;
 
@@ -786,7 +858,7 @@ namespace BDArmory.Bullets
             if (hitPart == null) return false; // Hits below here are part hits.
 
             //Standard Pipeline Hitpoints, Armor and Explosives
-            impactSpeed = impactVelocity.magnitude;
+            //impactSpeed = impactVelocity.magnitude; //Moved up for the projectile weardown calculation
             if (massMod != 0)
             {
                 var ME = hitPart.FindModuleImplementing<ModuleMassAdjust>();
@@ -826,7 +898,7 @@ namespace BDArmory.Bullets
             //calculate armor strength
             float penetration = 0;
             float penetrationFactor = 0;
-            float length = 0;
+            //float length = 0; //Moved up for the new bullet wear over distance system
             var Armor = hitPart.FindModuleImplementing<HitpointTracker>();
             if (Armor != null)
             {
@@ -849,8 +921,8 @@ namespace BDArmory.Bullets
                 
                 //calculate bullet deformation
                 float newCaliber = caliber;
-                length = ((bulletMass * 1000.0f * 400.0f) / ((caliber * caliber *
-                    Mathf.PI) * (sabot ? 19.0f : 11.34f)) + 1.0f) * 10.0f;
+                //length = ((bulletMass * 1000.0f * 400.0f) / ((caliber * caliber *
+                //    Mathf.PI) * (sabot ? 19.0f : 11.34f)) + 1.0f) * 10.0f; //Moved up for the purposes of the new bullet wear over distance system
 
                 /*
                 if (Ductility > 0.05)
@@ -883,7 +955,7 @@ namespace BDArmory.Bullets
                 //penetration = ProjectileUtils.CalculatePenetration(caliber, newCaliber, bulletMass, impactSpeed, Ductility, Density, Strength, thickness, apBulletMod, sabot);
                 penetration = ProjectileUtils.CalculatePenetration(caliber, impactSpeed, bulletMass, apBulletMod, Strength, vFactor, muParam1, muParam2, muParam3, sabot, length);
 
-                if (BDArmorySettings.DEBUG_ARMOR)
+                if (BDArmorySettings.DEBUG_WEAPONS)
                 {
                     Debug.Log("[BDArmory.PooledBullet] Penetration: " + penetration + "mm. impactSpeed: " + impactSpeed + "m/s. bulletMass = " + bulletMass + "kg. Caliber: " + caliber + "mm. Length: " + length + "mm. Sabot: " + sabot);
                 }
@@ -1060,8 +1132,17 @@ namespace BDArmory.Bullets
                             // would look like. Best way to probably do that is to decrease projectile
                             // lifespan and to add a lastImpact timestamp and do some kind of decrease
                             // in mass as a function of the time between impacts.
-                            massRatio = 2375f / impactSpeed * adjustedPenRatio;
+                            //massRatio = 2375f / impactSpeed * adjustedPenRatio;
+
+                            // Adjusted the above formula so only up to 50% of the mass could be lost
+                            // immediately upon penetration (to being vaporized). At this point this
+                            // stuff I've accepted is going to be purely gameified. If anybody has
+                            // an expertise in hypervelocity impact mechanics they're welcome to
+                            // change all this stuff I'm doing for hypervelocity stuff.
+                            massRatio = (0.45f + 0.5f * (2500f / impactSpeed)) * adjustedPenRatio;
                         }
+                        
+                        
 
                         // We cap the minimum L/D to be 1.2 to avoid that edge case in the pen formula
                         if (massRatio < 1.2f * caliber / length)
