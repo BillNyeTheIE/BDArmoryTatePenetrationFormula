@@ -30,7 +30,8 @@ namespace BDArmory.Armor
         public float maxScale = 16;
 
         [KSPEvent(guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_ArmorTriIso", active = true)]//Toggle Tri Type
-        public void ToggleTriTypeOption()
+        public void ToggleTriTypeOption() => ToggleTriTypeOptionHandler();
+        void ToggleTriTypeOptionHandler(bool applySym = true)
         {
             scaleneTri = !scaleneTri;
 
@@ -50,12 +51,15 @@ namespace BDArmory.Armor
                 Events["ToggleTriTypeOption"].guiName = Localizer.Format("#LOC_BDArmory_ArmorTriIso");
             }
             GUIUtils.RefreshAssociatedWindows(part);
-            using (List<Part>.Enumerator sym = part.symmetryCounterparts.GetEnumerator())
-                while (sym.MoveNext())
-                {
-                    if (sym.Current == null) continue;
-                    sym.Current.FindModuleImplementing<BDAdjustableArmor>().ToggleTriTypeOption();
-                }
+            if (applySym)
+            {
+                using (List<Part>.Enumerator sym = part.symmetryCounterparts.GetEnumerator())
+                    while (sym.MoveNext())
+                    {
+                        if (sym.Current == null) continue;
+                        sym.Current.FindModuleImplementing<BDAdjustableArmor>().ToggleTriTypeOptionHandler(false);
+                    }
+            }
         }
 
         [KSPEvent(guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_UnclampTuning_disabledText", active = true)]//Toggle scale limit
@@ -94,6 +98,8 @@ namespace BDArmory.Armor
 
         [KSPField]
         public bool isTriangularPanel = false;
+
+        [KSPField(isPersistant = true)]
         bool scaleneTri = false;
 
         [KSPField]

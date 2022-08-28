@@ -180,7 +180,7 @@ namespace BDArmory.Control
             //Debug.Log("[BDArmory.MissileFire]: Parsing ripple options");
             if (!string.IsNullOrEmpty(rippleData))
             {
-                //Debug.Log("[BDArmory.MissileFire]: Ripple data: " + rippleData);
+                // Debug.Log("[BDArmory.MissileFire]: Ripple data: " + rippleData);
                 try
                 {
                     using (IEnumerator<string> weapon = rippleData.Split(new char[] { ';' }).AsEnumerable().GetEnumerator())
@@ -218,7 +218,7 @@ namespace BDArmory.Control
                     while (wpnName.MoveNext())
                     {
                         if (wpnName.Current == null) continue;
-                        rippleData += $"{wpnName},{rippleDictionary[wpnName.Current].rippleFire},{rippleDictionary[wpnName.Current].rpm};";
+                        rippleData += $"{wpnName.Current},{rippleDictionary[wpnName.Current].rippleFire},{rippleDictionary[wpnName.Current].rpm};";
                     }
                 node.SetValue("RippleData", rippleData, true);
             }
@@ -1552,19 +1552,22 @@ namespace BDArmory.Control
                     if (weaponArray != null) // Heat debugging
                     {
                         List<string> weaponHeatDebugStrings = new List<string>();
-                        List<string> weaponLaserDebugStrings = new List<string>();
+                        List<string> weaponAimDebugStrings = new List<string>();
                         HashSet<WeaponClasses> validClasses = new HashSet<WeaponClasses> { WeaponClasses.Gun, WeaponClasses.Rocket, WeaponClasses.DefenseLaser };
                         foreach (var weaponCandidate in weaponArray)
                         {
                             if (weaponCandidate == null || !validClasses.Contains(weaponCandidate.GetWeaponClass())) continue;
                             var weapon = (ModuleWeapon)weaponCandidate;
+                            if (weapon is null) continue;
                             weaponHeatDebugStrings.Add(String.Format(" - {0}: heat: {1,6:F1}, max: {2}, overheated: {3}", weapon.shortName, weapon.heat, weapon.maxHeat, weapon.isOverheated));
-                            weaponLaserDebugStrings.Add($" - Lead Offset: {weapon.GetLeadOffset()}, FinalAimTgt: {weapon.finalAimTarget}, tgt Position: {weapon.targetPosition}, pointingAtSelf: {weapon.pointingAtSelf}, safeToFire: {weapon.safeToFire}, tgt CosAngle {weapon.targetCosAngle}, wpn CosAngle {weapon.targetAdjustedMaxCosAngle}, Wpn Autofire {weapon.autoFire}, RoF {weapon.roundsPerMinute}, MaxRoF {weapon.baseRPM}");
+                            weaponAimDebugStrings.Add($" - Lead Offset: {weapon.GetLeadOffset()}, FinalAimTgt: {weapon.finalAimTarget}, tgt Position: {weapon.targetPosition}, pointingAtSelf: {weapon.pointingAtSelf}, safeToFire: {weapon.safeToFire}, tgt CosAngle {weapon.targetCosAngle}, wpn CosAngle {weapon.targetAdjustedMaxCosAngle}, Wpn Autofire {weapon.autoFire}, RoF {weapon.roundsPerMinute}, MaxRoF {weapon.baseRPM}");
+                            // weaponAimDebugStrings.Add($" - Target pos: {weapon.targetPosition.ToString("G3")}, vel: {weapon.targetVelocity.ToString("G4")}, acc: {weapon.targetAcceleration.ToString("G6")}");
+                            // weaponAimDebugStrings.Add($" - Target rel pos: {(weapon.targetPosition - weapon.fireTransforms[0].position).ToString("G3")} ({(weapon.targetPosition - weapon.fireTransforms[0].position).magnitude:F1}), rel vel: {(weapon.targetVelocity - weapon.part.rb.velocity).ToString("G4")}, rel acc: {((Vector3)(weapon.targetAcceleration - weapon.vessel.acceleration)).ToString("G6")}");
                         }
                         if (weaponHeatDebugStrings.Count > 0)
                         {
                             debugString.AppendLine("Weapon Heat:\n" + string.Join("\n", weaponHeatDebugStrings));
-                            debugString.AppendLine("Aim debugging:\n" + string.Join("\n", weaponLaserDebugStrings));
+                            debugString.AppendLine("Aim debugging:\n" + string.Join("\n", weaponAimDebugStrings));
                         }
                     }
                     GUI.Label(new Rect(200, Screen.height - 500, Screen.width / 2 - 200, 16 * debugString.Length), debugString.ToString());
@@ -2415,7 +2418,12 @@ namespace BDArmory.Control
                 while (ecm.MoveNext())
                 {
                     if (ecm.Current == null) continue;
-                    if (ecm.Current.jammerEnabled) continue;
+                    if (ecm.Current.manuallyEnabled) continue;
+                    if (ecm.Current.jammerEnabled)
+                    {
+                        ecm.Current.manuallyEnabled = true;
+                        continue;
+                    }
                     ecm.Current.EnableJammer();
                 }
             yield return new WaitForSeconds(10.0f);
@@ -2425,7 +2433,8 @@ namespace BDArmory.Control
                 while (ecm1.MoveNext())
                 {
                     if (ecm1.Current == null) continue;
-                    ecm1.Current.DisableJammer();
+                    if (!ecm1.Current.manuallyEnabled)
+                        ecm1.Current.DisableJammer();
                 }
         }
 
@@ -2756,6 +2765,11 @@ namespace BDArmory.Control
                     {
                         continue;
                     }
+                    if (weapon.Current.GetWeaponClass() == WeaponClasses.Gun || weapon.Current.GetWeaponClass() == WeaponClasses.Rocket || weapon.Current.GetWeaponClass() == WeaponClasses.DefenseLaser)
+                    {
+                        if (!gunRippleIndex.ContainsKey(weapon.Current.GetPart().partInfo.name))
+                            gunRippleIndex.Add(weapon.Current.GetPart().partInfo.name, 0);
+                    }
                     //dont add APS
                     if ((weapon.Current.GetWeaponClass() == WeaponClasses.Gun || weapon.Current.GetWeaponClass() == WeaponClasses.Rocket || weapon.Current.GetWeaponClass() == WeaponClasses.DefenseLaser) &&
                         weapon.Current.GetPart().FindModuleImplementing<ModuleWeapon>().isAPS)
@@ -2765,11 +2779,6 @@ namespace BDArmory.Control
                     if (!alreadyAdded)
                     {
                         weaponTypes.Add(weapon.Current);
-                    }
-                    if (weapon.Current.GetWeaponClass() == WeaponClasses.Gun || weapon.Current.GetWeaponClass() == WeaponClasses.Rocket || weapon.Current.GetWeaponClass() == WeaponClasses.DefenseLaser)
-                    {
-                        if (!gunRippleIndex.ContainsKey(weapon.Current.GetPart().partInfo.name))
-                            gunRippleIndex.Add(weapon.Current.GetPart().partInfo.name, 0);
                     }
 
                     EngageableWeapon engageableWeapon = weapon.Current as EngageableWeapon;
@@ -5185,9 +5194,9 @@ namespace BDArmory.Control
                                 return false;
 
                         // check overheat, reloading, ability to fire soon
-                        if (gun.isOverheated)
+                        if (!gun.hasGunner)
                             return false;
-                        if (gun.isReloading || !gun.hasGunner)
+                        if (gun.isReloading || gun.isOverheated)
                             return false;
                         if (!gun.CanFireSoon())
                             return false;
@@ -5579,7 +5588,7 @@ namespace BDArmory.Control
                     ml.TargetAcquired = true;
                     if (BDArmorySettings.DEBUG_MISSILES)
                         Debug.Log("[BDArmory.MissileData]: Sending targetInfo to GPS Missile...");
-                    if (guardMode && ((designatedGPSCoords - guardTarget.CoM).sqrMagnitude < 10 * 10))
+                    if (guardMode && ((guardTarget.CoM - VectorUtils.GetWorldSurfacePostion(designatedGPSCoords, vessel.mainBody)).sqrMagnitude < 10 * 10))
                     {
                         ml.targetVessel = guardTarget.gameObject.GetComponent<TargetInfo>();
                         if (BDArmorySettings.DEBUG_MISSILES)
@@ -5697,6 +5706,7 @@ namespace BDArmory.Control
                     while (weapon.MoveNext())
                     {
                         if (weapon.Current == null) continue;
+                        if (weapon.Current.isAPS) continue;
                         // if (weapon.Current.GetShortName() != selectedWeapon.GetShortName()) continue; 
                         weapon.Current.autoFire = false;
                         weapon.Current.autofireShotCount = 0;
@@ -5711,7 +5721,7 @@ namespace BDArmory.Control
             {
                 if (!isLegacyCMing)
                 {
-                    // StartCoroutine(LegacyCMRoutine()); // Depreciated
+                    // StartCoroutine(LegacyCMRoutine()); // Deprecated
                 }
 
                 targetScanTimer -= Time.fixedDeltaTime; //advance scan timing (increased urgency)
@@ -6394,7 +6404,14 @@ namespace BDArmory.Control
                     if (weapon.Current == null) continue;
                     if (selectedWeapon == null)
                     {
-                        if (!weapon.Current.isAPS) weapon.Current.DisableWeapon();
+                        if (weapon.Current.turret && guardMode)
+                        {
+                            if (!weapon.Current.isAPS) weapon.Current.StandbyWeapon();
+                        }
+                        else
+                        {
+                            if (!weapon.Current.isAPS) weapon.Current.DisableWeapon();
+                        }
                     }
                     else if (weapon.Current.GetShortName() != selectedWeapon.GetShortName())
                     {
@@ -6554,7 +6571,7 @@ namespace BDArmory.Control
         // Check antiRad target is within 20m for stationary targets, and a scaling distance based on target speed for targets moving faster than ~60 m/s
         bool AntiRadDistanceCheck()
         {
-            return (antiRadiationTarget - guardTarget.CoM).sqrMagnitude < Mathf.Max(20f * 20f, (float)guardTarget.srfSpeed * 7f);
+            return (VectorUtils.WorldPositionToGeoCoords(antiRadiationTarget, vessel.mainBody) - VectorUtils.WorldPositionToGeoCoords(guardTarget.CoM, vessel.mainBody)).sqrMagnitude < Mathf.Max(20f * 20f, (float)guardTarget.srfSpeed * 3.5f);
         }
 
         bool AltitudeTrigger()

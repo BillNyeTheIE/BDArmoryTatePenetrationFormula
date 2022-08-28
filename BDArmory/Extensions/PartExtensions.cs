@@ -490,7 +490,12 @@ namespace BDArmory.Extensions
             }
             else return false;
         }
-
+        public static bool IsMotor(this Part part)
+        {
+            if (part.GetComponent<ModuleEngines>() != null || part.GetComponent<ModuleEnginesFX>() != null)
+                return true;
+            else return false;
+        }
         public static string GetExplodeMode(this Part part)
         {
             return Dependencies.Get<DamageService>().GetExplodeMode_svc(part);

@@ -88,7 +88,7 @@ namespace BDArmory.UI
             if (button != null) button.enabled = windowBDAAIGUIEnabled;
 
             BDArmorySetup.WindowRectAI = new Rect(BDArmorySetup.WindowRectAI.x, BDArmorySetup.WindowRectAI.y, WindowWidth, BDArmorySetup.WindowRectAI.height);
-            WindowHeight = Mathf.Max(WindowHeight, 305);
+            WindowHeight = Mathf.Max(BDArmorySetup.WindowRectAI.height, 305);
 
             Label = new GUIStyle();
             Label.alignment = TextAnchor.UpperLeft;
@@ -155,19 +155,26 @@ namespace BDArmory.UI
             if (!buttonSetup)
             {
                 Texture buttonTexture = GameDatabase.Instance.GetTexture(BDArmorySetup.textureDir + "icon_ai", false);
-                button = ApplicationLauncher.Instance.AddModApplication(ShowToolbarGUI, HideToolbarGUI, Dummy, Dummy, Dummy, Dummy, ApplicationLauncher.AppScenes.SPH | ApplicationLauncher.AppScenes.VAB | ApplicationLauncher.AppScenes.FLIGHT, buttonTexture);
+                button = ApplicationLauncher.Instance.AddModApplication(ShowAIGUI, HideAIGUI, Dummy, Dummy, Dummy, Dummy, ApplicationLauncher.AppScenes.SPH | ApplicationLauncher.AppScenes.VAB | ApplicationLauncher.AppScenes.FLIGHT, buttonTexture);
                 buttonSetup = true;
             }
         }
 
-        public void ShowToolbarGUI()
+        public void ToggleAIGUI()
+        {
+            if (windowBDAAIGUIEnabled) HideAIGUI();
+            else ShowAIGUI();
+        }
+
+        public void ShowAIGUI()
         {
             windowBDAAIGUIEnabled = true;
         }
 
-        public void HideToolbarGUI()
+        public void HideAIGUI()
         {
             windowBDAAIGUIEnabled = false;
+            BDAWindowSettingsField.Save(); // Save window settings.
         }
 
         void Dummy()
@@ -179,7 +186,7 @@ namespace BDArmory.UI
             {
                 if (BDInputUtils.GetKeyDown(BDInputSettingsFields.GUI_AI_TOGGLE))
                 {
-                    windowBDAAIGUIEnabled = !windowBDAAIGUIEnabled;
+                    ToggleAIGUI();
                 }
             }
         }
@@ -648,7 +655,7 @@ namespace BDArmory.UI
             GUIStyle buttonStyle = windowBDAAIGUIEnabled ? BDArmorySetup.BDGuiSkin.button : BDArmorySetup.BDGuiSkin.box;
             if (GUI.Button(TitleButtonRect(1), "X", buttonStyle))
             {
-                windowBDAAIGUIEnabled = !windowBDAAIGUIEnabled;
+                ToggleAIGUI();
             }
 
             //Infolink button

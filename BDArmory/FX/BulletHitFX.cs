@@ -25,12 +25,14 @@ namespace BDArmory.FX
 
         public void AttachAt(Part hitPart, RaycastHit hit, Vector3 offset)
         {
+            if (hitPart is null) return;
             parentPart = hitPart;
             transform.SetParent(hitPart.transform);
             transform.position = hit.point + offset;
             transform.rotation = Quaternion.FromToRotation(Vector3.forward, hit.normal);
             parentPart.OnJustAboutToDie += OnParentDestroy;
             parentPart.OnJustAboutToBeDestroyed += OnParentDestroy;
+            GameEvents.onVesselUnloaded.Add(OnVesselUnloaded); // Catch unloading events too.
             gameObject.SetActive(true);
         }
         public void SetColor(Color color)
@@ -48,21 +50,44 @@ namespace BDArmory.FX
             }
 
         }
-        public void OnParentDestroy()
+
+        void OnParentDestroy()
         {
-            if (parentPart)
+            if (parentPart is not null)
             {
                 parentPart.OnJustAboutToDie -= OnParentDestroy;
                 parentPart.OnJustAboutToBeDestroyed -= OnParentDestroy;
+                Deactivate();
+            }
+        }
+
+        void OnVesselUnloaded(Vessel vessel)
+        {
+            if (parentPart is not null && (parentPart.vessel is null || parentPart.vessel == vessel))
+            {
+                OnParentDestroy();
+            }
+            else if (parentPart is null)
+            {
+                Deactivate();
+            }
+        }
+
+        void Deactivate()
+        {
+            if (gameObject.activeSelf) // Deactivate even if a parent is already inactive.
+            {
                 parentPart = null;
                 transform.parent = null;
+                GameEvents.onVesselUnloaded.Remove(OnVesselUnloaded);
                 gameObject.SetActive(false);
             }
         }
 
         public void OnDestroy()
         {
-            OnParentDestroy(); // Make sure it's disabled and book-keeping is done.
+            // if (HighLogic.LoadedSceneIsFlight) Debug.LogError($"[BDArmory.BulletHitFX]: BulletHitFX on {parentPart} was destroyed!");
+            GameEvents.onVesselUnloaded.Remove(OnVesselUnloaded);
         }
     }
 

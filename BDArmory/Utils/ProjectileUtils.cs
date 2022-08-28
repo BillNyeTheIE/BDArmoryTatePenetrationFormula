@@ -61,10 +61,10 @@ namespace BDArmory.Utils
             }
 
             // Update scoring structures
-            if (firstHit)
-            {
-                ApplyScore(hitPart, sourceVessel.GetName(), distanceTraveled, damage, name, explosionSource, true);
-            }
+            //if (firstHit)
+            //{
+                ApplyScore(hitPart, sourceVessel.GetName(), distanceTraveled, damage, name, explosionSource, firstHit);
+            //}
             ResourceUtils.StealResources(hitPart, sourceVessel);
         }
         public static void ApplyScore(Part hitPart, string sourceVessel, double distanceTraveled, float damage, string name, ExplosionSourceType ExplosionSource, bool newhit = false)

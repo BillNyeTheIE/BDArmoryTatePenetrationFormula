@@ -98,6 +98,9 @@ namespace BDArmory.UI
         //editor alignment
         public static bool showWeaponAlignment;
 
+        //check for Apple Silicon
+        public static bool AppleSilicon = false;
+
         // Gui Skin
         public static GUISkin BDGuiSkin = HighLogic.Skin;
 
@@ -357,7 +360,7 @@ namespace BDArmory.UI
 
         public static bool GameIsPaused
         {
-            get { return PauseMenu.isOpen || Time.timeScale == 0; }
+            get { return HighLogic.LoadedSceneIsFlight && (PauseMenu.isOpen || Time.timeScale == 0); }
         }
 
         void Awake()
@@ -398,6 +401,9 @@ namespace BDArmory.UI
 
             // Load settings
             LoadConfig();
+
+            // Check for Apple Processor
+            AppleSilicon = CultureInfo.InvariantCulture.CompareInfo.IndexOf(SystemInfo.processorType, "Apple", CompareOptions.IgnoreCase) >= 0;
 
             // Ensure AutoSpawn folder exists.
             if (!Directory.Exists(Path.Combine(KSPUtil.ApplicationRootPath, "AutoSpawn")))
@@ -931,7 +937,6 @@ namespace BDArmory.UI
 
             // Version.
             GUI.Label(new Rect(columnWidth - _windowMargin - (numberOfButtons - 1) * _buttonSize - 100, 23, 57, 10), Version, waterMarkStyle);
-
             //SETTINGS BUTTON
             if (!BDKeyBinder.current &&
                 GUI.Button(new Rect(columnWidth - _windowMargin - ++buttonNumber * _buttonSize, _windowMargin, _buttonSize, _buttonSize), settingsIconTexture, BDGuiSkin.button))
@@ -2462,14 +2467,15 @@ namespace BDArmory.UI
                         {
                             BDArmorySettings.DEBUG_AI = false;
                             BDArmorySettings.DEBUG_ARMOR = false;
+                            BDArmorySettings.DEBUG_COMPETITION = false;
                             BDArmorySettings.DEBUG_DAMAGE = false;
-                            BDArmorySettings.DEBUG_OTHER = false;
                             BDArmorySettings.DEBUG_LINES = false;
                             BDArmorySettings.DEBUG_MISSILES = false;
+                            BDArmorySettings.DEBUG_OTHER = false;
                             BDArmorySettings.DEBUG_RADAR = false;
+                            BDArmorySettings.DEBUG_SPAWNING = false;
                             BDArmorySettings.DEBUG_TELEMETRY = false;
                             BDArmorySettings.DEBUG_WEAPONS = false;
-                            BDArmorySettings.DEBUG_SPAWNING = false;
                         }
                     }
                     if (BDArmorySettings.DEBUG_SETTINGS_TOGGLE)
@@ -2958,25 +2964,40 @@ namespace BDArmory.UI
                     GUI.Label(SLeftSliderRect(++line, 1), $"{Localizer.Format("#LOC_BDArmory_Settings_CMStealRation")}:  ({BDArmorySettings.RESOURCE_STEAL_CM_RATION})", leftLabel);//CM Steal Ration
                     BDArmorySettings.RESOURCE_STEAL_CM_RATION = Mathf.RoundToInt(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.RESOURCE_STEAL_CM_RATION, 0f, 1f) * 100f) / 100f;
                 }
-                var oldSpaceHacks = BDArmorySettings.SPACE_HACKS;
-                BDArmorySettings.SPACE_HACKS = GUI.Toggle(SLeftRect(++line), BDArmorySettings.SPACE_HACKS, Localizer.Format("#LOC_BDArmory_Settings_SpaceHacks"));
+                bool oldSpaceHacks = BDArmorySettings.SPACE_HACKS;
+                BDArmorySettings.SPACE_HACKS = GUI.Toggle(SLeftRect(++line), BDArmorySettings.SPACE_HACKS, Localizer.Format("#LOC_BDArmory_Settings_SpaceHacks"));//Space Tools
+                if (BDArmorySettings.SPACE_HACKS)
                 {
-                    if (BDArmorySettings.SPACE_HACKS)
+                    if (HighLogic.LoadedSceneIsFlight)
                     {
-                        if (!oldSpaceHacks) ModuleSpaceFriction.AddSpaceFrictionToAllValidVessels(); // Add missing modules when Space Hacks is toggled.
-                        BDArmorySettings.SF_FRICTION = GUI.Toggle(SLeftRect(++line, 1f), BDArmorySettings.SF_FRICTION, Localizer.Format("#LOC_BDArmory_Settings_SpaceFriction"));
-                        BDArmorySettings.SF_GRAVITY = GUI.Toggle(SLeftRect(++line, 1f), BDArmorySettings.SF_GRAVITY, Localizer.Format("#LOC_BDArmory_Settings_IgnoreGravity"));
-                        GUI.Label(SLeftSliderRect(++line, 1f), $"{Localizer.Format("#LOC_BDArmory_Settings_SpaceFrictionMult")}:  ({BDArmorySettings.SF_DRAGMULT})", leftLabel);//Space Friction Mult
-                        BDArmorySettings.SF_DRAGMULT = Mathf.Round(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.SF_DRAGMULT, 1f, 10));
-                        BDArmorySettings.SF_REPULSOR = GUI.Toggle(SLeftRect(++line, 1f), BDArmorySettings.SF_REPULSOR, Localizer.Format("#LOC_BDArmory_Settings_Repulsor"));
+                        if (oldSpaceHacks != BDArmorySettings.SPACE_HACKS)
+                        {
+                            SpawnUtils.SpaceFrictionOnNewVessels(BDArmorySettings.SPACE_HACKS);
+                            if (BDArmorySettings.SPACE_HACKS) // Add the hack to all in-game intakes.
+                            {
+                                foreach (var vessel in FlightGlobals.Vessels)
+                                {
+                                    if (vessel == null || !vessel.loaded) continue;
+                                    SpawnUtils.SpaceHacks(vessel);
+                                }
+                            }
+                        }
                     }
-                    else
-                    {
-                        BDArmorySettings.SF_FRICTION = false;
-                        BDArmorySettings.SF_GRAVITY = false;
-                        BDArmorySettings.SF_REPULSOR = false;
-                    }
+                    //ModuleSpaceFriction.AddSpaceFrictionToAllValidVessels(); // Add missing modules when Space Hacks is toggled.
+
+                    BDArmorySettings.SF_FRICTION = GUI.Toggle(SLeftRect(++line, 1f), BDArmorySettings.SF_FRICTION, Localizer.Format("#LOC_BDArmory_Settings_SpaceFriction"));
+                    BDArmorySettings.SF_GRAVITY = GUI.Toggle(SLeftRect(++line, 1f), BDArmorySettings.SF_GRAVITY, Localizer.Format("#LOC_BDArmory_Settings_IgnoreGravity"));
+                    GUI.Label(SLeftSliderRect(++line, 1f), $"{Localizer.Format("#LOC_BDArmory_Settings_SpaceFrictionMult")}:  ({BDArmorySettings.SF_DRAGMULT})", leftLabel);//Space Friction Mult
+                    BDArmorySettings.SF_DRAGMULT = Mathf.Round(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.SF_DRAGMULT, 1f, 10));
+                    BDArmorySettings.SF_REPULSOR = GUI.Toggle(SLeftRect(++line, 1f), BDArmorySettings.SF_REPULSOR, Localizer.Format("#LOC_BDArmory_Settings_Repulsor"));
                 }
+                else
+                {
+                    BDArmorySettings.SF_FRICTION = false;
+                    BDArmorySettings.SF_GRAVITY = false;
+                    BDArmorySettings.SF_REPULSOR = false;
+                }
+
                 // Asteroids
                 if (BDArmorySettings.ASTEROID_FIELD != (BDArmorySettings.ASTEROID_FIELD = GUI.Toggle(SLeftRect(++line), BDArmorySettings.ASTEROID_FIELD, Localizer.Format("#LOC_BDArmory_Settings_AsteroidField")))) // Asteroid Field
                 {
@@ -3335,6 +3356,8 @@ namespace BDArmory.UI
 
                 BDArmorySettings.COMPETITION_CLOSE_SETTINGS_ON_COMPETITION_START = GUI.Toggle(SLineRect(++line), BDArmorySettings.COMPETITION_CLOSE_SETTINGS_ON_COMPETITION_START, Localizer.Format("#LOC_BDArmory_Settings_CompetitionCloseSettingsOnCompetitionStart"));
 
+                BDArmorySettings.COMPETITION_START_DESPITE_FAILURES = GUI.Toggle(SLineRect(++line), BDArmorySettings.COMPETITION_START_DESPITE_FAILURES, Localizer.Format("#LOC_BDArmory_Settings_CompetitionStartDespiteFailures"));
+
                 if (BDArmorySettings.ADVANDED_USER_SETTINGS)
                 {
                     GUI.Label(SLeftSliderRect(++line), $"{Localizer.Format("#LOC_BDArmory_Settings_DebrisCleanUpDelay")}:  ({BDArmorySettings.DEBRIS_CLEANUP_DELAY}s)", leftLabel); // Debris Clean-up delay
@@ -3523,12 +3546,12 @@ namespace BDArmory.UI
                                         BDACompetitionMode.Instance.StartRapidDeployment(0);
                                         break;
                                     default:
-                                        BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE);
+                                        BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE, BDArmorySettings.COMPETITION_START_DESPITE_FAILURES);
                                         break;
                                 }
                             }
                             else
-                                BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE);
+                                BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE, BDArmorySettings.COMPETITION_START_DESPITE_FAILURES);
                             if (BDArmorySettings.COMPETITION_CLOSE_SETTINGS_ON_COMPETITION_START) CloseSettingsWindow();
                         }
                     }

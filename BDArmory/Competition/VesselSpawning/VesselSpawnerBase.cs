@@ -764,15 +764,16 @@ namespace BDArmory.Competition.VesselSpawning
             if (terrainHits.Length > 0) { minDistance = Mathf.Min(minDistance, radius + terrainHits.Min(h => h.distance)); }
             foreach (var terrainHit in terrainHits)
             {
-                if (Physics.BoxCast(terrainHit.point + 0.1f * down, new Vector3(radius, 0.1f, radius), -down, out RaycastHit hit, Quaternion.FromToRotation(Vector3.up, terrainHit.normal), terrainHit.distance + 1f, (int)(LayerMasks.Parts | LayerMasks.EVA | LayerMasks.Wheels)))
+                if (Physics.BoxCast(terrainHit.point + 2.1f * down, new Vector3(radius, 0.1f, radius), -down, out RaycastHit hit, Quaternion.FromToRotation(Vector3.up, terrainHit.normal), terrainHit.distance + 3f, (int)(LayerMasks.Parts | LayerMasks.EVA | LayerMasks.Wheels))) // Start 2m below the terrain to catch wheels protruding into the ground (the largest Squad wheel has radius 1m).
                 {
+                    hit.distance -= 2f; // Correct for the initial offset.
                     var hitPart = hit.collider.gameObject.GetComponentInParent<Part>();
                     if (BDArmorySettings.DEBUG_SPAWNING) LogMessage($"{vessel.vesselName}: Distance from {terrainHit.collider.name} to {hit.collider.name} ({hitPart.name}): {hit.distance:G3}m", false);
                     minDistance = Mathf.Min(minDistance, hit.distance);
                 }
             }
             if (BDArmorySettings.DEBUG_SPAWNING) LogMessage($"{vessel.vesselName} is {minDistance:G3}m above land, lowering.", false);
-            vessel.SetPosition(vessel.transform.position + down * (minDistance - 0.1f));
+            vessel.SetPosition(vessel.transform.position + down * (minDistance - 0.1f)); // Minor adjustment to prevent potential clipping.
         }
 
         public void AddToActiveCompetition(Vessel vessel, bool airborne)

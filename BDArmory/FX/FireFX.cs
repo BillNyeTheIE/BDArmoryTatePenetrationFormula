@@ -51,6 +51,7 @@ namespace BDArmory.FX
         // bool lookedForEngine = false;
 
         KSPParticleEmitter[] pEmitters;
+
         void OnEnable()
         {
             if (parentPart == null)
@@ -164,6 +165,23 @@ namespace BDArmory.FX
             mp = null;
             tntMassEquivalent = 0;
             fireIntensity = 1;
+        }
+
+        void OnDestroy() // This shouldn't be happening except on exiting KSP, but sometimes they get destroyed instead of disabled!
+        {
+            // if (HighLogic.LoadedSceneIsFlight) Debug.LogError($"[BDArmory.FireFX]: FireFX on {parentPart} was destroyed!");
+            // Clean up emitters.
+            if (pEmitters is not null && pEmitters.Any(pe => pe is not null))
+            {
+                BDArmorySetup.numberOfParticleEmitters--;
+                foreach (var pe in pEmitters)
+                    if (pe != null)
+                    {
+                        pe.emit = false;
+                        EffectBehaviour.RemoveParticleEmitter(pe);
+                    }
+            }
+            GameEvents.onVesselUnloaded.Remove(OnVesselUnloaded);
         }
 
         void Update()
@@ -349,7 +367,7 @@ namespace BDArmory.FX
                     BDACompetitionMode.Instance.Scores.RegisterBattleDamage(SourceVessel, parentPart.vessel, BDArmorySettings.BD_FIRE_DAMAGE * Time.deltaTime);
                 }
             }
-            if (disableTime < 0 && ((!hasFuel && burnTime < 0)|| (burnTime >= 0 && Time.time - startTime > burnTime)))
+            if (disableTime < 0 && ((!hasFuel && burnTime < 0) || (burnTime >= 0 && Time.time - startTime > burnTime)))
             {
                 disableTime = Time.time; //grab time when emission stops
                 foreach (var pe in pEmitters)
@@ -490,36 +508,50 @@ namespace BDArmory.FX
 
         public void AttachAt(Part hitPart, Vector3 hit, Vector3 offset, string sourcevessel)
         {
-            if (hitPart == null) return;
+            if (hitPart is null) return;
             parentPart = hitPart;
             transform.SetParent(hitPart.transform);
             transform.position = hit + offset;
             transform.rotation = Quaternion.FromToRotation(Vector3.up, -FlightGlobals.getGeeForceAtPosition(transform.position));
             parentPart.OnJustAboutToDie += OnParentDestroy;
             parentPart.OnJustAboutToBeDestroyed += OnParentDestroy;
+            GameEvents.onVesselUnloaded.Add(OnVesselUnloaded); // Catch unloading events too.
             SourceVessel = sourcevessel;
             gameObject.SetActive(true);
         }
 
         public void OnParentDestroy()
         {
-            if (parentPart != null)
+            if (parentPart is not null)
             {
                 parentBeingDestroyed = true;
                 parentPart.OnJustAboutToDie -= OnParentDestroy;
                 parentPart.OnJustAboutToBeDestroyed -= OnParentDestroy;
                 if (!surfaceFire) Detonate();
-                else Deactivate();
+                Deactivate();
+            }
+        }
+
+        public void OnVesselUnloaded(Vessel vessel)
+        {
+            if (parentPart is not null && (parentPart.vessel is null || parentPart.vessel == vessel))
+            {
+                OnParentDestroy();
+            }
+            else if (parentPart is null)
+            {
+                Deactivate(); // Sometimes (mostly when unloading a vessel) the parent becomes null without triggering OnParentDestroy.
             }
         }
 
         void Deactivate()
         {
-            if (gameObject.activeInHierarchy)
+            if (gameObject.activeSelf) // Deactivate even if a parent is already inactive.
             {
                 disableTime = -1;
                 parentPart = null;
                 transform.parent = null; // Detach ourselves from the parent transform so we don't get destroyed when it does.
+                GameEvents.onVesselUnloaded.Remove(OnVesselUnloaded);
                 gameObject.SetActive(false);
             }
         }

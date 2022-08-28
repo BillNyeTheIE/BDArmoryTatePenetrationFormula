@@ -271,6 +271,7 @@ namespace BDArmory.Damage
         {
             if (part == null) return;
             isEnabled = true;
+            oldmaxHitpoints = maxHitPoints;
             if (part.name.Contains("B9.Aero.Wing.Procedural"))
             {
                 isProcWing = true;
@@ -655,10 +656,33 @@ namespace BDArmory.Damage
         #endregion
 
         #region Hitpoints Functions
-
+        
+        //[KSPField(isPersistant = true)]
+        //public bool HPMode = false;
+        float oldmaxHitpoints;
+        /*
+        [KSPEvent(advancedTweakable = true, guiActive = false, guiActiveEditor = true, guiName = "Toggle HP Calc", active = true)]//Self-Sealing Tank
+        public void ToggleHPOption()
+        {
+            HPMode = !HPMode;
+            if (!HPMode)
+            {
+                Events["ToggleHPOption"].guiName = Localizer.Format("Revert to Legacy HP calc");  
+                maxHitPoints = oldmaxHitpoints;
+            }
+            else
+            {
+                Events["ToggleHPOption"].guiName = Localizer.Format("Test Refactored Calc");
+                oldmaxHitpoints = maxHitPoints;
+                maxHitPoints = -1;
+            }
+            SetupPrefab();
+            GUIUtils.RefreshAssociatedWindows(part);           
+        }
+        */
         public float CalculateTotalHitpoints()
         {
-            float hitpoints;
+            float hitpoints;// = -1;
 
             if (!part.IsMissile())
             {
@@ -666,44 +690,126 @@ namespace BDArmory.Damage
                 {
                     if (maxHitPoints <= 0)
                     {
-                        var averageSize = part.GetAverageBoundSize();
-                        var sphereRadius = averageSize * 0.5f;
-                        var sphereSurface = 4 * Mathf.PI * sphereRadius * sphereRadius;
-                        var thickness = 0.1f;// * part.GetTweakScaleMultiplier(); // Tweakscale scales mass as r^3 insted of 0.1*r^2, however it doesn't take the increased volume of the hull into account when scaling resource amounts.
-                        var structuralVolume = Mathf.Max(sphereSurface * thickness, 1e-3f); // Prevent 0 volume, just in case. structural volume is 10cm * surface area of equivalent sphere.
                         bool clampHP = false;
+                        float structuralMass = 100;
+                        float structuralVolume = 1;
+                        float density = 1;
+                        //if (!HPMode)
+                        //{
+                            var averageSize = part.GetAverageBoundSize();
+                            var sphereRadius = averageSize * 0.5f;
+                            var sphereSurface = 4 * Mathf.PI * sphereRadius * sphereRadius;
+                            var thickness = 0.1f;// * part.GetTweakScaleMultiplier(); // Tweakscale scales mass as r^3 insted of 0.1*r^2, however it doesn't take the increased volume of the hull into account when scaling resource amounts.
+                            structuralVolume = Mathf.Max(sphereSurface * thickness, 1e-3f); // Prevent 0 volume, just in case. structural volume is 10cm * surface area of equivalent sphere.
+                            //bool clampHP = false;
 
-                        var density = (partMass * 1000f) / structuralVolume;
-                        if (density > 1e5f || density < 10)
-                        {
-                            if (BDArmorySettings.DEBUG_ARMOR) Debug.Log($"[BDArmory.HitpointTracker]: {part.name} extreme density detected: {density}! Trying alternate approach based on partSize.");
-                            structuralVolume = (partSize.x * partSize.y + partSize.x * partSize.z + partSize.y * partSize.z) * 2f * sizeAdjust * Mathf.PI / 6f * 0.1f; // Box area * sphere/cube ratio * 10cm. We use sphere/cube ratio to get similar results as part.GetAverageBoundSize().
                             density = (partMass * 1000f) / structuralVolume;
                             if (density > 1e5f || density < 10)
                             {
-                                if (BDArmorySettings.DEBUG_ARMOR) Debug.Log($"[BDArmory.HitpointTracker]: {part.name} still has extreme density: {density}! Setting HP based only on mass instead.");
-                                clampHP = true;
+                                if (BDArmorySettings.DEBUG_ARMOR) Debug.Log($"[BDArmory.HitpointTracker]: {part.name} extreme density detected: {density}! Trying alternate approach based on partSize.");
+                                structuralVolume = (partSize.x * partSize.y + partSize.x * partSize.z + partSize.y * partSize.z) * 2f * sizeAdjust * Mathf.PI / 6f * 0.1f; // Box area * sphere/cube ratio * 10cm. We use sphere/cube ratio to get similar results as part.GetAverageBoundSize().
+                                density = (partMass * 1000f) / structuralVolume;
+                                if (density > 1e5f || density < 10)
+                                {
+                                    if (BDArmorySettings.DEBUG_ARMOR) Debug.Log($"[BDArmory.HitpointTracker]: {part.name} still has extreme density: {density}! Setting HP based only on mass instead.");
+                                    clampHP = true;
+                                }
+                            }
+                            density = Mathf.Clamp(density, 1000, 10000);
+                            //if (BDArmorySettings.DEBUG_LABELS)
+                            //Debug.Log("[BDArmory.HitpointTracker]: Hitpoint Calc" + part.name + " | structuralVolume : " + structuralVolume);
+                            // if (BDArmorySettings.DEBUG_LABELS) Debug.Log("[BDArmory.HitpointTracker]: Hitpoint Calc" + part.name + " | Density : " + density);
+
+                            structuralMass = density * structuralVolume; //this just means hp = mass if the density is within the limits.
+
+                            //bigger things need more hp; but things that are denser, should also have more hp, so it's a bit more complicated than have hp = volume * hp mult
+                            //hp = (volume * Hp mult) * density mod?
+                            //lets take some examples; 3 identical size parts, mk1 cockpit(930kg), mk1 stuct tube (100kg), mk1 LF tank (250kg)
+                            //if, say, a Hp mod of 300, so 2.55m3 * 300 = 765 -> 800hp
+                            //cockpit has a density of ~364, fueltank of 98, struct tube of 39
+                            //density can't be linear scalar. Cuberoot? would need to reduce hp mult.
+                            //2.55 * 100* 364^1/3 = 1785, 2.55 * 100 * 98^1/3 = 1157, 2.55 * 100 * 39^1/3 = 854
+
+                            // if (BDArmorySettings.DEBUG_LABELS) Debug.Log("[BDArmory.HitpointTracker]: " + part.name + " structural Volume: " + structuralVolume + "; density: " + density);
+                            //3. final calculations
+                            hitpoints = structuralMass * hitpointMultiplier * 0.333f;
+                        /*
+                        }
+                        else //revised HP calc, commented out for now until we get feedback on new method and decide to switch over
+                        {
+                            //var averageSize = part.GetVolume(); // this grabs x/y/z dimensions from PartExtensions.cs 
+                            var averageSize = partSize.x * partSize.y * partSize.z;
+                            structuralVolume = averageSize * sizeAdjust; //a cylinder diameter X length y is ~78.5% the volume of a rectangle of h/w x, length y. 
+                                                                         //(mk2 parts are ~66% volume of equivilent rectangle, but are reinforced hulls, so..
+                                                                         //cones are ~36-37% volume
+                                                                         //parts that aren't cylinders or close enough and need exceptions: Wings, control surfaces, radiators/solar panels
+                                                                         //var dryPartmass = part.mass - part.resourceMass;
+                            var dryPartmass = part.mass;
+                            density = (dryPartmass * 1000) / structuralVolume; 
+                            //var structuralMass = density * structuralVolume; // this means HP is solely determined my part mass, after assuming all parts have min density of 1000kg/m3
+                            //Debug.Log("[BDArmory]: Hitpoint Calc" + part.name + " | structuralVolume : " + structuralVolume);
+
+                            if (!part.IsAero() && !isProcPart && !isProcWing)
+                            {
+                                if (part.IsMotor())
+                                {
+                                    //hitpoints = ((dryPartmass * density) * 4) * hitpointMultiplier * 0.33f; // engines in KSP are very dense - leads to massive HP due to large mass, small volume. Engines also don't respond well to being shot, so...
+                                    //juno vol: 0.105, density: 2370;      Ideal HP: ~300?
+                                    //wheesley: 0.843, 1777;                        ~1000
+                                    //panther: 1.181, 1015;                         ~800 //low-bypass turbofans are going to be denser, have more of their volume susseptable to damage
+                                    //goliath: 16.38?, 274                          ~2000? //massive turbofans would be less vulnerable to lead injestion, depending on how hardened the engine is against birdstrikes/FOD; they're also something like 50% open space
+                                    //hitpoints = structuralVolume * 100 * Mathf.Pow(density, 1/3) * hitpointMultiplier * 0.33f;
+                                    //gives 150 for the juno, 1025 for the wheesley, 1200 for the panther, 10625/goliath
+                                    //(drymass + volume) * (density / 2)?
+                                    //Juno - 420; wheesley: 2100; panther: 1225; goliath: 2875
+                                    //volume * density
+                                    //...that's just HP = partmass
+                                    //that said, that could work... Juno: 250HP; wheesley: 1500HP; panther; 1200HP; goliath: 4500 HP; M3X Wyvern: 8000 HP; those numbers *do* look reasonable for engines...
+                                    //whiplash/rapier would be 1.8/2k HP, which is pushing it a bit... look into a clamp of some sort
+                                    //Rapier vol/density is ~0.92, 2171. clamp density to partmass? 2000?
+                                    //volume * mathf.clamp(density, 100, 1750) ?
+                                    hitpoints = structuralVolume * Mathf.Clamp(density, 100, 1750) * hitpointMultiplier * 0.33f;
+                                    if (hitpoints > (dryPartmass * 2000) || hitpoints < (dryPartmass * 750))
+                                    {
+                                        hitpoints = Mathf.Clamp(hitpoints, (dryPartmass * 750), (dryPartmass * 2000)); // if HP is 10x more or 10x than 1/10th drymass in kg, clamp to 10x more/less
+                                    }
+                                }
+                                else
+                                {
+                                    if (dryPartmass < 1)
+                                    {
+                                        density = Mathf.Clamp(density, 60, 150);// things like crew cabins are heavy, but most of that mass isn't going to be structural plating, so lets limit structural density
+                                                                                // important to note: a lot of the HP values in the old system came from the calculation assuming everytihng had a minimum density of 1000kg/m3
+                                                                                //hitpoints = ((dryPartmass * density) * 20) * hitpointMultiplier * 0.33f; //multiplying mass by density extrapolates volume, so parts with the same vol, but different mass appropriately affected (eg Mk1 strucural fuselage vs mk1 LF tank
+                                                                                //as well as parts of different vol, but same density - all fueltanks - similarly affected
+                                                                                //2.55 * 100* 364^1/3 = 1785, 2.55 * 100 * 98^1/3 = 1157, 2.55 * 100 * 39^1/3 = 854
+                                        hitpoints = structuralVolume * 60 * Mathf.Pow(density, 0.333f) * hitpointMultiplier * 0.33f;
+                                        if (hitpoints > (dryPartmass * 3500) || hitpoints < (dryPartmass * 350))
+                                        {
+                                            //Debug.Log($"[BDArmory]: HitpointTracker::Clamping hitpoints for part {part.name}");
+                                            hitpoints = Mathf.Clamp(hitpoints, (dryPartmass * 350), (dryPartmass * 3500)); // if HP is 10x more or 10x than 1/10th drymass in kg, clamp to 10x more/less
+                                        }
+                                    }
+                                    else
+                                    {
+                                        density = Mathf.Clamp(density, 40, 120); //lower stuctural density on very large parts to prevent HP bloat
+                                        hitpoints = structuralVolume * 40 * Mathf.Pow(density, 0.333f) * hitpointMultiplier * 0.33f;
+                                        //logarithmic scaling past a threshold (2k...?) investigate how this affects S2/3/4 tanks/Mk3 parts, etc
+                                        if (hitpoints > (dryPartmass * 2500) || hitpoints < (dryPartmass * 250))
+                                        {
+                                            //Debug.Log($"[BDArmory]: HitpointTracker::Clamping hitpoints for part {part.name}");
+                                            hitpoints = Mathf.Clamp(hitpoints, (dryPartmass * 250), (dryPartmass * 2500)); // if HP is 10x more or 10x than 1/10th drymass in kg, clamp to 10x more/less
+                                        }
+                                    }
+                                }
+                            }
+                            if (part.IsAero() && !isProcWing)
+                            {
+                                //hitpoints = dryPartmass * 7000 * hitpointMultiplier * 0.333f; //stock wing parts are 700 HP per unit of Lift, 10 lift/1000kg
+                                hitpoints = (float)part.Modules.GetModule<ModuleLiftingSurface>().deflectionLiftCoeff * 700  * hitpointMultiplier * 0.333f; //stock wings are 700 HP per lifting surface area; using lift instead of mass (110 Lift/ton) due to control surfaces weighing more
                             }
                         }
-                        density = Mathf.Clamp(density, 1000, 10000);
-                        //if (BDArmorySettings.DEBUG_LABELS)
-                        //Debug.Log("[BDArmory.HitpointTracker]: Hitpoint Calc" + part.name + " | structuralVolume : " + structuralVolume);
-                        // if (BDArmorySettings.DEBUG_LABELS) Debug.Log("[BDArmory.HitpointTracker]: Hitpoint Calc" + part.name + " | Density : " + density);
-
-                        var structuralMass = density * structuralVolume; //this just means hp = mass if the density is within the limits.
-
-                        //bigger things need more hp; but things that are denser, should also have more hp, so it's a bit more complicated than have hp = volume * hp mult
-                        //hp = (volume * Hp mult) * density mod?
-                        //lets take some examples; 3 identical size parts, mk1 cockpit(930kg), mk1 stuct tube (100kg), mk1 LF tank (250kg)
-                        //if, say, a Hp mod of 300, so 2.55m3 * 300 = 765 -> 800hp
-                        //cockpit has a density of ~364, fueltank of 98, struct tube of 39
-                        //density can't be linear scalar. Cuberoot? would need to reduce hp mult.
-                        //2.55 * 100* 364^1/3 = 1785, 2.55 * 100 * 98^1/3 = 1157, 2.55 * 100 * 39^1/3 = 854
-
-                        // if (BDArmorySettings.DEBUG_LABELS) Debug.Log("[BDArmory.HitpointTracker]: " + part.name + " structural Volume: " + structuralVolume + "; density: " + density);
-                        //3. final calculations
-                        hitpoints = structuralMass * hitpointMultiplier * 0.333f;
-
+                        */
                         if (isProcPart)
                         {
                             structuralVolume = armorVolume * Mathf.PI / 6f * 0.1f; // Box area * sphere/cube ratio * 10cm. We use sphere/cube ratio to get similar results as part.GetAverageBoundSize().
@@ -728,9 +834,8 @@ namespace BDArmory.Damage
                         }
                         //hitpoints = (structuralVolume * Mathf.Pow(density, .333f) * Mathf.Clamp(80 - (structuralVolume / 2), 80 / 4, 80)) * hitpointMultiplier * 0.333f; //volume * cuberoot of density * HP mult scaled by size
 
-                        // SuicidalInsanity B9 patch //should this come before the hp clamping?
                         if (isProcWing)
-                        {
+                        {/*
                             if (FerramAerospace.CheckForFAR())
                             {
                                 //procwing hp already modified by mass, because it is mass
@@ -743,8 +848,35 @@ namespace BDArmory.Damage
                             else
                             {
                                 hitpoints = (float)Math.Round(part.Modules.GetModule<ModuleControlSurface>() ? part.Modules.GetModule<ModuleLiftingSurface>().deflectionLiftCoeff : partMass * 10, 2) * 700 * hitpointMultiplier * 0.333f; //use mass*10 for wings (since they may have lift toggled off), use lift area for control surfaces
+								armorVolume = (float)Math.Round(hitpoints / hitpointMultiplier / 0.333 / 350, 1); //stock is 0.25 lift/m2, so...
+                                //edges contribute to HP when they shouldn't; suggestion was to use tank volume instead (which would also allow thickness to play a role in HP), try ProceduralWing.aeroStatVolume * 700 
+                            } 
+                            */
+                            hitpoints = -1;
+                            armorVolume = -1;
+                            if (ProceduralWing.CheckForB9ProcWing() && ProceduralWing.CheckForPWModule())
+                            {
+                                float aeroVolume = ProceduralWing.GetPWingVolume(part); //PWing  0.7 * length * (widthRoot + WidthTip) + (thicknessRoot + ThicknessTip) / 4; yields 1.008 for a stock dimension 2*4*.18 board, so need mult of 1400 for parity with stock wing boards
+                                if (BDArmorySettings.DEBUG_ARMOR) Debug.Log($"[BDArmory.HitpointTracker]: Found {part.name}; HP: {Hitpoints}->{hitpoints} at time {Time.time}, partMass: {partMass}, Pwing Aerovolume: {aeroVolume}");
+                                hitpoints = (float)Math.Round(part.Modules.GetModule<ModuleControlSurface>() ? part.Modules.GetModule<ModuleLiftingSurface>().deflectionLiftCoeff * 700 : (aeroVolume * 1400), 2)  * hitpointMultiplier * 0.333f; //use volume for wings (since they may have lift toggled off), use lift area for control surfaces
+
+                                if (FerramAerospace.CheckForFAR())
+                                {
+                                    if (BDArmorySettings.DEBUG_ARMOR) Debug.Log($"[BDArmory.HitpointTracker]: Found {part.name} (FAR); HP: {Hitpoints}->{hitpoints} at time {Time.time}, partMass: {partMass}, FAR massMult: {FerramAerospace.GetFARMassMult(part)}");
+                                    hitpoints *= FerramAerospace.GetFARMassMult(part); //PWing HP no longer mass dependant, so lets have FAR's structural strengthening/weakening have an effect on HP. you want light wings? they're goingto be fragile, and vice versa
+                                }
+                                armorVolume = ProceduralWing.GetPWingArea(part);
+                            }
+                            if (hitpoints < 0) //sanity checks
+                            {
+                                if (BDArmorySettings.DEBUG_ARMOR) Debug.Log($"[BDArmory.HitpointTracker]: Aerovolume not found, reverting to lift/mass HP Calc!");
+                                hitpoints = (float)Math.Round(part.Modules.GetModule<ModuleControlSurface>() ? part.Modules.GetModule<ModuleLiftingSurface>().deflectionLiftCoeff : partMass * 10, 2) * 700 * hitpointMultiplier * 0.333f; //use mass*10 for wings (since they may have lift toggled off), use lift area for control surfaces
+                            }
+                            if (armorVolume < 0)
+                            {
+                                if (BDArmorySettings.DEBUG_ARMOR) Debug.Log($"[BDArmory.HitpointTracker]: AeroArea not found, reverting to Hitpoint Armorvolume calc!");
                                 armorVolume = (float)Math.Round(hitpoints / hitpointMultiplier / 0.333 / 350, 1); //stock is 0.25 lift/m2, so...
-                            } //breaks when pWings are made stupidly large. Clamp HP to a maximum?
+                            }
                             ArmorModified(null, null);
                         }
                         if ((isProcPart || isProcWing) && BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.MAX_PWING_HP >= 100) hitpoints = Mathf.Clamp(hitpoints, 100, BDArmorySettings.MAX_PWING_HP);
@@ -886,7 +1018,8 @@ namespace BDArmory.Damage
             float reduceMass = (massToReduce * (Density / 1000000000)); //g/cm3 conversion to yield tons
             if (armorMass > 0)
             {
-                Armor -= ((reduceMass * 2) / armorMass) * Armor; //armor that's 50% air isn't going to stop anything and could be considered 'destroyed' so lets reflect that by doubling armor loss (this will also nerf armor panels from 'god-tier' to merely 'very very good'
+                //Armor -= ((reduceMass * 2) / armorMass) * Armor; //armor that's 50% air isn't going to stop anything and could be considered 'destroyed' so lets reflect that by doubling armor loss (this will also nerf armor panels from 'god-tier' to merely 'very very good'
+                Armor -= ((reduceMass * 1.5f) / armorMass) * Armor;
                 if (Armor < 0)
                 {
                     Armor = 0;

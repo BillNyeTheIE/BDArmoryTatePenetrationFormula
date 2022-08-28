@@ -36,7 +36,7 @@ namespace BDArmory.Settings
         [BDAPersistentSettingsField] public static float GUI_OPACITY = 1f;                   // Modify the GUI opacity.
 
         // General toggle settings
-        //[BDAPersistentSettingsField] public static bool INSTAKILL = true; //Depreciated, only affects lasers; use an Instagib mutator isntead
+        //[BDAPersistentSettingsField] public static bool INSTAKILL = true; //Deprecated, only affects lasers; use an Instagib mutator isntead
         [BDAPersistentSettingsField] public static bool AI_TOOLBAR_BUTTON = true;                 // Show or hide the BDA AI toolbar button.
         [BDAPersistentSettingsField] public static bool INFINITE_AMMO = false;
         [BDAPersistentSettingsField] public static bool BULLET_HITS = true;
@@ -107,6 +107,7 @@ namespace BDArmory.Settings
         [BDAPersistentSettingsField] public static float COMPETITION_NONCOMPETITOR_REMOVAL_DELAY = 30; // Competition non-competitor removal delay in seconds.
         [BDAPersistentSettingsField] public static float COMPETITION_DISTANCE = 1000;                  // Competition distance.
         [BDAPersistentSettingsField] public static int COMPETITION_START_NOW_AFTER = 11;               // Competition auto-start now.
+        [BDAPersistentSettingsField] public static bool COMPETITION_START_DESPITE_FAILURES = false;    // Start competition despite failures.
         [BDAPersistentSettingsField] public static float DEBRIS_CLEANUP_DELAY = 15f;                   // Clean up debris after 30s.
         [BDAPersistentSettingsField] public static int MAX_NUM_BULLET_DECALS = 200;
         [BDAPersistentSettingsField] public static int TERRAIN_ALERT_FREQUENCY = 1;                    // Controls how often terrain avoidance checks are made (gets scaled by 1+(radarAltitude/500)^2)
@@ -342,5 +343,6 @@ namespace BDArmory.Settings
         // Countermeasure constants
         [BDAPersistentSettingsField] public static float FLARE_FACTOR = 1.6f;                       // Change this to make flares more or less effective, values close to or below 1.0 will cause flares to fail to decoy often
         [BDAPersistentSettingsField] public static float CHAFF_FACTOR = 0.65f;                       // Change this to make chaff more or less effective. Higher values will make chaff batter, lower values will make chaff worse.
+        [BDAPersistentSettingsField] public static int APS_THRESHOLD = 60;                           // Threshold caliber that APS will register for intercepting hostile shells/rockets
     }
 }
