@@ -396,8 +396,8 @@ namespace BDArmory.Damage
                 if (part.IsMissile() || part.IsWeapon() || ArmorPanel || isAI || BDArmorySettings.LEGACY_ARMOR || BDArmorySettings.RESET_HULL || ProjectileUtils.isMaterialBlackListpart(this.part))
                 {
                     HullTypeNum = HullInfo.materials.FindIndex(t => t.name == "Aluminium") + 1;
-                    HTrangeEditor.minValue = 2;
-                    HTrangeEditor.maxValue = 2;
+                    HTrangeEditor.minValue = HullTypeNum;
+                    HTrangeEditor.maxValue = HullTypeNum;
                     Fields["HullTypeNum"].guiActiveEditor = false;
                     Fields["HullTypeNum"].guiActive = false;
                     Fields["guiHullTypeString"].guiActiveEditor = false;
@@ -1449,13 +1449,19 @@ namespace BDArmory.Damage
                 _hullConfigured = true;
                 return;
             }
-            if (isAI || ArmorPanel || BDArmorySettings.RESET_HULL || BDArmorySettings.LEGACY_ARMOR) HullTypeNum = HullInfo.materials.FindIndex(t => t.name == "Aluminium");
-
-            if (OldHullType != HullTypeNum)
+            if (isAI || ArmorPanel || ProjectileUtils.isMaterialBlackListpart(this.part))
             {
-                if ((HullTypeNum - 1) > HullInfo.materialNames.Count) //in case of trying to load a craft using a mod hull type that isn't installed and having a hullTypeNum larger than the index size
+                _hullConfigured = true;
+                return;
+                //HullTypeNum = HullInfo.materials.FindIndex(t => t.name == "Aluminium");
+            }
+
+            if (OldHullType != HullTypeNum || (BDArmorySettings.RESET_HULL || BDArmorySettings.LEGACY_ARMOR))
+
+            {
+                if ((HullTypeNum - 1) > HullInfo.materialNames.Count || (BDArmorySettings.RESET_HULL || BDArmorySettings.LEGACY_ARMOR)) //in case of trying to load a craft using a mod hull type that isn't installed and having a hullTypeNum larger than the index size
                 {
-                    if (HullInfo.materialNames.Contains("Aluminium")) Debug.LogError("[BDArmory.HitpointTracker] BD_Materials.cfg missing! Please fix your BDA insteall");
+                    if (!HullInfo.materialNames.Contains("Aluminium")) Debug.LogError("[BDArmory.HitpointTracker] BD_Materials.cfg missing! Please fix your BDA insteall");
                     HullTypeNum = HullInfo.materials.FindIndex(t => t.name == "Aluminium") + 1;
                 }
 
@@ -1477,8 +1483,8 @@ namespace BDArmory.Damage
             }
             else
             {
-                part.maxTemp = part.partInfo.partPrefab.maxTemp;
-                part.skinMaxTemp = part.partInfo.partPrefab.skinMaxTemp;
+                part.maxTemp = part.partInfo.partPrefab.maxTemp > 0 ? part.partInfo.partPrefab.maxTemp : 2500; //kerbal flags apparently starting with -1 maxtemp
+                part.skinMaxTemp = part.partInfo.partPrefab.skinMaxTemp > 0 ? part.partInfo.partPrefab.skinMaxTemp : 2500;
             }
             ignitionTemp = hullInfo.ignitionTemp;
             part.crashTolerance = part.partInfo.partPrefab.crashTolerance * hullInfo.ImpactMod;

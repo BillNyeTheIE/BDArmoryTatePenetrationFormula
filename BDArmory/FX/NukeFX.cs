@@ -386,7 +386,7 @@ namespace BDArmory.FX
             if (building && building.IsIntact)
             {
                 var distToEpicenter = Mathf.Max((transform.position - building.transform.position).magnitude, 1f);
-                var blastImpulse = Mathf.Pow(3.01f * 1100f / distToEpicenter, 1.25f) * 6.894f * lastValidAtmDensity * yieldCubeRoot;
+                var blastImpulse = Mathf.Pow(3.01f * 1100f / distToEpicenter, 1.25f) * 6.894f * lastValidAtmDensity > 0.05f ? lastValidAtmDensity: 0.05f * yieldCubeRoot;
                 //Debug.Log("[BDArmory.NukeFX]: Building hit; distToG0: " + distToEpicenter + ", yield: " + yield + ", building: " + building.name);
 
                 if (!double.IsNaN(blastImpulse)) //140kPa, level at which reinforced concrete structures are destroyed
@@ -420,7 +420,7 @@ namespace BDArmory.FX
                     {
                         Debug.Log($"[BDArmory.NukeFX]: radiative area of part {part} was NaN, using approximate area {radiativeArea} instead.");
                     }
-                    double blastImpulse = Mathf.Pow(3.01f * 1100f / realDistance, 1.25f) * 6.894f * lastValidAtmDensity * yieldCubeRoot; // * (radiativeArea / 3f); pascals/m isn't going to increase if a larger surface area, it's still going go be same force
+                    double blastImpulse = Mathf.Pow(3.01f * 1100f / realDistance, 1.25f) * 6.894f * lastValidAtmDensity > 0.1f ? lastValidAtmDensity : 0.1f * yieldCubeRoot; // * (radiativeArea / 3f); pascals/m isn't going to increase if a larger surface area, it's still going go be same force
                     if (blastImpulse > 0)
                     {
                         float damage = 0;
@@ -504,7 +504,7 @@ namespace BDArmory.FX
                         Debug.Log("[BDArmory.NukeFX]: Part " + part.name + " at distance " + realDistance + "m took no damage");
                     }
                     //part.skinTemperature += fluence * 3370000000 / (4 * Math.PI * (realDistance * realDistance)) * radiativeArea / 2; // Fluence scales linearly w/ yield, 1 Kt will produce between 33 TJ and 337 kJ at 0-1000m,
-                    part.skinTemperature += (fluence * (337000000 * BDArmorySettings.EXP_DMG_MOD_MISSILE) / (4 * Math.PI * (realDistance * realDistance))) * lastValidAtmDensity; // everything gets heated via atmosphere
+                    part.skinTemperature += (fluence * (337000000 * BDArmorySettings.EXP_DMG_MOD_MISSILE) / (4 * Math.PI * (realDistance * realDistance))) * (lastValidAtmDensity > 0.25f ? lastValidAtmDensity : 0.25f); // everything gets heated via atmosphere
                     if (isEMP)
                     {
                         if (part == part.vessel.rootPart) //don't apply EMP buildup per part

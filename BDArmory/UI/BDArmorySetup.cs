@@ -1483,10 +1483,11 @@ namespace BDArmory.UI
                                 ActiveWeaponManager.targetEngine = false;
                                 ActiveWeaponManager.targetWeapon = false;
                                 ActiveWeaponManager.targetMass = false;
+                                ActiveWeaponManager.targetRandom = false;
                             }
-                            if (!ActiveWeaponManager.targetCoM && (!ActiveWeaponManager.targetWeapon && !ActiveWeaponManager.targetEngine && !ActiveWeaponManager.targetCommand && !ActiveWeaponManager.targetMass))
+                            if (!ActiveWeaponManager.targetCoM && (!ActiveWeaponManager.targetWeapon && !ActiveWeaponManager.targetEngine && !ActiveWeaponManager.targetCommand && !ActiveWeaponManager.targetMass && !ActiveWeaponManager.targetRandom))
                             {
-                                ActiveWeaponManager.targetMass = true;
+                                ActiveWeaponManager.targetRandom = true;
                             }
                         }
                         TargetLines += 1.1f;
@@ -1500,7 +1501,7 @@ namespace BDArmory.UI
                             {
                                 ActiveWeaponManager.targetCoM = false;
                             }
-                            if (!ActiveWeaponManager.targetCoM && (!ActiveWeaponManager.targetWeapon && !ActiveWeaponManager.targetEngine && !ActiveWeaponManager.targetCommand && !ActiveWeaponManager.targetMass))
+                            if (!ActiveWeaponManager.targetCoM && (!ActiveWeaponManager.targetWeapon && !ActiveWeaponManager.targetEngine && !ActiveWeaponManager.targetCommand && !ActiveWeaponManager.targetMass && !ActiveWeaponManager.targetRandom))
                             {
                                 ActiveWeaponManager.targetCoM = true;
                             }
@@ -1515,7 +1516,7 @@ namespace BDArmory.UI
                             {
                                 ActiveWeaponManager.targetCoM = false;
                             }
-                            if (!ActiveWeaponManager.targetCoM && (!ActiveWeaponManager.targetWeapon && !ActiveWeaponManager.targetEngine && !ActiveWeaponManager.targetCommand && !ActiveWeaponManager.targetMass))
+                            if (!ActiveWeaponManager.targetCoM && (!ActiveWeaponManager.targetWeapon && !ActiveWeaponManager.targetEngine && !ActiveWeaponManager.targetCommand && !ActiveWeaponManager.targetMass && !ActiveWeaponManager.targetRandom))
                             {
                                 ActiveWeaponManager.targetCoM = true;
                             }
@@ -1531,7 +1532,7 @@ namespace BDArmory.UI
                             {
                                 ActiveWeaponManager.targetCoM = false;
                             }
-                            if (!ActiveWeaponManager.targetCoM && (!ActiveWeaponManager.targetWeapon && !ActiveWeaponManager.targetEngine && !ActiveWeaponManager.targetCommand && !ActiveWeaponManager.targetMass))
+                            if (!ActiveWeaponManager.targetCoM && (!ActiveWeaponManager.targetWeapon && !ActiveWeaponManager.targetEngine && !ActiveWeaponManager.targetCommand && !ActiveWeaponManager.targetMass && !ActiveWeaponManager.targetRandom))
                             {
                                 ActiveWeaponManager.targetCoM = true;
                             }
@@ -1546,18 +1547,34 @@ namespace BDArmory.UI
                             {
                                 ActiveWeaponManager.targetCoM = false;
                             }
-                            if (!ActiveWeaponManager.targetCoM && (!ActiveWeaponManager.targetWeapon && !ActiveWeaponManager.targetEngine && !ActiveWeaponManager.targetCommand && !ActiveWeaponManager.targetMass))
+                            if (!ActiveWeaponManager.targetCoM && (!ActiveWeaponManager.targetWeapon && !ActiveWeaponManager.targetEngine && !ActiveWeaponManager.targetCommand && !ActiveWeaponManager.targetMass && !ActiveWeaponManager.targetRandom))
                             {
                                 ActiveWeaponManager.targetCoM = true;
                             }
                         }
                         TargetLines += 1.1f;
-
+                        string Randomlabel = StringUtils.Localize("#LOC_BDArmory_Random", (ActiveWeaponManager.targetRandom ? StringUtils.Localize("#LOC_BDArmory_false") : StringUtils.Localize("#LOC_BDArmory_true")));//"Engage Surface; True, False
+                        if (GUI.Button(new Rect(leftIndent, (TargetLines * entryHeight), ((contentWidth - (2 * leftIndent)) / 2), entryHeight),
+                            Randomlabel, ActiveWeaponManager.targetRandom ? BDGuiSkin.box : BDGuiSkin.button))
+                        {
+                            ActiveWeaponManager.targetRandom = !ActiveWeaponManager.targetRandom;
+                            ActiveWeaponManager.StartGuardTurretFiring();
+                            if (ActiveWeaponManager.targetRandom)
+                            {
+                                ActiveWeaponManager.targetCoM = false;
+                            }
+                            if (!ActiveWeaponManager.targetCoM && (!ActiveWeaponManager.targetWeapon && !ActiveWeaponManager.targetEngine && !ActiveWeaponManager.targetCommand && !ActiveWeaponManager.targetMass && !ActiveWeaponManager.targetRandom))
+                            {
+                                ActiveWeaponManager.targetCoM = true;
+                            }
+                        }
+                        TargetLines += 1.1f;
                         ActiveWeaponManager.targetingString = (ActiveWeaponManager.targetCoM ? StringUtils.Localize("#LOC_BDArmory_TargetCOM") + "; " : "")
                             + (ActiveWeaponManager.targetMass ? StringUtils.Localize("#LOC_BDArmory_Mass") + "; " : "")
                             + (ActiveWeaponManager.targetCommand ? StringUtils.Localize("#LOC_BDArmory_Command") + "; " : "")
                             + (ActiveWeaponManager.targetEngine ? StringUtils.Localize("#LOC_BDArmory_Engines") + "; " : "")
-                            + (ActiveWeaponManager.targetWeapon ? StringUtils.Localize("#LOC_BDArmory_Weapons") + "; " : "");
+                            + (ActiveWeaponManager.targetWeapon ? StringUtils.Localize("#LOC_BDArmory_Weapons") + "; " : "")
+                            + (ActiveWeaponManager.targetWeapon ? StringUtils.Localize("#LOC_BDArmory_Random") + "; " : "");
                         GUI.EndGroup();
                         TargetLines += 0.1f;
                     }

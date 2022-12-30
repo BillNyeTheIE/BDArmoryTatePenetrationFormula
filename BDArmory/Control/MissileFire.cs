@@ -549,6 +549,9 @@ namespace BDArmory.Control
         [KSPField(isPersistant = true)]
         public bool targetMass = false;
 
+        [KSPField(isPersistant = true)]
+        public bool targetRandom = false;
+
         [KSPField(guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_targetSetting")]//Target Setting
         public string targetingString = StringUtils.Localize("#LOC_BDArmory_TargetCOM");
         [KSPEvent(guiActive = true, guiActiveEditor = true, active = true, guiName = "#LOC_BDArmory_Selecttargeting")]//Select Targeting Option
@@ -1191,7 +1194,8 @@ namespace BDArmory.Control
                 + (targetMass ? StringUtils.Localize("#LOC_BDArmory_Mass") + "; " : "")
                 + (targetCommand ? StringUtils.Localize("#LOC_BDArmory_Command") + "; " : "")
                 + (targetEngine ? StringUtils.Localize("#LOC_BDArmory_Engines") + "; " : "")
-                + (targetWeapon ? StringUtils.Localize("#LOC_BDArmory_Weapons") + "; " : "");
+                + (targetWeapon ? StringUtils.Localize("#LOC_BDArmory_Weapons") + "; " : "")
+                + (targetRandom ? StringUtils.Localize("#LOC_BDArmory_Random") + "; " : "");
         }
 
         void OnPartDie()
@@ -5716,7 +5720,7 @@ namespace BDArmory.Control
                     heatTarget.predictedPosition - CurrentMissile.MissileReferenceTransform.position
                     : CurrentMissile.GetForwardTransform();
 
-                heatTarget = BDATargetManager.GetHeatTarget(vessel, vessel, new Ray(CurrentMissile.MissileReferenceTransform.position + (50 * CurrentMissile.GetForwardTransform()), direction), TargetSignatureData.noTarget, scanRadius, CurrentMissile.heatThreshold, CurrentMissile.uncagedLock, CurrentMissile.lockedSensorFOVBias, CurrentMissile.lockedSensorVelocityBias, this, currentTarget);
+                heatTarget = BDATargetManager.GetHeatTarget(vessel, vessel, new Ray(CurrentMissile.MissileReferenceTransform.position + (50 * CurrentMissile.GetForwardTransform()), direction), TargetSignatureData.noTarget, scanRadius, CurrentMissile.heatThreshold, CurrentMissile.frontAspectHeatModifier, CurrentMissile.uncagedLock, CurrentMissile.lockedSensorFOVBias, CurrentMissile.lockedSensorVelocityBias, this, guardMode ? currentTarget : null);
             }
         }
 
@@ -6240,6 +6244,7 @@ namespace BDArmory.Control
                         weapon.Current.targetEngines = false;
                         weapon.Current.targetWeapons = false;
                         weapon.Current.targetMass = false;
+                        weapon.Current.targetRandom = false;
                     }
                     else
                     {
@@ -6247,6 +6252,7 @@ namespace BDArmory.Control
                         weapon.Current.targetEngines = targetEngine;
                         weapon.Current.targetWeapons = targetWeapon;
                         weapon.Current.targetMass = targetMass;
+                        weapon.Current.targetRandom = targetRandom;
                     }
 
                     weapon.Current.autoFireTimer = Time.time;

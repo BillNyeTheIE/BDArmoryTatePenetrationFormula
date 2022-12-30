@@ -148,6 +148,11 @@ namespace BDArmory.Radar
             //1. baseSig = GetVesselRadarCrossSection
             TargetInfo ti = GetVesselRadarCrossSection(v);
 
+            //2. modifiedSig = GetVesselModifiedSignature(baseSig)    //ECM-jammers with rcs reduction effect; other rcs reductions (stealth)
+            ti.radarRCSReducedSignature = ti.radarBaseSignature; //These are needed for Radar functions to work!
+            ti.radarModifiedSignature = ti.radarBaseSignature;
+            //ti.radarLockbreakFactor = 1;
+
             return ti;
         }
 
@@ -1252,7 +1257,7 @@ namespace BDArmory.Radar
                         {
                             tInfo = loadedvessels.Current.gameObject.AddComponent<TargetInfo>();
                         }
-                        float signature = BDATargetManager.GetVesselHeatSignature(loadedvessels.Current, irst.referenceTransform.position, irst.TempSensitivityCurve) * (irst.boresightScan ? Mathf.Clamp01(15 / angle) : 1);
+                        float signature = BDATargetManager.GetVesselHeatSignature(loadedvessels.Current, irst.referenceTransform.position, 1f, irst.TempSensitivityCurve) * (irst.boresightScan ? Mathf.Clamp01(15 / angle) : 1);
                         //signature *= (1400 * 1400) / Mathf.Clamp((loadedvessels.Current.CoM - referenceTransform.position).sqrMagnitude, 90000, 36000000); //300 to 6000m - clamping sig past 6km; Commenting out as it makes tuning detection curves much easier
 
                         signature *= Mathf.Clamp(Vector3.Angle(loadedvessels.Current.transform.position - referenceTransform.position, -VectorUtils.GetUpDirection(referenceTransform.position)) / 90, 0.5f, 1.5f);

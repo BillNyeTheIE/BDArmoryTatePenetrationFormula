@@ -176,12 +176,12 @@ namespace BDArmory.Weapons
         public bool targetEngines = false;
         public bool targetWeapons = false;
         public bool targetMass = false;
+        public bool targetRandom = false;
 
         RaycastHit[] laserHits = new RaycastHit[100];
         Collider[] heatRayColliders = new Collider[100];
         const int layerMask1 = (int)(LayerMasks.Parts | LayerMasks.Scenery | LayerMasks.EVA | LayerMasks.Unknown19 | LayerMasks.Unknown23 | LayerMasks.Wheels); // Why 19 and 23?
         const int layerMask2 = (int)(LayerMasks.Parts | LayerMasks.Scenery | LayerMasks.Unknown19 | LayerMasks.Wheels); // Why 19 and why not the other layer mask?
-
         enum TargetAcquisitionType { None, Visual, Slaved, Radar, AutoProxy, GPS };
         TargetAcquisitionType targetAcquisitionType = TargetAcquisitionType.None;
         TargetAcquisitionType lastTargetAcquisitionType = TargetAcquisitionType.None;
@@ -2308,23 +2308,25 @@ namespace BDArmory.Weapons
                         rayDirection = VectorUtils.GaussianDirectionDeviation(tf.forward, maxDeviation / 2);
                         targetDirectionLR = rayDirection.normalized;
                     }
-                    else if (((((visualTargetVessel != null && visualTargetVessel.loaded) || slaved) || (isAPS && (tgtShell != null || tgtRocket != null))) && (turret && (turret.yawRange > 0 && turret.maxPitch > 0))) // causes laser to snap to target CoM if close enough. changed to only apply to turrets
+                    /*else if (((((visualTargetVessel != null && visualTargetVessel.loaded) || slaved) || (isAPS && (tgtShell != null || tgtRocket != null))) && (turret && (turret.yawRange > 0 && turret.maxPitch > 0))) // causes laser to snap to target CoM if close enough. changed to only apply to turrets
                         && Vector3.Angle(rayDirection, targetDirection) < (isAPS ? 1f : 0.25f)) //if turret and within .25 deg (or 1 deg if APS), snap to target
                     {
                         //targetDirection = targetPosition + (relativeVelocity * Time.fixedDeltaTime) * 2 - tf.position;
-                        targetDirection = targetPosition - tf.position;
+                        targetDirection = targetPosition - tf.position; //something in here is throwing off the laser aim, causing the beam to be fired wildly off-target. Disabling it for now. FIXME - debug this later
                         rayDirection = targetDirection;
                         targetDirectionLR = targetDirection.normalized;
-                    }
+                    }*/
                     Ray ray = new Ray(tf.position, rayDirection);
                     lr.useWorldSpace = false;
                     lr.SetPosition(0, Vector3.zero);
+
                     var hitCount = Physics.RaycastNonAlloc(ray, laserHits, maxTargetingRange, layerMask1);
                     if (hitCount == laserHits.Length) // If there's a whole bunch of stuff in the way (unlikely), then we need to increase the size of our hits buffer.
                     {
-                        laserHits = Physics.RaycastAll(ray, maxTargetingRange, layerMask1);
+                        laserHits = Physics.RaycastAll(ray, maxTargetingRange, layerMask1); 
                         hitCount = laserHits.Length;
                     }
+                    //Debug.Log($"[LASER DEBUG] hitCount: {hitCount}");
                     if (hitCount > 0)
                     {
                         var orderedHits = laserHits.Take(hitCount).OrderBy(x => x.distance);
@@ -4513,6 +4515,17 @@ namespace BDArmory.Weapons
                                     }
                                 }
                             }
+                            if (targetRandom)
+                            {
+                                for (int i = 0; i < Mathf.Min(currentTarget.Vessel.Parts.Count, weaponManager.multiTargetNum); i++)
+                                {
+                                    int r = (int)UnityEngine.Random.Range(0, Mathf.Min(currentTarget.Vessel.Parts.Count, weaponManager.multiTargetNum));
+                                    if (!targetparts.Contains(currentTarget.Vessel.Parts[r]))
+                                    {
+                                        targetparts.Add(currentTarget.Vessel.Parts[r]);
+                                    }
+                                }
+                            }
                             if (!targetCOM && !targetCockpits && !targetEngines && !targetWeapons && !targetMass)
                             {
                                 for (int i = 0; i < currentTarget.targetMassList.Count; i++)
@@ -4544,7 +4557,7 @@ namespace BDArmory.Weapons
                             {
                                 visualTargetPart = targetparts[targetID];
                                 targetPosition = visualTargetPart.transform.position;
-                                targetRadius = 5; //allow for more focused targeting of weighted subsystems
+                                targetRadius = 3; //allow for more focused targeting of weighted subsystems
                             }
                         }
                     }

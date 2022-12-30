@@ -580,7 +580,7 @@ namespace BDArmory.Radar
 
         private void Update()
         {
-            if (radarCount > 0)
+            if (radarCount + irstCount > 0)
             {
                 UpdateInputs();
             }
@@ -2366,24 +2366,34 @@ namespace BDArmory.Radar
                 ShowSelector();
                 SlewSelector(Vector2.up);
             }
-
-            if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_LOCK))
+            if (radarCount > 0)
             {
-                if (showSelector)
+                if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_LOCK))
                 {
-                    TryLockViaSelector();
+                    if (showSelector)
+                    {
+                        TryLockViaSelector();
+                    }
+                    ShowSelector();
                 }
-                ShowSelector();
-            }
 
-            if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_CYCLE_LOCK))
-            {
-                if (locked)
+                if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_CYCLE_LOCK))
                 {
-                    CycleActiveLock();
+                    if (locked)
+                    {
+                        CycleActiveLock();
+                    }
+                }
+
+                if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_TARGET_NEXT))
+                {
+                    TargetNext();
+                }
+                else if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_TARGET_PREV))
+                {
+                    TargetPrev();
                 }
             }
-
             if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_SCAN_MODE))
             {
                 if (!locked && radarCount + irstCount > 0 && !omniDisplay)
@@ -2392,7 +2402,14 @@ namespace BDArmory.Radar
                     availableIRSTs[0].boresightScan = !availableIRSTs[0].boresightScan;
                 }
             }
-
+            if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_RANGE_UP))
+            {
+                IncreaseRange();
+            }
+            else if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_RANGE_DN))
+            {
+                DecreaseRange();
+            }
             if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_TURRETS))
             {
                 if (slaveTurrets)
@@ -2403,24 +2420,6 @@ namespace BDArmory.Radar
                 {
                     SlaveTurrets();
                 }
-            }
-
-            if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_RANGE_UP))
-            {
-                IncreaseRange();
-            }
-            else if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_RANGE_DN))
-            {
-                DecreaseRange();
-            }
-
-            if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_TARGET_NEXT))
-            {
-                TargetNext();
-            }
-            else if (BDInputUtils.GetKeyDown(BDInputSettingsFields.RADAR_TARGET_PREV))
-            {
-                TargetPrev();
             }
         }
 

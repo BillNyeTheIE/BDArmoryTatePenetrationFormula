@@ -199,7 +199,7 @@ namespace BDArmory.UI
                 FillRadarList();
                 GUIStyle listStyle = new GUIStyle(BDArmorySetup.BDGuiSkin.button);
                 listStyle.fixedHeight = 18; //make list contents slightly smaller
-                radarBox = new BDGUIComboBox(new Rect(10, 350, 600, 20), new Rect(10, 350, 250, 20), radarBoxText, radarsGUI, 124, listStyle);
+                radarBox = new BDGUIComboBox(new Rect(10, 350, 450, 20), new Rect(10, 350, 450, 20), radarBoxText, radarsGUI, 124, listStyle);
             }
 
             int selected_index = radarBox.Show();
@@ -316,7 +316,7 @@ namespace BDArmory.UI
                 FillRadarList();
                 GUIStyle listStyle = new GUIStyle(BDArmorySetup.BDGuiSkin.button);
                 listStyle.fixedHeight = 18; //make list contents slightly smaller
-                radarBox = new BDGUIComboBox(new Rect(10, 350, 600, 20), new Rect(10, 350, 250, 20), radarBoxText, radarsGUI, 124, listStyle);
+                radarBox = new BDGUIComboBox(new Rect(10, 350, 450, 20), new Rect(10, 350, 450, 20), radarBoxText, radarsGUI, 124, listStyle);
             }
 
             int selected_index = radarBox.Show();

@@ -1,4 +1,28 @@
-﻿v1.5.6.0
+﻿v1.5.6.2
+IMPROVEMENTS / FIXES
+- General:
+	- Fix kerbal flags exploding from overheat when placed.
+	- Add some missing parts to HPFixes patch.
+- UI:
+	- Fix IRSTs not responding to Radar Display hotkeys.
+	- Fix Radar Analysis Window Radar select UX.
+- AI/WM:
+	- Add 'Random Part' subsystem targeting option.
+- Weapons:
+	- Nukes now work in space again.
+	- Fix IR missiles not locking on when manually firing.
+	- Fix Lasers not hitting missiles.
+	- Tweaks Oerlikon Millennium turret to improve missile interception ability, reduce lag.
+	- Add frontAspectHeatModifier variable to missile definitions, explained further in sidewinder.cfg. Allows you to create IR missiles that behave more like early IR rear-aspect/tail-chase missiles.
+	- Remove the clamp on heat signature drop-off with range above 6 km. Prior to this change, any heat signatures more than 6 km away were capped at their 6 km value.
+- RWP
+	- Add option for setting NPCs to a single team to Settings.cfg - REMOTE_ORC_NPCS_TEAM = [Teamname]. Leave blank for FFA NPCs.
+
+v1.5.6.1
+IMPROVEMENTS / FIXES
+- Fix issue causing radars to return a cross-section of 0.0 for all craft.
+
+v1.5.6.0
 IMPROVEMENTS / FIXES
 - General:
 	- Russian localisation thanks to user Akteon_.
