@@ -1684,7 +1684,7 @@ namespace BDArmory.Weapons.Missiles
                 {
                     case TargetingModes.Heat:
                         // gets ground heat targets and after locking one, disallows the lock to break to another target
-                        heatTarget = BDATargetManager.GetHeatTarget(SourceVessel, vessel, new Ray(transform.position + (50 * GetForwardTransform()), GetForwardTransform()), heatTarget, lockedSensorFOV / 2, heatThreshold, frontAspectHeatModifier, uncagedLock, lockedSensorFOVBias, lockedSensorVelocityBias, SourceVessel ? VesselModuleRegistry.GetModule<MissileFire>(SourceVessel) : null, targetVessel);
+                        heatTarget = BDATargetManager.GetHeatTarget(SourceVessel, vessel, new Ray(transform.position + (50 * GetForwardTransform()), GetForwardTransform()), heatTarget, lockedSensorFOV / 2, heatThreshold, frontAspectHeatModifier, heatSigWeight, flareEffectivity, uncagedLock, lockedSensorFOVBias, lockedSensorVelocityBias, SourceVessel ? VesselModuleRegistry.GetModule<MissileFire>(SourceVessel) : null, targetVessel);
                         if (heatTarget.exists)
                         {
                             if (BDArmorySettings.DEBUG_MISSILES)
@@ -2340,6 +2340,11 @@ namespace BDArmory.Weapons.Missiles
                 if (Vector3.Angle(aamTarget - transform.position, transform.forward) > maxOffBoresight * 0.75f)
                 {
                     aamTarget = TargetPosition;
+                }
+
+                if (BDArmorySettings.DEBUG_LINES)
+                {
+                    DrawDebugLine(transform.position + (part.rb.velocity * Time.fixedDeltaTime), aamTarget, Color.blue);
                 }
 
                 //proxy detonation

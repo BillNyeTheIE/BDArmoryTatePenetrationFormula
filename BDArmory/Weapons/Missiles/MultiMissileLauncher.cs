@@ -286,6 +286,8 @@ namespace BDArmory.Weapons.Missiles
             missileLauncher.lockedSensorFOVBias = MLConfig.lockedSensorFOVBias;
             missileLauncher.lockedSensorVelocityBias = MLConfig.lockedSensorVelocityBias;
             missileLauncher.heatThreshold = MLConfig.heatThreshold;
+            missileLauncher.heatSigWeight = MLConfig.heatSigWeight;
+            missileLauncher.flareEffectivity = MLConfig.flareEffectivity;
             missileLauncher.chaffEffectivity = MLConfig.chaffEffectivity;
             missileLauncher.allAspect = MLConfig.allAspect;
             missileLauncher.uncagedLock = MLConfig.uncagedLock;
@@ -560,7 +562,7 @@ namespace BDArmory.Weapons.Missiles
                                     if (ml.TargetingMode == MissileBase.TargetingModes.Heat) //need to input a heattarget, else this will just return MissileFire.CurrentTarget
                                     {
                                         Vector3 direction = (wpm.targetsAssigned[TargetID].position * wpm.targetsAssigned[TargetID].velocity.magnitude) - missileLauncher.MissileReferenceTransform.position;
-                                        ml.heatTarget = BDATargetManager.GetHeatTarget(ml.SourceVessel, vessel, new Ray(missileLauncher.MissileReferenceTransform.position + (50 * missileLauncher.GetForwardTransform()), direction), TargetSignatureData.noTarget, ml.lockedSensorFOV * 0.5f, ml.heatThreshold, ml.frontAspectHeatModifier, true, ml.lockedSensorFOVBias, ml.lockedSensorVelocityBias, wpm, wpm.targetsAssigned[TargetID]);
+                                        ml.heatTarget = BDATargetManager.GetHeatTarget(ml.SourceVessel, vessel, new Ray(missileLauncher.MissileReferenceTransform.position + (50 * missileLauncher.GetForwardTransform()), direction), TargetSignatureData.noTarget, ml.lockedSensorFOV * 0.5f, ml.heatThreshold, ml.frontAspectHeatModifier, ml.heatSigWeight, ml.flareEffectivity, true, ml.lockedSensorFOVBias, ml.lockedSensorVelocityBias, wpm, wpm.targetsAssigned[TargetID]);
                                     }
                                     if (ml.TargetingMode == MissileBase.TargetingModes.Radar)
                                     {
@@ -598,7 +600,7 @@ namespace BDArmory.Weapons.Missiles
                                             if (ml.TargetingMode == MissileBase.TargetingModes.Heat)
                                             {
                                                 Vector3 direction = (wpm.targetsAssigned[t].position * wpm.targetsAssigned[t].velocity.magnitude) - missileLauncher.MissileReferenceTransform.position;
-                                                ml.heatTarget = BDATargetManager.GetHeatTarget(ml.SourceVessel, vessel, new Ray(missileLauncher.MissileReferenceTransform.position + (50 * missileLauncher.GetForwardTransform()), direction), TargetSignatureData.noTarget, ml.lockedSensorFOV * 0.5f, ml.heatThreshold, ml.frontAspectHeatModifier, true, ml.lockedSensorFOVBias, ml.lockedSensorVelocityBias, wpm, wpm.targetsAssigned[t]);
+                                                ml.heatTarget = BDATargetManager.GetHeatTarget(ml.SourceVessel, vessel, new Ray(missileLauncher.MissileReferenceTransform.position + (50 * missileLauncher.GetForwardTransform()), direction), TargetSignatureData.noTarget, ml.lockedSensorFOV * 0.5f, ml.heatThreshold, ml.frontAspectHeatModifier, ml.heatSigWeight, ml.flareEffectivity, true, ml.lockedSensorFOVBias, ml.lockedSensorVelocityBias, wpm, wpm.targetsAssigned[t]);
                                             }
                                             if (ml.TargetingMode == MissileBase.TargetingModes.Radar)
                                             {
@@ -637,7 +639,7 @@ namespace BDArmory.Weapons.Missiles
                                                     if (ml.TargetingMode == MissileBase.TargetingModes.Heat)
                                                     {
                                                         Vector3 direction = (item.Current.position * item.Current.velocity.magnitude) - missileLauncher.MissileReferenceTransform.position;
-                                                        ml.heatTarget = BDATargetManager.GetHeatTarget(ml.SourceVessel, vessel, new Ray(missileLauncher.MissileReferenceTransform.position + (50 * missileLauncher.GetForwardTransform()), direction), TargetSignatureData.noTarget, ml.lockedSensorFOV * 0.5f, ml.heatThreshold, ml.frontAspectHeatModifier, true, ml.lockedSensorFOVBias, ml.lockedSensorVelocityBias, wpm, item.Current);
+                                                        ml.heatTarget = BDATargetManager.GetHeatTarget(ml.SourceVessel, vessel, new Ray(missileLauncher.MissileReferenceTransform.position + (50 * missileLauncher.GetForwardTransform()), direction), TargetSignatureData.noTarget, ml.lockedSensorFOV * 0.5f, ml.heatThreshold, ml.frontAspectHeatModifier, ml.heatSigWeight, ml.flareEffectivity, true, ml.lockedSensorFOVBias, ml.lockedSensorVelocityBias, wpm, item.Current);
                                                     }
                                                     if (ml.TargetingMode == MissileBase.TargetingModes.Radar)
                                                     {
