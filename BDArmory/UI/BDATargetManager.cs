@@ -578,13 +578,19 @@ namespace BDArmory.UI
             // See if a flare is closer in score to priorHeatScore than finalScore
             if (priorHeatScore > 0)
             {
-                if (BDArmorySettings.DEBUG_MISSILES)
-                {
-                    Debug.Log($"[BDArmory.TargetManager][GetHeatTarget]: Heat target score: {(flareData.signalStrength + priorHeatScore) * (Mathf.Clamp01(heatSigWeight) * Mathf.Abs(finalScore - priorHeatScore) + Mathf.Clamp01(1f - heatSigWeight) * finalBias * (finalScore + priorHeatScore))}, Flare score: {flareEffectivity * (finalScore + priorHeatScore) * (Mathf.Clamp01(heatSigWeight) * Mathf.Abs(flareData.signalStrength - priorHeatScore) + Mathf.Clamp01(1f - heatSigWeight) * flareBias * (flareData.signalStrength + priorHeatScore))}");
-                }
+                float signalFactor = 1f / (flareData.signalStrength + finalScore + priorHeatScore);
+                float targetScore = (Mathf.Clamp01(heatSigWeight) + Mathf.Clamp01(1f - heatSigWeight) * finalBias) - Mathf.Clamp01(heatSigWeight) * Mathf.Abs(finalScore - priorHeatScore) * signalFactor;
+                float flareScore = flareEffectivity * ((Mathf.Clamp01(heatSigWeight) + Mathf.Clamp01(1f - heatSigWeight) * flareBias) - Mathf.Clamp01(heatSigWeight) * Mathf.Abs(flareData.signalStrength - priorHeatScore) * signalFactor);
+
+                
                 //flareSuccess = (Mathf.Abs(flareData.signalStrength - priorHeatScore) < flareEffectivity*Mathf.Abs(finalScore - priorHeatScore)) && flareSuccess;
-                flareSuccess = (flareEffectivity * ((1 + Mathf.Clamp01(1f - heatSigWeight) * flareBias) * (flareData.signalStrength + finalScore + priorHeatScore) - Mathf.Clamp01(heatSigWeight) * Mathf.Abs(flareData.signalStrength - priorHeatScore)) >
-                    ((1f + Mathf.Clamp01(1f - heatSigWeight) * finalBias) * (flareData.signalStrength + finalScore + priorHeatScore) - Mathf.Clamp01(heatSigWeight) * Mathf.Abs(finalScore - priorHeatScore))) && flareSuccess;
+                //flareSuccess = (flareEffectivity * ((1 + Mathf.Clamp01(1f - heatSigWeight) * flareBias) * (flareData.signalStrength + finalScore + priorHeatScore) - Mathf.Clamp01(heatSigWeight) * Mathf.Abs(flareData.signalStrength - priorHeatScore)) >
+                //    ((1f + Mathf.Clamp01(1f - heatSigWeight) * finalBias) * (flareData.signalStrength + finalScore + priorHeatScore) - Mathf.Clamp01(heatSigWeight) * Mathf.Abs(finalScore - priorHeatScore))) && flareSuccess;
+
+                flareSuccess = (flareScore > targetScore) && flareSuccess;
+
+                if (BDArmorySettings.DEBUG_MISSILES)
+                    Debug.Log($"[BDArmory.TargetManager][GetHeatTarget]: Heat target score: {targetScore}, Flare score: {flareScore}, Flare Success: {flareSuccess}.");
             }
             else if (BDArmorySettings.DUMB_IR_SEEKERS) //convert to a missile .cfg option for earlier-gen IR missiles?
                 flareSuccess = (flareData.signalStrength > finalScore) && flareSuccess;
@@ -601,7 +607,7 @@ namespace BDArmory.UI
 
         private static float GetSeekerBias(float anglePos, float angleVel, FloatCurve seekerBiasCurvePosition, FloatCurve seekerBiasCurveVelocity)
         {
-            float seekerBias = Mathf.Clamp(seekerBiasCurvePosition.Evaluate(anglePos), 0f, float.MaxValue) * Mathf.Clamp(seekerBiasCurveVelocity.Evaluate(angleVel), 0f, float.MaxValue);
+            float seekerBias = Mathf.Clamp01(seekerBiasCurvePosition.Evaluate(anglePos)) * Mathf.Clamp01(seekerBiasCurveVelocity.Evaluate(angleVel));
 
             return seekerBias;
         }
