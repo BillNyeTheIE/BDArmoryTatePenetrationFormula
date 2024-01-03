@@ -1298,7 +1298,11 @@ namespace BDArmory.Radar
             inLineSpeed = Mathf.Max(inLineSpeed, radar.radarMinVelocityGate);
             terrainRange = Mathf.Max(terrainRange, radar.radarMinRangeGate);
 
-            return (1f - (1f - Mathf.Clamp01(radar.radarVelocityGate.Evaluate(inLineSpeed))) * Mathf.Clamp01(radar.radarRangeGate.Evaluate(terrainRange)));
+            float multiplier = (1f - (1f - Mathf.Clamp01(radar.radarVelocityGate.Evaluate(inLineSpeed))) * Mathf.Clamp01(radar.radarRangeGate.Evaluate(terrainRange)));
+
+            if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Current notch multiplier: {multiplier}.");
+
+            return multiplier;
         }
 
         public static float GetRadarNotchingModifier(MissileBase missile, Vector3 position, Vector3 vesselposition, Vector3 vesselsrfvel, float targetRange, float terrainRange, out float notchMod)
@@ -1326,14 +1330,22 @@ namespace BDArmory.Radar
             notchMod = 1f - Mathf.Clamp01(missile.activeRadarVelocityGate.Evaluate(inLineSpeed));
 
             if (missile.activeRadarRangeFilter < terrainRange)
+            {
+                if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Current notch multiplier: 1. Current notchMod: {notchMod}.");
                 return 1f;
+            }
+                
 
             terrainRange = Mathf.Max(terrainRange, missile.activeRadarRangeGate.minTime);
 
             float result = notchMod * Mathf.Clamp01(missile.activeRadarRangeGate.Evaluate(terrainRange));
             notchMod += result;
 
-            return 1f - result;
+            result = 1f - result;
+
+            if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Current notch multiplier: {result}. Current notchMod: {notchMod}.");
+
+            return result;
         }
 
         public static float GetRadarNotchingSCR(float signature, float fov, float targetRange, float terrainRange, float terrainAngle)
@@ -1345,7 +1357,11 @@ namespace BDArmory.Radar
             float groundArea = terrainRange * fov * Mathf.Deg2Rad; // Approximation of radius given the current FoV
             groundArea = groundArea * groundArea * groundAngleFac * Mathf.PI;
 
-            return equivArea / groundArea * 0.01f; // -20 dBm^2
+            float SCR = equivArea / groundArea * BDArmorySettings.RADAR_NOTCHING_SCR_FACTOR;
+
+            if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Current notch SCR: {SCR}.");
+
+            return SCR; // -20 dBm^2
         }
 
         /// <summary>
