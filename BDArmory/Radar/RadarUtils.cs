@@ -1298,7 +1298,7 @@ namespace BDArmory.Radar
             inLineSpeed = Mathf.Max(inLineSpeed, radar.radarMinVelocityGate);
             terrainRange = Mathf.Max(terrainRange, radar.radarMinRangeGate);
 
-            float multiplier = (1f - (1f - Mathf.Clamp01(radar.radarVelocityGate.Evaluate(inLineSpeed))) * Mathf.Clamp01(radar.radarRangeGate.Evaluate(terrainRange)));
+            float multiplier = (1f - (1f - Mathf.Clamp01(radar.radarVelocityGate.Evaluate(inLineSpeed))) * Mathf.Clamp01(radar.radarRangeGate.Evaluate(terrainRange)) * BDArmorySettings.RADAR_NOTCHING_FACTOR);
 
             if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Current notch multiplier: {multiplier}.");
 
@@ -1327,7 +1327,7 @@ namespace BDArmory.Radar
 
             inLineSpeed = Mathf.Max(inLineSpeed, missile.activeRadarVelocityGate.minTime);
 
-            notchMod = 1f - Mathf.Clamp01(missile.activeRadarVelocityGate.Evaluate(inLineSpeed));
+            notchMod = (1f - Mathf.Clamp01(missile.activeRadarVelocityGate.Evaluate(inLineSpeed))) * BDArmorySettings.RADAR_NOTCHING_FACTOR;
 
             if (missile.activeRadarRangeFilter < terrainRange)
             {
@@ -1580,10 +1580,12 @@ namespace BDArmory.Radar
                         
                         signature *= notchMultiplier;
 
-                        // check SCR
-                        if (BDArmorySettings.RADAR_NOTCHING && missile.GetWeaponClass() != WeaponClasses.SLW && !loadedvessels.Current.Splashed && missile.ActiveRadar)
+                        // check SCR if we're checking notching, are not a torpedo, the target isn't splashed and the radar is active
+                        // technically the notchMultiplier < 1f condition should account for the rest
+                        // Note, since SCR behavior is only for locked radars ActiveRadar has to be true, hence why it's evaluated
+                        // before notchMultiplier, otherwise we don't account for SCR
+                        if (BDArmorySettings.RADAR_NOTCHING && missile.ActiveRadar && (notchMultiplier < 1f) && missile.GetWeaponClass() != WeaponClasses.SLW && !loadedvessels.Current.Splashed)
                         {
-
                             SCR = GetRadarNotchingSCR(baseSignature, fov, distance, terrainR, terrainAngle);
                         }
 
@@ -1916,8 +1918,9 @@ namespace BDArmory.Radar
                     }
                     else
                     {
-                        // cannot track, so unlock it, unless above SCR
-                        if (BDArmorySettings.RADAR_NOTCHING  && radar.sonarMode == ModuleRadar.SonarModes.None && !lockedVessel.Splashed  && radar.radarMinRangeGate != float.MaxValue && radar.radarMinVelocityGate != float.MaxValue)
+                        // cannot track, so unlock it, unless above SCR, note we only check SCR if we're checking for notching
+                        // and the notchMultiplier < 1f, the rest of the conditions are a failsafe
+                        if (BDArmorySettings.RADAR_NOTCHING && (notchMultiplier < 1f) && radar.sonarMode == ModuleRadar.SonarModes.None && !lockedVessel.Splashed  && radar.radarMinRangeGate != float.MaxValue && radar.radarMinVelocityGate != float.MaxValue)
                         {
                             if (GetRadarNotchingSCR(baseSignature, fov, distance, terrainR, terrainAngle) > radar.radarMinTrackSCR)
                                 return false;
