@@ -226,6 +226,21 @@ namespace BDArmory.Weapons.Missiles
         [KSPField]
         public FloatCurve activeRadarLockTrackCurve = new FloatCurve();             // floatcurve to define min/max range and lockable radar cross section
 
+        [KSPField]
+        public FloatCurve activeRadarVelocityGate = new FloatCurve();
+
+        [KSPField]
+        public float activeRadarVelocityFilter = 20f;
+
+        [KSPField]
+        public FloatCurve activeRadarRangeGate = new FloatCurve();
+
+        [KSPField]
+        public float activeRadarRangeFilter = 2000f;
+
+        [KSPField]
+        public float activeRadarMinTrackSCR = 1f;
+
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_BallisticOvershootFactor"),//Ballistic Overshoot factor
          UI_FloatRange(minValue = 0.5f, maxValue = 1.5f, stepIncrement = 0.01f, scene = UI_Scene.Editor)]
         public float BallisticOverShootFactor = 0.7f;

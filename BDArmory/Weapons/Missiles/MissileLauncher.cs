@@ -912,12 +912,38 @@ namespace BDArmory.Weapons.Missiles
                 }
             }
 
-            // fill activeRadarLockTrackCurve with default values if not set by part config:
-            if ((TargetingMode == TargetingModes.Radar || TargetingModeTerminal == TargetingModes.Radar) && activeRadarRange > 0 && activeRadarLockTrackCurve.minTime == float.MaxValue)
+            // fill activeRadarLockTrackCurve, activeRadarVelocityGate and activeRadarRangeGate with default values if not set by part config:
+            if ((TargetingMode == TargetingModes.Radar || TargetingModeTerminal == TargetingModes.Radar) && activeRadarRange > 0)
             {
-                activeRadarLockTrackCurve.Add(0f, 0f);
-                activeRadarLockTrackCurve.Add(activeRadarRange, RadarUtils.MISSILE_DEFAULT_LOCKABLE_RCS);           // TODO: tune & balance constants!
-                if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileLauncher]: OnStart missile {shortName}: setting default locktrackcurve with maxrange/minrcs: {activeRadarLockTrackCurve.maxTime}/{RadarUtils.MISSILE_DEFAULT_LOCKABLE_RCS}");
+                if (activeRadarLockTrackCurve.minTime == float.MaxValue)
+                {
+                    activeRadarLockTrackCurve.Add(0f, 0f);
+                    activeRadarLockTrackCurve.Add(activeRadarRange, RadarUtils.MISSILE_DEFAULT_LOCKABLE_RCS);           // TODO: tune & balance constants!
+                    if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileLauncher]: OnStart missile {shortName}: setting default locktrackcurve with maxrange/minrcs: {activeRadarLockTrackCurve.maxTime}/{RadarUtils.MISSILE_DEFAULT_LOCKABLE_RCS}");
+                }
+
+                if (activeRadarVelocityGate.minTime == float.MaxValue)
+                {
+                    activeRadarVelocityGate.Add(0f, 1f);
+                    activeRadarVelocityGate.Add(activeRadarVelocityFilter, 0f);           // TODO: tune & balance constants!
+                    if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileLauncher]: OnStart missile {shortName}: setting default activeRadarVelocityGate with maxfilter: {activeRadarLockTrackCurve.maxTime}");
+                }
+                else
+                {
+                    activeRadarVelocityFilter = activeRadarVelocityGate.maxTime;
+                }
+
+
+                if (activeRadarRangeGate.minTime == float.MaxValue)
+                {
+                    activeRadarRangeGate.Add(0f, RadarUtils.MISSILE_DEFAULT_GATE_RCS);
+                    activeRadarRangeGate.Add(activeRadarRangeFilter, 1f);           // TODO: tune & balance constants!
+                    if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileLauncher]: OnStart missile {shortName}: setting default activeRadarRangeGate with maxfilter/minrcs: {activeRadarRangeGate.maxTime}/{RadarUtils.MISSILE_DEFAULT_GATE_RCS}");
+                }
+                else
+                {
+                    activeRadarRangeFilter = activeRadarRangeGate.maxTime;
+                }
             }
             GUIUtils.RefreshAssociatedWindows(part);
         }

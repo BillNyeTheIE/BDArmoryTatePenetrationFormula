@@ -98,6 +98,15 @@ namespace BDArmory.Radar
         public FloatCurve radarLockTrackCurve = new FloatCurve();		//FloatCurve defining at what range which RCS size can be locked/tracked
 
         [KSPField]
+        public FloatCurve radarVelocityGate = new FloatCurve();		//FloatCurve defining the reduction in received RCS due to a doppler gate
+
+        [KSPField]
+        public FloatCurve radarRangeGate = new FloatCurve();		//FloatCurve defining the reduction in received RCS due to a range gate
+
+        [KSPField]
+        public float radarMinTrackSCR = 1f;
+
+        [KSPField]
         public float radarGroundClutterFactor = 0.25f; //Factor defining how effective the radar is for look-down, compensating for ground clutter (0=ineffective, 1=fully effective)
                                                        //default to 0.25, so all cross sections of landed/splashed/submerged vessels are reduced to 1/4th, as these vessel usually a quite large
         [KSPField]
@@ -243,6 +252,25 @@ namespace BDArmory.Radar
         public float radarMaxDistanceLockTrack
         {
             get { return radarLockTrackCurve.maxTime; }
+        }
+
+        public float radarMaxRangeGate
+        {
+            get { return radarRangeGate.maxTime; }
+        }
+        public float radarMinRangeGate
+        {
+            get { return radarRangeGate.minTime; }
+        }
+
+        public float radarMaxVelocityGate
+        {
+            get { return radarVelocityGate.maxTime; }
+        }
+
+        public float radarMinVelocityGate
+        {
+            get { return radarVelocityGate.minTime; }
         }
 
         //linked vessels
