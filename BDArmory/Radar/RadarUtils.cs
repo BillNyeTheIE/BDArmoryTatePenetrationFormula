@@ -12,8 +12,6 @@ using BDArmory.UI;
 using BDArmory.Utils;
 using BDArmory.Weapons;
 using BDArmory.Weapons.Missiles;
-using TMPro;
-using UnityEngine.UIElements;
 
 
 namespace BDArmory.Radar
@@ -1214,7 +1212,7 @@ namespace BDArmory.Radar
             Vector3 targetDirection = (vesselposition - position);
             float angleFromUp = Vector3.Angle(targetDirection, upVector);
             float lookDownAngle = angleFromUp - 90; // result range: -90 .. +90
-            Mathf.Clamp(lookDownAngle, 0, 90);      // result range:   0 .. +90
+            lookDownAngle = Mathf.Clamp(lookDownAngle, 0, 90);      // result range:   0 .. +90
 
             float groundClutterMutiplier = Mathf.Lerp(1, clutterFactor, (lookDownAngle / 90));
             //additional ground clutter factor when target is landed/splashed:
@@ -1279,7 +1277,8 @@ namespace BDArmory.Radar
 
         public static float GetRadarNotchingModifier(ModuleRadar radar, Vector3 position, Vector3 vesselposition, Vector3 vesselsrfvel, float targetRange, float terrainRange)
         {
-            terrainRange *= 0.001f; // m to km
+            //terrainRange *= 0.001f; // m to km
+            targetRange *= 1000f;
             terrainRange -= targetRange;
 
             if (radar.radarMaxRangeGate < terrainRange || radar.radarMinVelocityGate == float.MaxValue)
@@ -1292,11 +1291,16 @@ namespace BDArmory.Radar
 
             float inLineSpeed = Mathf.Abs(Vector3.Dot(vesselsrfvel, targetDirection));
 
-            if (radar.radarMaxVelocityGate > inLineSpeed)
+            //if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Current inLineSpeed: {inLineSpeed}.");
+
+            if (radar.radarMaxVelocityGate < inLineSpeed)
                 return 1f;
 
             inLineSpeed = Mathf.Max(inLineSpeed, radar.radarMinVelocityGate);
             terrainRange = Mathf.Max(terrainRange, radar.radarMinRangeGate);
+
+            if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Current inputted inLineSpeed: {inLineSpeed}, terrainRange: {terrainRange}");
+            //if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Current Velocity Gate: {Mathf.Clamp01(radar.radarVelocityGate.Evaluate(inLineSpeed))}. Current Range Gate: {Mathf.Clamp01(radar.radarRangeGate.Evaluate(terrainRange))}");
 
             float multiplier = (1f - (1f - Mathf.Clamp01(radar.radarVelocityGate.Evaluate(inLineSpeed))) * Mathf.Clamp01(radar.radarRangeGate.Evaluate(terrainRange)) * BDArmorySettings.RADAR_NOTCHING_FACTOR);
 
@@ -1307,8 +1311,8 @@ namespace BDArmory.Radar
 
         public static float GetRadarNotchingModifier(MissileBase missile, Vector3 position, Vector3 vesselposition, Vector3 vesselsrfvel, float targetRange, float terrainRange, out float notchMod)
         {
-            terrainRange *= 0.001f; // m to km
             terrainRange -= targetRange;
+            //terrainRange *= 0.001f; // m to km
 
             notchMod = 0f;
 
@@ -1322,7 +1326,9 @@ namespace BDArmory.Radar
 
             float inLineSpeed = Vector3.Dot(vesselsrfvel, targetDirection);
 
-            if (missile.activeRadarVelocityFilter > inLineSpeed)
+            //if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Current inLineSpeed: {inLineSpeed}.");
+
+            if (missile.activeRadarVelocityFilter < inLineSpeed)
                 return 1f;
 
             inLineSpeed = Mathf.Max(inLineSpeed, missile.activeRadarVelocityGate.minTime);
@@ -1334,7 +1340,6 @@ namespace BDArmory.Radar
                 if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Current notch multiplier: 1. Current notchMod: {notchMod}.");
                 return 1f;
             }
-                
 
             terrainRange = Mathf.Max(terrainRange, missile.activeRadarRangeGate.minTime);
 
@@ -1357,11 +1362,11 @@ namespace BDArmory.Radar
             float groundArea = terrainRange * fov * Mathf.Deg2Rad; // Approximation of radius given the current FoV
             groundArea = groundArea * groundArea * groundAngleFac * Mathf.PI;
 
-            float SCR = equivArea / groundArea * BDArmorySettings.RADAR_NOTCHING_SCR_FACTOR;
+            float SCR = equivArea / (groundArea * BDArmorySettings.RADAR_NOTCHING_SCR_FACTOR);  // Default to -20 dBm^2
 
             if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Current notch SCR: {SCR}.");
 
-            return SCR; // -20 dBm^2
+            return SCR;
         }
 
         /// <summary>
@@ -1403,10 +1408,10 @@ namespace BDArmory.Radar
                         if (radar.sonarMode == ModuleRadar.SonarModes.None)
                         {
                             // If radar, then check against water
-                            if (BDArmorySettings.RADAR_NOTCHING && !loadedvessels.Current.Splashed && radar.radarMinRangeGate != float.MaxValue && radar.radarMinVelocityGate != float.MaxValue)
+                            if (BDArmorySettings.RADAR_NOTCHING && !loadedvessels.Current.Landed && !loadedvessels.Current.Splashed && radar.radarMinRangeGate != float.MaxValue && radar.radarMinVelocityGate != float.MaxValue)
                             {
                                 distance = BDAMath.Sqrt(distance);
-                                if (TerrainCheck(ray.origin, loadedvessels.Current.CoM, FlightGlobals.currentMainBody, distance + radar.radarMaxRangeGate, out terrainR, out terrainAngle, true))
+                                if (TerrainCheck(ray.origin, loadedvessels.Current.CoM, FlightGlobals.currentMainBody, (distance + radar.radarMaxRangeGate) * 1000f, out terrainR, out terrainAngle, true))
                                     continue;
                                 notchMultiplier = GetRadarNotchingModifier(radar, ray.origin, loadedvessels.Current.CoM, loadedvessels.Current.srf_velocity, distance, terrainR);
                             }
@@ -1533,7 +1538,7 @@ namespace BDArmory.Radar
                         if (missile.GetWeaponClass() != WeaponClasses.SLW)
                         {
                             // If radar, then check against water
-                            if (BDArmorySettings.RADAR_NOTCHING && !loadedvessels.Current.Splashed)
+                            if (BDArmorySettings.RADAR_NOTCHING && !loadedvessels.Current.Landed && !loadedvessels.Current.Splashed)
                             {
                                 distance = BDAMath.Sqrt(distance);
                                 if (TerrainCheck(ray.origin, loadedvessels.Current.CoM, FlightGlobals.currentMainBody, distance + missile.activeRadarRangeFilter, out terrainR, out terrainAngle, true))
@@ -1586,7 +1591,7 @@ namespace BDArmory.Radar
                         // before notchMultiplier, otherwise we don't account for SCR
                         if (BDArmorySettings.RADAR_NOTCHING && missile.ActiveRadar && (notchMultiplier < 1f) && missile.GetWeaponClass() != WeaponClasses.SLW && !loadedvessels.Current.Splashed)
                         {
-                            SCR = GetRadarNotchingSCR(baseSignature, fov, distance, terrainR, terrainAngle);
+                            SCR = GetRadarNotchingSCR(baseSignature, fov, distance * 0.001f, terrainR, terrainAngle);
                         }
 
 
@@ -1640,7 +1645,7 @@ namespace BDArmory.Radar
         /// <param name="dataArray">relevant only for modeTryLock=true</param>
         /// <param name="dataPersistTime">optional, relevant only for modeTryLock=true</param>
         /// <returns></returns>
-        public static bool RadarUpdateScanLock(MissileFire myWpnManager, float directionAngle, Transform referenceTransform, float fov, Vector3 position, ModuleRadar radar, bool modeTryLock, ref TargetSignatureData[] dataArray, float dataPersistTime = 0f)
+        public static bool RadarUpdateScanLock(MissileFire myWpnManager, float directionAngle, Transform referenceTransform, float fov, Vector3 position, ModuleRadar radar, bool modeTryLock, ref TargetSignatureData[] dataArray, ref bool[] lockArray, float dataPersistTime = 0f)
         {
             Vector3 forwardVector = referenceTransform.forward;
             Vector3 upVector = referenceTransform.up;
@@ -1649,6 +1654,12 @@ namespace BDArmory.Radar
             int dataIndex = 0;
             bool hasLocked = false;
             float selfNoise = 0;
+
+            for (int i = 0; i < lockArray.Length; i++)
+            {
+                lockArray[i] = false;
+            }
+
             // guard clauses
             if (!myWpnManager || !myWpnManager.vessel || !radar)
                 return false;
@@ -1683,10 +1694,10 @@ namespace BDArmory.Radar
                         if (radar.sonarMode == ModuleRadar.SonarModes.None)
                         {
                             // If radar, then check against water
-                            if (BDArmorySettings.RADAR_NOTCHING && !loadedvessels.Current.Splashed && radar.radarMinRangeGate != float.MaxValue && radar.radarMinVelocityGate != float.MaxValue)
+                            if (BDArmorySettings.RADAR_NOTCHING && !loadedvessels.Current.Landed && !loadedvessels.Current.Splashed && radar.radarMinRangeGate != float.MaxValue && radar.radarMinVelocityGate != float.MaxValue)
                             {
                                 distance = BDAMath.Sqrt(distance);
-                                if (TerrainCheck(position, targetPosition, FlightGlobals.currentMainBody, distance + radar.radarMaxRangeGate, out terrainR, out terrainAngle, true))
+                                if (TerrainCheck(position, targetPosition, FlightGlobals.currentMainBody, (distance + radar.radarMaxRangeGate) * 1000f, out terrainR, out terrainAngle, true))
                                     continue;
                                 notchMultiplier = GetRadarNotchingModifier(radar, position, loadedvessels.Current.CoM, loadedvessels.Current.srf_velocity, distance, terrainR);
                             }
@@ -1761,6 +1772,7 @@ namespace BDArmory.Radar
                                     if (dataIndex < dataArray.Length)
                                     {
                                         dataArray[dataIndex] = new TargetSignatureData(loadedvessels.Current, signature);
+                                        lockArray[dataIndex] = true;
                                         dataIndex++;
                                         hasLocked = true;
                                     }
@@ -1865,10 +1877,10 @@ namespace BDArmory.Radar
                 if (radar.sonarMode == ModuleRadar.SonarModes.None)
                 {
                     // If radar, then check against water
-                    if (BDArmorySettings.RADAR_NOTCHING && !lockedVessel.Splashed && radar.radarMinRangeGate != float.MaxValue && radar.radarMinVelocityGate != float.MaxValue)
+                    if (BDArmorySettings.RADAR_NOTCHING && !lockedVessel.Landed && !lockedVessel.Splashed && radar.radarMinRangeGate != float.MaxValue && radar.radarMinVelocityGate != float.MaxValue)
                     {
                         distance = BDAMath.Sqrt(distance);
-                        if (TerrainCheck(ray.origin, targetPosition, FlightGlobals.currentMainBody, distance + radar.radarMaxRangeGate, out terrainR, out terrainAngle, true))
+                        if (TerrainCheck(ray.origin, targetPosition, FlightGlobals.currentMainBody, (distance + radar.radarMaxRangeGate) * 1000f, out terrainR, out terrainAngle, true))
                             return false;
                         notchMultiplier = GetRadarNotchingModifier(radar, ray.origin, lockedVessel.CoM, lockedVessel.srf_velocity, distance, terrainR);
                     }
@@ -1922,7 +1934,7 @@ namespace BDArmory.Radar
                         // and the notchMultiplier < 1f, the rest of the conditions are a failsafe
                         if (BDArmorySettings.RADAR_NOTCHING && (notchMultiplier < 1f) && radar.sonarMode == ModuleRadar.SonarModes.None && !lockedVessel.Splashed  && radar.radarMinRangeGate != float.MaxValue && radar.radarMinVelocityGate != float.MaxValue)
                         {
-                            if (GetRadarNotchingSCR(baseSignature, fov, distance, terrainR, terrainAngle) > radar.radarMinTrackSCR)
+                            if (GetRadarNotchingSCR(baseSignature, fov, distance, terrainR, terrainAngle) < radar.radarMinTrackSCR)
                                 return false;
                         }
                         else
@@ -2320,13 +2332,15 @@ namespace BDArmory.Radar
             {
                 if (!BDArmorySettings.CHECK_WATER_TERRAIN)
                     return Physics.Linecast(start, end, (int)LayerMasks.Scenery);
-                else if (!Physics.Linecast(start, end, (int)LayerMasks.Scenery))
+
+                if (!Physics.Linecast(start, end, (int)LayerMasks.Scenery))
                 {
                     float dummyR, dummyA;
                     bool result = checkWater(start, end, body, -1f, out dummyR, out dummyA);
                     return result;
                 }
-                    
+
+                return true;
             }
             return false;
         }
@@ -2340,13 +2354,20 @@ namespace BDArmory.Radar
             if (!BDArmorySettings.IGNORE_TERRAIN_CHECK)
             {
                 float sqrDist = ((end.x - start.x) * (end.x - start.x) + (end.y - start.y) * (end.y - start.y) + (end.z - start.z) * (end.z - start.z));
+
+                //if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils.TerrainCheck]: Current calcSqrDist: {sqrDist * 0.000001f} km^2.");
+
                 RaycastHit hitInfo;
 
-                if (Physics.Raycast(start, end - start, out hitInfo, range, (int)LayerMasks.Scenery, QueryTriggerInteraction.UseGlobal))
+                if (Physics.Raycast(start, end - start, out hitInfo, range, (int)LayerMasks.Scenery, QueryTriggerInteraction.UseGlobal) && (hitInfo.point - body.position).sqrMagnitude > body.Radius * body.Radius)
                 {
+                    // If we hit terrain and we're above sea level
                     R = hitInfo.distance;
                     angle = 90f - Vector3.Angle(hitInfo.normal, start - end);
-                    return R*R < sqrDist;
+
+                    //if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils.TerrainCheck]: Hit terrain at sqrDist {R * R * 0.000001f} km^2. Terrain blocking?: {(R * R) < sqrDist}");
+
+                    return (R * R) < sqrDist;
                 }
                 else
                 {
@@ -2359,7 +2380,7 @@ namespace BDArmory.Radar
                     if (checkWater(start, end, body, range, out R, out angle, true))
                     {
                         R = BDAMath.Sqrt(R);
-                        return R * R < sqrDist;
+                        return (R * R) < sqrDist;
                     }
                     return false;
                 }
@@ -2373,7 +2394,7 @@ namespace BDArmory.Radar
             angle = 0f;
             if (body.ocean || !body.hasSolidSurface)
             {
-                float R = (float)body.Radius;
+                float R = (float) body.Radius;
                 float x, y, z;
                 float xB, yB, zB;
                 float a, b, c, det;
@@ -2381,9 +2402,9 @@ namespace BDArmory.Radar
                 x = end.x - start.x;
                 y = end.y - start.y;
                 z = end.z - start.z;
-                xB = body.transform.position.x;
-                yB = body.transform.position.y;
-                zB = body.transform.position.z;
+                xB = (float) body.position.x;
+                yB = (float) body.position.y;
+                zB = (float) body.position.z;
 
                 a = x * x + y * y + z * z;
                 b = 2f * (x * (start.x - xB) + y * (start.y - yB) + z * (start.z - zB));
