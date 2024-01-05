@@ -2992,11 +2992,11 @@ namespace BDArmory.UI
                     BDArmorySettings.RADAR_NOTCHING = GUI.Toggle(SLeftRect(++line), BDArmorySettings.RADAR_NOTCHING, StringUtils.Localize("#LOC_BDArmory_Settings_RADAR_NOTCHING")); // Radar Notching Toggle
                     if (BDArmorySettings.RADAR_NOTCHING)
                     {
-                        GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_Settings_Notching_Factor")}:  ({BDArmorySettings.RADAR_NOTCHING_FACTOR})", leftLabel); // Terrain alert frequency. Note: this is scaled by (int)(1+(radarAlt/500)^2) to avoid wasting too many cycles.
+                        GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_Settings_Notching_Factor")}:  ({BDArmorySettings.RADAR_NOTCHING_FACTOR})", leftLabel); // Notch Effectiveness Multiplier
                         BDArmorySettings.RADAR_NOTCHING_FACTOR = BDAMath.RoundToUnit(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.RADAR_NOTCHING_FACTOR, 0f, 1f), 0.05f);
 
-                        GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_Settings_Notching_SCR_Factor")}:  ({BDArmorySettings.RADAR_NOTCHING_SCR_FACTOR})", leftLabel); // Terrain alert frequency. Note: this is scaled by (int)(1+(radarAlt/500)^2) to avoid wasting too many cycles.
-                        BDArmorySettings.RADAR_NOTCHING_SCR_FACTOR = BDAMath.RoundToUnit(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.RADAR_NOTCHING_SCR_FACTOR, 0f, 1f), 0.05f);
+                        GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_Settings_Notching_SCR_Factor")}:  ({BDArmorySettings.RADAR_NOTCHING_SCR_FACTOR})", leftLabel); // Notch SCR Multiplier, should be set to 0.01 as default though it's adjustable
+                        BDArmorySettings.RADAR_NOTCHING_SCR_FACTOR = BDAMath.RoundToUnit(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.RADAR_NOTCHING_SCR_FACTOR, 0f, 0.5f), 0.005f);
                     }
                 }
 

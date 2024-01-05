@@ -211,7 +211,7 @@ namespace BDArmory.Radar
         }
 
         private TargetSignatureData[] attemptedLocks;
-        private bool[] lockSuccesses;
+        //private bool[] lockSuccesses; // Removed as it was deemed unecessary
         private List<TargetSignatureData> lockedTargets;
 
         public TargetSignatureData lockedTarget
@@ -474,7 +474,7 @@ namespace BDArmory.Radar
                 radarTransform = radarTransformName != string.Empty ? part.FindModelTransform(radarTransformName) : part.transform;
 
                 attemptedLocks = new TargetSignatureData[maxLocks];
-                lockSuccesses = new bool[maxLocks];
+                //lockSuccesses = new bool[maxLocks];
                 TargetSignatureData.ResetTSDArray(ref attemptedLocks);
                 lockedTargets = new List<TargetSignatureData>();
 
@@ -704,7 +704,7 @@ namespace BDArmory.Radar
         void Scan()
         {
             float angleDelta = scanRotationSpeed * Time.fixedDeltaTime;
-            RadarUtils.RadarUpdateScanLock(weaponManager, currentAngle, referenceTransform, angleDelta, referenceTransform.position, this, false, ref attemptedLocks, ref lockSuccesses);
+            RadarUtils.RadarUpdateScanLock(weaponManager, currentAngle, referenceTransform, angleDelta, referenceTransform.position, this, false, ref attemptedLocks);
 
             if (omnidirectional)
             {
@@ -774,11 +774,11 @@ namespace BDArmory.Radar
                 angle = -angle;
             }
             TargetSignatureData.ResetTSDArray(ref attemptedLocks);
-            RadarUtils.RadarUpdateScanLock(weaponManager, angle, referenceTransform, lockAttemptFOV, referenceTransform.position, this, true, ref attemptedLocks, ref lockSuccesses, signalPersistTime);
+            RadarUtils.RadarUpdateScanLock(weaponManager, angle, referenceTransform, lockAttemptFOV, referenceTransform.position, this, true, ref attemptedLocks, signalPersistTime);
 
             for (int i = 0; i < attemptedLocks.Length; i++)
             {
-                if (lockSuccesses[i] && attemptedLocks[i].exists && (attemptedLocks[i].predictedPosition - position).sqrMagnitude < 40 * 40)
+                if (attemptedLocks[i].exists && (attemptedLocks[i].predictedPosition - position).sqrMagnitude < 40 * 40) //(lockSuccesses[i] && attemptedLocks[i].exists && (attemptedLocks[i].predictedPosition - position).sqrMagnitude < 40 * 40)
                 {
                     // If locked onto a vessel that was not our target, return false
                     if ((attemptedLocks[i].vessel != null) && (targetVessel != null) && (attemptedLocks[i].vessel != targetVessel))
@@ -797,6 +797,7 @@ namespace BDArmory.Radar
 
                     vesselRadarData.AddRadarContact(this, lockedTarget, true);
                     vesselRadarData.UpdateLockedTargets();
+                    attemptedLocks[i] = TargetSignatureData.noTarget;
                     return true;
                 }
             }
@@ -989,7 +990,7 @@ namespace BDArmory.Radar
             {
                 attemptedLocks = new TargetSignatureData[wpmr.MaxradarLocks];
                 TargetSignatureData.ResetTSDArray(ref attemptedLocks);
-                lockSuccesses = new bool[wpmr.MaxradarLocks];
+                //lockSuccesses = new bool[wpmr.MaxradarLocks];
             }
         }
 
