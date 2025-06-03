@@ -3935,8 +3935,8 @@ namespace BDArmory.Weapons
                                     // Debug.Log($"DEBUG {count} iterations for convergence in aiming loop");
                                     debugTargetPosition = targetPosition;
                                     debugLastTargetPosition = debugTargetPosition;
-                                    debugRelVelAdj = timeToCPA * targetVelocity - (timeToCPA + Time.fixedDeltaTime) * smoothedPartVelocity;
-                                    debugAccAdj = 0.5f * targetAcceleration * timeToCPA * timeToCPA;
+                                    debugRelVelAdj = timeToCPA * (targetVelocity - smoothedPartVelocity);
+                                    debugAccAdj = 0.5f * timeToCPA * timeToCPA * targetAcceleration;
                                     debugGravAdj = bulletDropOffset;
                                     // var missDistance = AIUtils.PredictPosition(relativePosition, bulletRelativeVelocity, bulletRelativeAcceleration, timeToCPA);
                                     // if (BDArmorySettings.DEBUG_WEAPONS) Debug.Log("DEBUG δt: " + timeToCPA + ", miss: " + missDistance + ", bullet drop: " + bulletDropOffset + ", final: " + finalTarget + ", target: " + targetPosition + ", " + targetVelocity + ", " + targetAcceleration + ", distance: " + targetDistance);
