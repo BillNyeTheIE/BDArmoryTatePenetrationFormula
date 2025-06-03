@@ -214,7 +214,7 @@ namespace BDArmory.VesselSpawning
         public static void ApplyRWPonNewVessels(bool enable) => SpawnUtilsInstance.Instance.ApplyRWPonNewVessels(enable);
         public static void ApplyRWP(Vessel vessel) => SpawnUtilsInstance.Instance.ApplyRWP(vessel); // Applying RWP can't be undone
         #endregion
-        #region FJRT Stuff
+        #region CompCheck Stuff
         public static void ApplyCompCheckonNewVessels(bool enable) => SpawnUtilsInstance.Instance.ApplyCompCheckOnNewVessels(enable);
         public static void ApplyCompSettingsChecks(Vessel vessel) => SpawnUtilsInstance.Instance.ApplyCompSettingsChecks(vessel); // Applying these can't be undone
 
@@ -263,10 +263,14 @@ namespace BDArmory.VesselSpawning
                 {
                     message += (AI == null ? " and its WM" : (count > 0 ? " and WM" : "'s WM"));
                     ++count;
-                };
+                }
                 if (count > 0) message += (count > 1 ? " are" : " is") + " not attached to its root part";
             }
-            if (!(vessel.rootPart.IsKerbalSeat() || vessel.rootPart.protoModuleCrew.Any(crew => crew != null)))
+            if (!(
+                vessel.rootPart.IsKerbalSeat() // The root part is a seat.
+                || vessel.rootPart.protoModuleCrew.Any(crew => crew != null) // The root part is a cockpit.
+                || vessel.rootPart.children.Any(part => part.IsKerbalSeat()) // The root part has a seat attached to it (this should be fine as the chair will be killed if it detaches).
+            ))
             {
                 message += $"{(message.Length > 0 ? " and its" : "'s")} cockpit isn't the root part";
             }
@@ -429,7 +433,15 @@ namespace BDArmory.VesselSpawning
                 // Switch to the spawn probe. Give up after 30s.
                 while (spawnProbe != null && FlightGlobals.ActiveVessel != spawnProbe && Time.time - tic < 30)
                 {
-                    LoadedVesselSwitcher.Instance.ForceSwitchVessel(spawnProbe);
+                    try
+                    {
+                        LoadedVesselSwitcher.Instance.ForceSwitchVessel(spawnProbe);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"[BDArmory.SpawnUtils]: Failed to switch to the SpawnProbe, proceeding with trying to kill everything.\n{e.Message}\n{e.StackTrace}");
+                        break;
+                    }
                     yield return waitForFixedUpdate;
                 }
             }
@@ -721,7 +733,7 @@ namespace BDArmory.VesselSpawning
                     }
                     else
                     {
-                        Debug.LogWarning($"[BDArmory.BDArmorySetup]: No default value for actuatorSpeed found in partConfig for {ctrlSrf.name}, defaulting to true.");
+                        Debug.LogWarning($"[BDArmory.BDArmorySetup]: No default value for actuatorSpeed found in partConfig for {ctrlSrf.name}, defaulting to 30°/s.");
                         ctrlSrf.actuatorSpeed = 30;
                     }
                 }
@@ -1071,9 +1083,9 @@ namespace BDArmory.VesselSpawning
                         nuke.engineCore = true;
                         nuke.meltDownDuration = 15;
                         nuke.thermalRadius = 200;
-                        if (BDArmorySettings.DEBUG_COMPETITION) Debug.Log("[BDArmory.BDACompetitionMOde]: Adding Nuke Module to " + vessel.GetName());
+                        if (BDArmorySettings.DEBUG_COMPETITION) Debug.Log($"[BDArmory.BDACompetitionMOde]: Adding Nuke Module to {vessel.GetName()}");
                     }
-                    BDModulePilotAI pilotAI = VesselModuleRegistry.GetModule<BDModulePilotAI>(vessel);
+                    BDModulePilotAI pilotAI = VesselModuleRegistry.GetBDModulePilotAI(vessel);
                     if (pilotAI != null)
                     {
                         pilotAI.minAltitude = Mathf.Max(pilotAI.minAltitude, 750);
@@ -1081,7 +1093,7 @@ namespace BDArmory.VesselSpawning
                         pilotAI.maxAllowedAoA = 2.5f;
                         pilotAI.postStallAoA = 5;
                         pilotAI.maxSpeed = Mathf.Min(250, pilotAI.maxSpeed);
-                        if (BDArmorySettings.DEBUG_COMPETITION) Debug.Log("[BDArmory.BDACompetitionMOde]: Setting SpaceMode Ai settings on " + vessel.GetName());
+                        if (BDArmorySettings.DEBUG_COMPETITION) Debug.Log($"[BDArmory.SpawnUtils]: Setting SpaceMode AI settings on {vessel.GetName()}");
                     }
                 }
                 if (BDArmorySettings.RUNWAY_PROJECT_ROUND == 67)
@@ -1096,6 +1108,12 @@ namespace BDArmory.VesselSpawning
                         }
                     }
                 }
+				if (BDArmorySettings.RUNWAY_PROJECT_ROUND == 74)
+				{
+					var wm = VesselModuleRegistry.GetMissileFire(vessel);
+					if (BDArmorySettings.DEBUG_COMPETITION && wm.targetWeightAttackVIP != 10) Debug.Log($"[BDArmory.SpawnUtils]: Overriding VIP target priority to 10 on {vessel.GetName()}");
+					if (wm != null) wm.targetWeightAttackVIP = 10;
+				}
             }
         }
         #endregion
@@ -1141,7 +1159,7 @@ namespace BDArmory.VesselSpawning
                     }
                 var AI = VesselModuleRegistry.GetModule<BDModulePilotAI>(vessel);
                 if (AI != null)
-                {                    
+                {
                     if (CompSettings.CompOverrides.TryGetValue("extendDistanceAirToAir", out float dATA) && dATA > 0)
                         AI.extendDistanceAirToAir = Mathf.Min(AI.extendDistanceAirToAir, dATA);
                     if (CompSettings.CompOverrides.TryGetValue("collisionAvoidanceThreshold", out float cAT) && cAT >= 0)
@@ -1168,7 +1186,7 @@ namespace BDArmory.VesselSpawning
                     else //this would cause dual-seat visual range to also apply to dronecore controlled craft, but those should be caught by overall building rules...
                     {
                         if (CompSettings.CompOverrides.TryGetValue("DUALCOCKPIT_VIEWRANGE", out float gR2) && gR2 > 0)
-                                WM.guardRange = Mathf.Min(WM.guardRange, gR2);
+                            WM.guardRange = Mathf.Min(WM.guardRange, gR2);
                     }
                 }
             }

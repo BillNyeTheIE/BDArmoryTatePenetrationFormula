@@ -63,6 +63,8 @@ namespace BDArmory.Weapons.Missiles
         AnimationState deployState;
         public ModuleMissileRearm missileSpawner = null;
         MissileLauncher missileLauncher = null;
+        BDAdjustableRail adjustableRail = null;
+        float attachedMissileDia = 0;
         MissileFire wpm = null;
         private int tubesFired = 0;
         [KSPField(isPersistant = true)]
@@ -81,8 +83,15 @@ namespace BDArmory.Weapons.Missiles
     UI_FloatRange(minValue = -1, maxValue = 1, stepIncrement = 0.1f, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.Editor)]
         public float attachOffset = 0;
 
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_Deploy_Time"),// Deploy Time
+    UI_FloatRange(minValue = 0, maxValue = 5, stepIncrement = 0.1f, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.Editor)]
+        public float deployTime = 0.5f;
+
         [KSPField]
         public float scaleMax = 2;
+
+        [KSPField]
+        public float offsetMax = 1;
 
         [KSPField]
         public string lengthTransformName;
@@ -126,7 +135,6 @@ namespace BDArmory.Weapons.Missiles
                     }
             }
         }
-
         public void Start()
         {
             MakeMissileArray();
@@ -161,6 +169,7 @@ namespace BDArmory.Weapons.Missiles
             yield return new WaitForFixedUpdate();
             missileLauncher = part.FindModuleImplementing<MissileLauncher>();
             missileSpawner = part.FindModuleImplementing<ModuleMissileRearm>();
+            adjustableRail = part.FindModuleImplementing<BDAdjustableRail>();
             turret = part.FindModuleImplementing<MissileTurret>();
             if (turret != null) turret.missilepod = missileLauncher;
             if (missileSpawner == null) //MultiMissile launchers/cluster missiles need a MMR module for spawning their submunitions, so add one if not present in case cfg not set up properly
@@ -304,6 +313,11 @@ namespace BDArmory.Weapons.Missiles
                     missileMass = parts.Current.partPrefab.mass;
                     break;
                 }
+            if (missileSpawner.maxAmmo > 1)
+            {
+                UI_FloatRange Ammo = (UI_FloatRange)missileSpawner.Fields["railAmmo"].uiControlEditor;
+                Ammo.onFieldChanged = updateOffset;                
+            }
             if (string.IsNullOrEmpty(scaleTransformName))
             {
                 Fields["Scale"].guiActiveEditor = false;
@@ -331,6 +345,8 @@ namespace BDArmory.Weapons.Missiles
             if (!string.IsNullOrEmpty(lengthTransformName))
             {
                 UI_FloatRange AOffset = (UI_FloatRange)Fields["attachOffset"].uiControlEditor;
+                AOffset.maxValue = offsetMax;
+                AOffset.minValue = -offsetMax;
                 AOffset.onFieldChanged = updateOffset;
             }
             else Fields["attachOffset"].guiActiveEditor = false;
@@ -429,7 +445,7 @@ namespace BDArmory.Weapons.Missiles
                     {
                         if (stackNode.Current == null) continue;
                         if (stackNode.Current?.nodeType != AttachNode.NodeType.Stack) continue;
-                        if (stackNode.Current.id != RailNode) continue;
+                        if (stackNode.Current.id.Contains(RailNode))
                         {
                             if (stackNode.Current.attachedPart is Part missile)
                             {
@@ -439,6 +455,11 @@ namespace BDArmory.Weapons.Missiles
                                 {
                                     subMunitionName = missile.name;
                                     subMunitionPath = GetMeshurl((UrlDir.UrlConfig)GameDatabase.Instance.root.GetConfig(missile.partInfo.partUrl));
+                                    if (adjustableRail)
+                                    {
+                                        var missileCOL = missile.GetComponentInChildren<Collider>();
+                                        if (missileCOL) attachedMissileDia = Mathf.Min(missileCOL.bounds.size.x, missileCOL.bounds.size.y, missileCOL.bounds.size.z);
+                                    }
                                     PopulateMissileDummies(true);
                                     MissileLauncher MLConfig = missile.FindModuleImplementing<MissileLauncher>();
                                     LoadoutModified = true;
@@ -486,12 +507,12 @@ namespace BDArmory.Weapons.Missiles
         {
             //check if part uses a MODEL node to grab an (external?) .mu file
             string url;
+            float invRescaleFactor = 1f / part.rescaleFactor;
+            dummyScale = new Vector3(invRescaleFactor, invRescaleFactor, invRescaleFactor);
             if (cfgdir.config.HasNode("MODEL"))
             {
                 var MODEL = cfgdir.config.GetNode("MODEL");
                 url = MODEL.GetValue("model") ?? "";
-                float invRescaleFactor = 1f / part.rescaleFactor;
-                dummyScale = new Vector3 (invRescaleFactor, invRescaleFactor, invRescaleFactor);
                 if (MODEL.HasValue("scale"))
                 {
                     string[] strings = MODEL.GetValue("scale").Split(","[0]);
@@ -522,9 +543,9 @@ namespace BDArmory.Weapons.Missiles
             if (cfgdir.config.HasValue("rescaleFactor"))
             {
                 float scale = float.Parse(cfgdir.config.GetValue("rescaleFactor"));
-                dummyScale.x = scale;
-                dummyScale.y = scale;
-                dummyScale.z = scale;
+                dummyScale.x *= scale;
+                dummyScale.y *= scale;
+                dummyScale.z *= scale;
             }
             url = string.Format("{0}/{1}", cfgdir.parent.parent.url, mesh);
             //Debug.Log($"[BDArmory.MultiMissileLauncher] Found model URL of {url} and scale {dummyScale}");
@@ -547,7 +568,7 @@ namespace BDArmory.Weapons.Missiles
             missileLauncher.radarLOAL = MLConfig.radarLOAL;
             missileLauncher.activeRadarRange = MLConfig.activeRadarRange;
             missileLauncher.activeRadarLockTrackCurve = MLConfig.activeRadarLockTrackCurve;
-            missileLauncher.antiradTargets = MLConfig.antiradTargets;
+            missileLauncher.antiradTargetTypes = MLConfig.antiradTargetTypes;
             missileLauncher.steerMult = MLConfig.steerMult;
             missileLauncher.thrust = MLConfig.thrust;
             missileLauncher.maxAoA = MLConfig.maxAoA;
@@ -557,9 +578,9 @@ namespace BDArmory.Weapons.Missiles
             missileLauncher.terminalGuidanceShouldActivate = MLConfig.terminalGuidanceShouldActivate;
             missileLauncher.terminalGuidanceType = MLConfig.terminalGuidanceType;
             missileLauncher.torpedo = MLConfig.torpedo;
-            missileLauncher.loftState = LoftStates.Boost;
-            missileLauncher.TimeToImpact = float.PositiveInfinity;
-            missileLauncher.initMaxAoA = MLConfig.maxAoA;
+            //missileLauncher.loftState = LoftStates.Boost;
+            //missileLauncher.TimeToImpact = float.PositiveInfinity;
+            //missileLauncher.initMaxAoA = MLConfig.maxAoA;
             missileLauncher.terminalHomingType = MLConfig.terminalHomingType;
             missileLauncher.pronavGain = MLConfig.pronavGain;
             missileLauncher.kappaAngle = MLConfig.kappaAngle;
@@ -661,7 +682,8 @@ namespace BDArmory.Weapons.Missiles
                     existingDummy.Deactivate(); //if changing out missiles loaded into a VLS or similar, reset missile dummies
                 }
             }
-            for (int i = 0; i < launchTransforms.Length; i++)
+            int loadedOrdinance = (BDArmorySettings.INFINITE_ORDINANCE ? launchTransforms.Length : missileSpawner != null ? Math.Min((int)missileSpawner.railAmmo, launchTransforms.Length) : launchTransforms.Length);
+            for (int i = 0; i < loadedOrdinance; i++)
             {
                 if (!refresh)
                 {
@@ -677,7 +699,9 @@ namespace BDArmory.Weapons.Missiles
                     if (!displayOrdinance) return;
                     GameObject dummy = mslDummyPool[subMunitionPath].GetPooledObject();
                     MissileDummy dummyThis = dummy.GetComponentInChildren<MissileDummy>();
+
                     dummyThis.AttachAt(part, launchTransforms[i]);
+                    if (adjustableRail && attachedMissileDia > 0) dummyThis.transform.localPosition = new Vector3(attachedMissileDia / 2, 0, 0);
                     dummy.transform.localScale = dummyScale;
                     var mslAnim = dummy.GetComponentInChildren<Animation>();
                     if (mslAnim != null) mslAnim.enabled = false;
@@ -777,10 +801,11 @@ namespace BDArmory.Weapons.Missiles
                     if (BDArmorySettings.DEBUG_MISSILES) Debug.LogWarning($"[BDArmory.MissileLauncher]: Failed to spawn a missile in {missileSpawner} on {vessel.vesselName}");
                     continue;
                 }
-                if (ignoreLauncherColliders)
+                if (!ignoreLauncherColliders)
                 {
-                    var missileCOL = missileSpawner.SpawnedMissile.collider;
-                    if (missileCOL) missileCOL.enabled = false;
+                    var childColliders = missileSpawner.SpawnedMissile.GetComponentsInChildren<Collider>(includeInactive: false);
+                    foreach (var col in childColliders)
+                        col.enabled = true;
                 }
                 MissileLauncher ml = missileSpawner.SpawnedMissile.FindModuleImplementing<MissileLauncher>();
                 MultiMissileLauncher mml = missileSpawner.SpawnedMissile.FindModuleImplementing<MultiMissileLauncher>();
@@ -801,7 +826,10 @@ namespace BDArmory.Weapons.Missiles
                     tnt.isMissile = true;
                 }
                 if (ignoreLauncherColliders)
+                {
                     ml.useSimpleDragTemp = true;
+                    ml.clearanceLength = Mathf.Max(missileSpawner.SpawnedMissile.collider.bounds.size.x, missileSpawner.SpawnedMissile.collider.bounds.size.y, missileSpawner.SpawnedMissile.collider.bounds.size.z);
+                }
                 ml.Team = Team;
                 ml.SourceVessel = missileLauncher.SourceVessel;
                 if (string.IsNullOrEmpty(ml.GetShortName()))
@@ -970,7 +998,7 @@ namespace BDArmory.Weapons.Missiles
                                     missileRegistry = false;  //this isn't ignoring subsequent missiles in the salvo for some reason?
                                     //Debug.Log($"[MML Targeting Debug] Reached end of target list, cycling");
                             }
-                            if (targetsAssigned.Count > 0 && targetsAssigned[TargetID] != null && targetsAssigned[TargetID].Vessel != null && !Team.IsFriendly(targetsAssigned[TargetID].Team))
+                            if (targetsAssigned.Count > 0 && targetsAssigned[TargetID] != null && targetsAssigned[TargetID].Vessel != null && (!ml.hasIFF || !Team.IsFriendly(targetsAssigned[TargetID].Team)))
                             {
                                 if ((Vector3.Angle(targetsAssigned[TargetID].position - missileLauncher.MissileReferenceTransform.position, missileLauncher.GetForwardTransform()) < missileLauncher.maxOffBoresight) //is the target more-or-less in front of the missile(launcher)?
                                     && ((ml.engageAir && targetsAssigned[TargetID].isFlying) ||
@@ -981,7 +1009,7 @@ namespace BDArmory.Weapons.Missiles
                                     if (ml.TargetingMode == TargetingModes.Heat) //need to input a heattarget, else this will just return MissileFire.CurrentTarget
                                     {
                                         Vector3 direction = (targetsAssigned[TargetID].position * targetsAssigned[TargetID].velocity.magnitude) - missileLauncher.MissileReferenceTransform.position;
-                                        ml.heatTarget = BDATargetManager.GetHeatTarget(ml.SourceVessel, ml.vessel, new Ray(missileLauncher.MissileReferenceTransform.position + (5 * missileLauncher.GetForwardTransform()), direction), TargetSignatureData.noTarget, ml.lockedSensorFOV * 0.5f, ml.heatThreshold, ml.frontAspectHeatModifier, true, ml.targetCoM, ml.lockedSensorFOVBias, ml.lockedSensorVelocityBias, wpm, targetsAssigned[TargetID]);
+                                        ml.heatTarget = BDATargetManager.GetHeatTarget(ml.SourceVessel, ml.vessel, new Ray(missileLauncher.MissileReferenceTransform.position + (5 * missileLauncher.GetForwardTransform()), direction), TargetSignatureData.noTarget, ml.lockedSensorFOV * 0.5f, ml.heatThreshold, ml.frontAspectHeatModifier, true, ml.targetCoM, ml.lockedSensorFOVBias, ml.lockedSensorVelocityBias, wpm, targetsAssigned[TargetID], IFF: ml.hasIFF);
                                     }
                                     if (ml.TargetingMode == TargetingModes.Radar)
                                     {
@@ -1006,7 +1034,7 @@ namespace BDArmory.Weapons.Missiles
                                     for (int t = TargetID; t < targetsAssigned.Count - 1; t++)
                                     {
                                         if (targetsAssigned[t] == null) continue;
-                                        if (Team.IsFriendly(targetsAssigned[t].Team)) continue;
+                                        if (ml.hasIFF && Team.IsFriendly(targetsAssigned[t].Team)) continue;
                                         if ((ml.engageAir && !targetsAssigned[t].isFlying) ||
                                             (ml.engageGround && !targetsAssigned[t].isLandedOrSurfaceSplashed) ||
                                             (ml.engageSLW && !targetsAssigned[t].isUnderwater) ||
@@ -1017,7 +1045,7 @@ namespace BDArmory.Weapons.Missiles
                                             if (ml.TargetingMode == TargetingModes.Heat)
                                             {
                                                 Vector3 direction = (targetsAssigned[t].position * targetsAssigned[t].velocity.magnitude) - missileLauncher.MissileReferenceTransform.position;
-                                                ml.heatTarget = BDATargetManager.GetHeatTarget(ml.SourceVessel, ml.vessel, new Ray(missileLauncher.MissileReferenceTransform.position + (5 * missileLauncher.GetForwardTransform()), direction), TargetSignatureData.noTarget, ml.lockedSensorFOV * 0.5f, ml.heatThreshold, ml.frontAspectHeatModifier, true, ml.targetCoM, ml.lockedSensorFOVBias, ml.lockedSensorVelocityBias, wpm, targetsAssigned[t]);
+                                                ml.heatTarget = BDATargetManager.GetHeatTarget(ml.SourceVessel, ml.vessel, new Ray(missileLauncher.MissileReferenceTransform.position + (5 * missileLauncher.GetForwardTransform()), direction), TargetSignatureData.noTarget, ml.lockedSensorFOV * 0.5f, ml.heatThreshold, ml.frontAspectHeatModifier, true, ml.targetCoM, ml.lockedSensorFOVBias, ml.lockedSensorVelocityBias, wpm, targetsAssigned[t], IFF: ml.hasIFF);
                                             }
                                             if (ml.TargetingMode == TargetingModes.Radar)
                                             {
@@ -1048,7 +1076,7 @@ namespace BDArmory.Weapons.Missiles
                                             {
                                                 if (item.Current == null) continue;
                                                 if (item.Current.Vessel == null) continue;
-                                                if (Team.IsFriendly(item.Current.Team)) continue;
+                                                if (ml.hasIFF && Team.IsFriendly(item.Current.Team)) continue;
                                                 if ((ml.engageAir && !item.Current.isFlying) ||
                                                     (ml.engageGround && !item.Current.isLandedOrSurfaceSplashed) ||
                                                     (ml.engageSLW && !item.Current.isUnderwater) ||
@@ -1058,7 +1086,7 @@ namespace BDArmory.Weapons.Missiles
                                                     if (ml.TargetingMode == TargetingModes.Heat)
                                                     {
                                                         Vector3 direction = (item.Current.position * item.Current.velocity.magnitude) - missileLauncher.MissileReferenceTransform.position;
-                                                        ml.heatTarget = BDATargetManager.GetHeatTarget(ml.SourceVessel, ml.vessel, new Ray(missileLauncher.MissileReferenceTransform.position + (5 * missileLauncher.GetForwardTransform()), direction), TargetSignatureData.noTarget, ml.lockedSensorFOV * 0.5f, ml.heatThreshold, ml.frontAspectHeatModifier, true, ml.targetCoM, ml.lockedSensorFOVBias, ml.lockedSensorVelocityBias, wpm, item.Current);
+                                                        ml.heatTarget = BDATargetManager.GetHeatTarget(ml.SourceVessel, ml.vessel, new Ray(missileLauncher.MissileReferenceTransform.position + (5 * missileLauncher.GetForwardTransform()), direction), TargetSignatureData.noTarget, ml.lockedSensorFOV * 0.5f, ml.heatThreshold, ml.frontAspectHeatModifier, true, ml.targetCoM, ml.lockedSensorFOVBias, ml.lockedSensorVelocityBias, wpm, item.Current, IFF: ml.hasIFF);
                                                     }
                                                     if (ml.TargetingMode == TargetingModes.Radar)
                                                     {
@@ -1109,8 +1137,8 @@ namespace BDArmory.Weapons.Missiles
                                 case TargetingModes.Radar:
                                     targetGEOPos = missileLauncher.radarTarget.geoPos;
                                     targetINScoords = VectorUtils.WorldPositionToGeoCoords(missileLauncher.heatTarget.predictedPosition, FlightGlobals.currentMainBody);
-                                    TimeOfLastINS = missileLauncher.heatTarget.timeAcquired;
-                                    INStimetogo = missileLauncher.heatTarget.age;
+                                    TimeOfLastINS = missileLauncher.radarTarget.timeAcquired;
+                                    INStimetogo = missileLauncher.radarTarget.age;
                                     break;
                                 case TargetingModes.Laser:
                                     targetGEOPos = VectorUtils.WorldPositionToGeoCoords(missileLauncher.TargetPosition, FlightGlobals.currentMainBody);
@@ -1244,7 +1272,7 @@ namespace BDArmory.Weapons.Missiles
             }
             if (deployState != null)
             {
-                yield return new WaitForSecondsFixed(0.5f); //wait for missile to clear bay
+                yield return new WaitForSecondsFixed(deployTime); //wait for missile to clear bay
                 if (deployState != null)
                 {
                     deployState.enabled = true;

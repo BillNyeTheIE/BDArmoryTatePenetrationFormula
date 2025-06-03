@@ -38,7 +38,7 @@ namespace BDArmory.UI
         int selected_index = 1;
         int WaygateCount = -1;
         public int gateModelsCount => WaygateCount;
-        public float SelectedGate = 0;
+        public float SelectedGate = -1;
         public static string Gatepath;
         public string SelectedModel;
         public string[] gateFiles;
@@ -172,7 +172,10 @@ namespace BDArmory.UI
             {
                 Debug.LogError($"[BDArmory.VesselSpawnerWindow]: Failed to locate waypoint marker models: {e.Message}");
             }
-            if (WaygateCount >= 0) SelectedModel = Path.GetFileNameWithoutExtension(gateFiles[(int)SelectedGate]);
+            if (WaygateCount >= 0)
+            {
+                if (SelectedGate >= 0) SelectedModel = Path.GetFileNameWithoutExtension(gateFiles[(int)Mathf.Clamp(SelectedGate, 0, WaygateCount)]);
+            }
             else Debug.LogWarning($"[BDArmory.VesselSpawnerWindow]: No waypoint gate models found in {Gatepath}!");
             if (BDArmorySettings.WAYPOINT_COURSE_INDEX >= WaypointCourses.CourseLocations.Count) BDArmorySettings.WAYPOINT_COURSE_INDEX = 0; // Sanitise the index in case the course list has changed.
         }
@@ -222,7 +225,7 @@ namespace BDArmory.UI
             );
             BDArmorySetup.SetGUIOpacity();
             var guiMatrix = GUI.matrix;
-            if (BDArmorySettings._UI_SCALE != 1) GUIUtility.ScaleAroundPivot(BDArmorySettings._UI_SCALE * Vector2.one, BDArmorySetup.WindowRectVesselSpawner.position);
+            if (BDArmorySettings.UI_SCALE_ACTUAL != 1) GUIUtility.ScaleAroundPivot(BDArmorySettings.UI_SCALE_ACTUAL * Vector2.one, BDArmorySetup.WindowRectVesselSpawner.position);
             BDArmorySetup.WindowRectVesselSpawner = GUI.Window(
                 GUIUtility.GetControlID(FocusType.Passive),
                 BDArmorySetup.WindowRectVesselSpawner,
@@ -238,7 +241,7 @@ namespace BDArmory.UI
                     ShowObserverWindow(false);
                 else
                 {
-                    if (BDArmorySettings._UI_SCALE != 1) { GUI.matrix = guiMatrix; GUIUtility.ScaleAroundPivot(BDArmorySettings._UI_SCALE * Vector2.one, observerWindowRect.position); }
+                    if (BDArmorySettings.UI_SCALE_ACTUAL != 1) { GUI.matrix = guiMatrix; GUIUtility.ScaleAroundPivot(BDArmorySettings.UI_SCALE_ACTUAL * Vector2.one, observerWindowRect.position); }
                     observerWindowRect = GUILayout.Window(GUIUtility.GetControlID(FocusType.Passive), observerWindowRect, ObserverWindow, StringUtils.Localize("#LOC_BDArmory_ObserverSelection_Title"), BDArmorySetup.BDGuiSkin.window);
                 }
             }
@@ -449,7 +452,7 @@ namespace BDArmory.UI
                 BDArmorySettings.VESSEL_SPAWN_RANDOM_ORDER = GUI.Toggle(SRightRect(line), BDArmorySettings.VESSEL_SPAWN_RANDOM_ORDER, StringUtils.Localize("#LOC_BDArmory_Settings_SpawnRandomOrder"));  // Toggle between random spawn order or fixed.
                 BDArmorySettings.VESSEL_SPAWN_CONTINUE_SINGLE_SPAWNING = GUI.Toggle(SLeftRect(++line), BDArmorySettings.VESSEL_SPAWN_CONTINUE_SINGLE_SPAWNING, StringUtils.Localize("#LOC_BDArmory_Settings_SpawnContinueSingleSpawning"));  // Spawn craft again after single spawn competition finishes.
                 BDArmorySettings.VESSEL_SPAWN_INITIAL_VELOCITY = GUI.Toggle(SRightRect(line), BDArmorySettings.VESSEL_SPAWN_INITIAL_VELOCITY, StringUtils.Localize("#LOC_BDArmory_Settings_SpawnInitialVelocity")); // Planes spawn at their idle speed.
-                BDArmorySettings.VESSEL_SPAWN_DUMP_LOG_EVERY_SPAWN = GUI.Toggle(SLeftRect(++line), BDArmorySettings.VESSEL_SPAWN_DUMP_LOG_EVERY_SPAWN, StringUtils.Localize("#LOC_BDArmory_Settings_SpawnDumpLogsEverySpawn")); //Dump logs every spawn.
+                ++line; // Placeholder for a removed entry.
                 BDArmorySettings.VESSEL_SPAWN_CS_FOLLOWS_CENTROID = GUI.Toggle(SRightRect(line), BDArmorySettings.VESSEL_SPAWN_CS_FOLLOWS_CENTROID, StringUtils.Localize("#LOC_BDArmory_Settings_CSFollowsCentroid")); //CS spawn-point follows centroid.
 
                 if (GUI.Button(SRightRect(++line), StringUtils.Localize("#LOC_BDArmory_Settings_SpawnSpawnProbeHere"), BDArmorySetup.BDGuiSkin.button))
@@ -502,7 +505,7 @@ namespace BDArmory.UI
                 }
                 if (GUI.Button(SThirdRect(line, 2), StringUtils.Localize("#LOC_BDArmory_Settings_Observers"), BDArmorySetup.BDGuiSkin.button))
                 {
-                    ShowObserverWindow(true, BDArmorySettings._UI_SCALE * Event.current.mousePosition + BDArmorySetup.WindowRectVesselSpawner.position);
+                    ShowObserverWindow(true, BDArmorySettings.UI_SCALE_ACTUAL * Event.current.mousePosition + BDArmorySetup.WindowRectVesselSpawner.position);
                 }
                 line += 0.3f;
             }
@@ -600,8 +603,8 @@ namespace BDArmory.UI
                     GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_WP_ChooseCourse")}: ({waypointCourseName})", leftLabel); //Select COurse
                     BDArmorySettings.WAYPOINT_COURSE_INDEX = Mathf.RoundToInt(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.WAYPOINT_COURSE_INDEX, 0, WaypointCourses.CourseLocations.Count - 1));
 
-                    GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_WP_Waypoint")} {StringUtils.Localize("#autoLOC_463493")}: {(BDArmorySettings.WAYPOINTS_ALTITUDE > 0 ? $"({BDArmorySettings.WAYPOINTS_ALTITUDE:F0}m)" : StringUtils.Localize("#LOC_BDArmory_WP_CourseDefaults"))}", leftLabel); //Waypoint Altitude /use Course Settings
-                    BDArmorySettings.WAYPOINTS_ALTITUDE = BDAMath.RoundToUnit(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.WAYPOINTS_ALTITUDE, 0, 1000f), 50f);
+                    GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_WP_Waypoint")} {StringUtils.Localize("#autoLOC_463493")}: {(BDArmorySettings.WAYPOINTS_ALTITUDE >= 0 ? $"({BDArmorySettings.WAYPOINTS_ALTITUDE:F0}m)" : StringUtils.Localize("#LOC_BDArmory_WP_CourseDefaults"))}", leftLabel); //Waypoint Altitude /use Course Settings
+                    BDArmorySettings.WAYPOINTS_ALTITUDE = BDAMath.RoundToUnit(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.WAYPOINTS_ALTITUDE, -50, 1000f), 50);
 
                     GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_WP_MaxLaps")}: {BDArmorySettings.WAYPOINT_LOOP_INDEX:F0}", leftLabel); //max Laps
                     BDArmorySettings.WAYPOINT_LOOP_INDEX = Mathf.RoundToInt(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.WAYPOINT_LOOP_INDEX, 1, BDArmorySettings.WAYPOINT_MAX_LAPS));
@@ -617,9 +620,10 @@ namespace BDArmory.UI
                         if (WaygateCount >= 0)
                         {
                             GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_WP_SelectModel")}: {SelectedModel}", leftLabel); //Waypoint Type
-                            if (SelectedGate != (SelectedGate = BDAMath.RoundToUnit(GUI.HorizontalSlider(SRightSliderRect(line), SelectedGate, 0, WaygateCount), 1)))
+                            if (SelectedGate != (SelectedGate = BDAMath.RoundToUnit(GUI.HorizontalSlider(SRightSliderRect(line), SelectedGate, -1, WaygateCount), 1)))
                             {
-                                SelectedModel = Path.GetFileNameWithoutExtension(gateFiles[(int)SelectedGate]);
+                                if (SelectedGate >= 0) SelectedModel = Path.GetFileNameWithoutExtension(gateFiles[(int)Mathf.Clamp(SelectedGate, 0, WaygateCount)]);
+                                else SelectedModel = string.Empty;
                             }
                         }
                     }
@@ -652,15 +656,19 @@ namespace BDArmory.UI
                     spawnTemplate.name = GUIUtils.TextField(spawnTemplate.name, "Specify a name then save the template.", rect: SQuarterRect(++line, 0, 2)); // Writing in the text field updates the name of the current template.
                     if (GUI.Button(SQuarterRect(line, 2), StringUtils.Localize("#LOC_BDArmory_Generic_Load"), BDArmorySetup.BDGuiSkin.button))
                     {
-                        CustomTemplateSpawning.Instance.ShowTemplateSelection(BDArmorySettings._UI_SCALE * Event.current.mousePosition + BDArmorySetup.WindowRectVesselSpawner.position);
+                        CustomTemplateSpawning.Instance.ShowTemplateSelection(BDArmorySettings.UI_SCALE_ACTUAL * Event.current.mousePosition + BDArmorySetup.WindowRectVesselSpawner.position);
                     }
-                    if (GUI.Button(SEighthRect(line, 6), StringUtils.Localize("#LOC_BDArmory_Generic_Save"), BDArmorySetup.BDGuiSkin.button)) // Save overwrites the current template with the current vessel positions in the LoadedVesselSwitcher.
+                    if (GUI.Button(SQuarterRect(line, 3), StringUtils.Localize("#LOC_BDArmory_Generic_Save"), BDArmorySetup.BDGuiSkin.button)) // Save overwrites the current template with the current vessel positions in the LoadedVesselSwitcher.
                     {
                         CustomTemplateSpawning.Instance.SaveTemplate();
                     }
-                    if (GUI.Button(SEighthRect(line, 7), StringUtils.Localize("#LOC_BDArmory_Generic_New"), BDArmorySetup.BDGuiSkin.button)) // New generates a new template from the current vessels in the LoadedVesselSwitcher.
+                    if (GUI.Button(SQuarterRect(++line, 2), StringUtils.Localize("#LOC_BDArmory_Generic_New"), BDArmorySetup.BDGuiSkin.button)) // New generates a new template from the current vessels in the LoadedVesselSwitcher.
                     {
                         spawnTemplate = CustomTemplateSpawning.Instance.NewTemplate();
+                    }
+                    if (GUI.Button(SQuarterRect(line, 3), StringUtils.Localize("#LOC_BDArmory_Settings_CustomSpawnTemplate_SaveCraftToTemplate"), BDArmorySetup.BDGuiSkin.button)) // New generates a new template from the current vessels in the LoadedVesselSwitcher.
+                    {
+                        CustomTemplateSpawning.Instance.SaveCraftToTemplate();
                     }
                     line += 0.25f;
                     // We then want a table of teams of craft buttons for selecting the craft with kerbal buttons beside them for selecting the kerbals.
@@ -676,14 +684,14 @@ namespace BDArmory.UI
                                 if (Event.current.button == 1)//Right click
                                     CustomTemplateSpawning.Instance.HideVesselSelection(member);
                                 else
-                                    CustomTemplateSpawning.Instance.ShowVesselSelection(BDArmorySettings._UI_SCALE * Event.current.mousePosition + BDArmorySetup.WindowRectVesselSpawner.position, member, team);
+                                    CustomTemplateSpawning.Instance.ShowVesselSelection(BDArmorySettings.UI_SCALE_ACTUAL * Event.current.mousePosition + BDArmorySetup.WindowRectVesselSpawner.position, member, team);
                             }
                             if (GUI.Button(SQuarterRect(line, 3, 1), string.IsNullOrEmpty(member.kerbalName) ? "random" : member.kerbalName, BDArmorySetup.BDGuiSkin.button))
                             {
                                 if (Event.current.button == 1) // Right click
                                     CustomTemplateSpawning.Instance.HideCrewSelection(member);
                                 else
-                                    CustomTemplateSpawning.Instance.ShowCrewSelection(BDArmorySettings._UI_SCALE * Event.current.mousePosition + BDArmorySetup.WindowRectVesselSpawner.position, member);
+                                    CustomTemplateSpawning.Instance.ShowCrewSelection(BDArmorySettings.UI_SCALE_ACTUAL * Event.current.mousePosition + BDArmorySetup.WindowRectVesselSpawner.position, member);
                             }
                         }
                         ++teamName;
@@ -808,6 +816,10 @@ namespace BDArmory.UI
             {
                 if (!waypointsRunning)
                 {
+                    // Note:
+                    // - left click is run with waypoint spawn point
+                    // - right click is run with current spawn point
+                    // - middle click is run current vessel through waypoints
                     if (GUI.Button(SLineRect(++line), "Run waypoints", BDArmorySetup.BDGuiSkin.button))
                     {
                         if (BDArmorySetup.showWPBuilderGUI && !TournamentCoordinator.Instance.IsRunning) //delete loaded gates if builder is closed, but not if WP course is currently running
@@ -833,7 +845,18 @@ namespace BDArmory.UI
                         spawnLongitude = (float)WaypointCourses.CourseLocations[BDArmorySettings.WAYPOINT_COURSE_INDEX].spawnPoint.y;
                         course = WaypointCourses.CourseLocations[BDArmorySettings.WAYPOINT_COURSE_INDEX].waypoints;
 
-                        if (!BDArmorySettings.WAYPOINTS_ONE_AT_A_TIME)
+                        if (Event.current.button == 2) // Middle click => Move the current craft to the spawn point and set it running waypoints.
+                        {
+                            SpawnUtils.ShowSpawnPoint(
+                                WaypointCourses.CourseLocations[BDArmorySettings.WAYPOINT_COURSE_INDEX].worldIndex,
+                                spawnLatitude,
+                                spawnLongitude,
+                                BDArmorySettings.VESSEL_SPAWN_ALTITUDE
+                            );
+                            TournamentCoordinator.Instance.Configure(null, new WaypointFollowingStrategy(course), null);
+                            TournamentCoordinator.Instance.Run();
+                        }
+                        else if (!BDArmorySettings.WAYPOINTS_ONE_AT_A_TIME)
                         {
                             TournamentCoordinator.Instance.Configure(new SpawnConfigStrategy(
                                 new CircularSpawnConfig(
@@ -1102,7 +1125,7 @@ namespace BDArmory.UI
         {
             if (show)
             {
-                observerWindowRect.position = position + new Vector2(50, -BDArmorySettings._UI_SCALE * observerWindowRect.height / 2); // Centred and slightly offset to allow clicking the same spot.
+                observerWindowRect.position = position + new Vector2(50, -BDArmorySettings.UI_SCALE_ACTUAL * observerWindowRect.height / 2); // Centred and slightly offset to allow clicking the same spot.
                 RefreshObservers();
                 bringObserverWindowToFront = true;
             }

@@ -195,7 +195,7 @@ namespace BDArmory.VesselSpawning
             LogMessage($"Spawning {spawnConfig.craftFiles.Count - (PinataMode ? 1 : 0)} vessels at an altitude of {(spawnConfig.altitude < 1000 ? $"{spawnConfig.altitude:G5}m" : $"{spawnConfig.altitude / 1000:G5}km")} ({(spawnInOrbit ? "in orbit" : spawnAirborne ? "airborne" : "landed")}){(spawnConfig.craftFiles.Count > 8 ? ", this may take some time..." : ".")}");
             #endregion
 
-            yield return AcquireSpawnPoint(spawnConfig, 2f * spawnDistance, spawnAirborne);
+            yield return AcquireSpawnPoint(spawnConfig, spawnDistance, spawnAirborne);
             if (spawnFailureReason != SpawnFailureReason.None)
             {
                 vesselsSpawning = false;

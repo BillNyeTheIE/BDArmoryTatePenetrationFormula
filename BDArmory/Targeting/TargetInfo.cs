@@ -98,8 +98,7 @@ namespace BDArmory.Targeting
             {
                 if (!vessel) return false;
                 if (vessel.situation == Vessel.Situations.SPLASHED) return true;
-                else
-                    return false;
+                return false;
             }
         }
 
@@ -177,6 +176,8 @@ namespace BDArmory.Targeting
                 return false;
             }
         }
+
+        public List<(string, float)> debugTargetPriorities = []; // Debug info for target priorities.
 
         void Awake()
         {
@@ -406,12 +407,16 @@ namespace BDArmory.Targeting
             ataDot = (ataDot + 1) / 2; // Adjust from 0-1 instead of -1 to 1
             return ataDot * ataDot;
         }
-        public float TargetPriEngagement(MissileFire mf) // Differentiate between flying and surface targets
+        public float TargetPriEngagement(MissileFire mf, double engagingAlt) // Differentiate between flying and surface targets
         {
             if (mf == null) return 0; // no WM, so no valid target, no impact on targeting score
             if (mf.vessel.LandedOrSplashed)
             {
                 return -1; //ground target
+            }
+            else if (mf.vessel.horizontalSrfSpeed < 30 && (mf.vessel.radarAltitude < 200 && engagingAlt > 800)) //if craft is flatspinning or similar, and is lower than 200m, while the aircraft targeting it is higher than 800, regard as semi-landed
+            {
+                return -0.5f;
             }
             else
             {
@@ -529,7 +534,7 @@ namespace BDArmory.Targeting
             if ((mf.vessel != null) && (mf.currentTarget != null) && (mf.currentTarget.weaponManager != null))
             {
                 bool attackingOurVIPs = mf.currentTarget.weaponManager.isVIP && (myMf.Team == mf.currentTarget.weaponManager.Team);
-                return ((attackingOurVIPs == true) ? 1 : -1); // Ranges -1 to 1, 1 if target is attacking our VIP(s), -1 if it is not
+                return ((attackingOurVIPs == true) ? 1 : 0); // Ranges 0 to 1, 1 if target is attacking our VIP(s), 0 if it is not
             }
             else
             {
@@ -543,7 +548,7 @@ namespace BDArmory.Targeting
             if (mf.vessel != null)
             {
                 bool isVIP = mf.isVIP;
-                return ((isVIP == true) ? 1 : -1); // Ranges -1 to 1, 1 if target is an enemy VIP, -1 if it is not
+                return ((isVIP == true) ? 1 : 0); // Ranges 0 to 1, 1 if target is an enemy VIP, 0 if it is not
             }
             else
             {
@@ -601,7 +606,7 @@ namespace BDArmory.Targeting
         public bool SafeOrbitalIntercept(MissileFire myMf)
         {
             // For orbital AI craft, avoid intercepting targets if we are descending and the maneuver will bring our own periapsis to an unsafe altitude
-            
+
             if (!vessel) return true;
             var orbitalAI = VesselModuleRegistry.GetModule<BDModuleOrbitalAI>(myMf.vessel);
             if (orbitalAI == null)

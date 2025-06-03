@@ -15,6 +15,7 @@ namespace BDArmory.UI
         private ProtoStageIconInfo heatGauge;
         private ProtoStageIconInfo emptyGauge;
         private ProtoStageIconInfo ammoGauge;
+        private ProtoStageIconInfo cmGauge;
         private ProtoStageIconInfo reloadBar;
 
         void Start()
@@ -32,7 +33,7 @@ namespace BDArmory.UI
 
         private void ReloadIconOnVesselSwitch(Vessel data0, Vessel data1)
         {
-            if (part!=null && part.vessel != null && part.vessel.isActiveVessel)
+            if (part != null && part.vessel != null && part.vessel.isActiveVessel)
             {
                 ForceRedraw();
             }
@@ -68,6 +69,41 @@ namespace BDArmory.UI
                 }
             }
             else if (ammoGauge != null || emptyGauge != null)
+            {
+                ForceRedraw();
+            }
+        }
+
+        public void UpdateCMMeter(float cmLevel)
+        {
+            if (BDArmorySettings.SHOW_AMMO_GAUGES && !BDArmorySettings.INFINITE_ORDINANCE)
+            {
+                if (cmLevel > 0)
+                {
+                    if (emptyGauge != null)
+                    {
+                        ForceRedraw();
+                    }
+                    if (cmGauge == null)
+                    {
+                        cmGauge = InitCMGauge(AmmoName);
+                    }
+                    cmGauge?.SetValue(cmLevel, 0, 1);
+                }
+                else
+                {
+                    if (cmGauge != null)
+                    {
+                        ForceRedraw();
+                    }
+                    if (emptyGauge == null)
+                    {
+                        emptyGauge = InitEmptyGauge();
+                        emptyGauge?.SetValue(1, 0, 1);
+                    }
+                }
+            }
+            else if (cmGauge != null || emptyGauge != null)
             {
                 ForceRedraw();
             }
@@ -111,8 +147,9 @@ namespace BDArmory.UI
         private void ForceRedraw()
         {
             part.stackIcon.ClearInfoBoxes();
-            //null everything so other gauges will perperly re-initialize post ClearinfoBoxes()
+            //null everything so other gauges will properly re-initialize post ClearinfoBoxes()
             ammoGauge = null;
+            cmGauge = null;
             heatGauge = null;
             reloadBar = null;
             emptyGauge = null;
@@ -163,6 +200,22 @@ namespace BDArmory.UI
             return v;
         }
 
+        private ProtoStageIconInfo InitCMGauge(string ammoName) //thanks DYJ
+        {
+            EnsureStagingIcon();
+            ProtoStageIconInfo a = part.stackIcon.DisplayInfo();
+            // fix nullref if no stackicon exists
+            if (a != null)
+            {
+                a.SetMsgBgColor(XKCDColors.Silver);
+                a.SetMsgTextColor(XKCDColors.Brick);
+                //a.SetMessage("Ammunition");
+                a.SetMessage($"{ammoName}");
+                a.SetProgressBarBgColor(XKCDColors.DarkGrey);
+                a.SetProgressBarColor(XKCDColors.Brick);
+            }
+            return a;
+        }
         private ProtoStageIconInfo InitAmmoGauge(string ammoName) //thanks DYJ
         {
             EnsureStagingIcon();
@@ -179,7 +232,6 @@ namespace BDArmory.UI
             }
             return a;
         }
-
         private ProtoStageIconInfo InitEmptyGauge() //could remove emptygauge, mainly a QoL thing, removal might increase performance slightly
         {
             EnsureStagingIcon();

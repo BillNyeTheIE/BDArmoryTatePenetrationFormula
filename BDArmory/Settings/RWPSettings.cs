@@ -6,6 +6,7 @@ using System.IO;
 using System.Collections.Generic;
 using System;
 using BDArmory.UI;
+using BDArmory.Utils;
 
 namespace BDArmory.Settings
 {
@@ -25,23 +26,29 @@ namespace BDArmory.Settings
 				//{"KERBAL_SAFETY", 1},
 				//{"KERBAL_SAFETY_INVENTORY", 2},
 				//{"RESET_ARMOUR", true},
-				//{"MAX_PWING_LIFT", 4.54},
 				//all of the Physics Constants?
 				{"AUTONOMOUS_COMBAT_SEATS", false},
+				{"BATTLEDAMAGE", true},
 				{"DESTROY_UNCONTROLLED_WMS", true},
 				{"DISABLE_RAMMING", false},
+				{"DISABLE_GUARDMODE_ON_SPAWN", true},
+				{"G_LIMITS", true}, // Override G-Limits from Game Difficulty and disable them
+				{"KERB_GLIMIT", false},
+				{"PART_GLIMIT", false},
+				{"G_TOLERANCE", 20.5}, // Default G-tolerance of Kerbals with KerbalGToleranceMult=1
 				{"HACK_INTAKES", true},
 				{"HP_THRESHOLD", 2000},
-				{"MAX_ARMOR_LIMIT", 10},
 				{"INFINITE_AMMO", false},
 				{"INFINITE_ORDINANCE", false}, // Note: don't set inf fuel or inf EC as those are used during autotuning and are handled differently in order to sync with the cheats menu.
+				{"MAX_ARMOR_LIMIT", 10},
+				{"MAX_PWING_LIFT", 4.54},
 				{"MAX_SAS_TORQUE", 30},
+				{"OUT_OF_AMMO_KILL_TIME", 60},
+				{"PWING_EDGE_LIFT", true},
 				{"PWING_THICKNESS_AFFECT_MASS_HP", true},
 				{"VESSEL_SPAWN_FILL_SEATS", 1},
 				{"VESSEL_SPAWN_RANDOM_ORDER", true},
 				{"VESSEL_SPAWN_REASSIGN_TEAMS", true},
-				{"OUT_OF_AMMO_KILL_TIME", 60},
-				{"BATTLEDAMAGE", true},
 			}},
 			{17, new(){}},
 			{33, new(){}},
@@ -140,7 +147,7 @@ namespace BDArmory.Settings
 				{"VESSEL_SPAWN_DISTANCE", 45},
 				{"COMPETITION_KILL_TIMER", 10},
 				{"COMPETITION_DURATION", 5},
-				{"VESSEL_SPAWN_GEOCOORDS", new Vector3d(33.911, -172.7)},
+				{"VESSEL_SPAWN_GEOCOORDS", new Vector2d(33.911, -172.7)},
 			}},
 			{70,new(){
 				{"ASTEROID_FIELD", true},
@@ -156,6 +163,23 @@ namespace BDArmory.Settings
 				{"VESSEL_SPAWN_DISTANCE", 8500},
 				{"VESSEL_RELATIVE_BULLET_CHECKS", true},
 				{"MAX_ARMOR_LIMIT", 50},
+			}},
+			{72,new(){
+				{"MAX_PWING_LIFT", 2},
+				{"GRAVITY_HACKS", true},
+			}},
+			{73,new(){
+				{"WAYPOINT_COURSE_INDEX", 1},
+				{"WAYPOINTS_MODE", true},
+				{"WAYPOINTS_ALTITUDE", 300},
+				{"COMPETITION_KILL_TIMER", 5},
+				{"VESSEL_SPAWN_ALTITUDE", 1000},
+				{"WAYPOINTS_ONE_AT_A_TIME", false},
+				{"COMPETITION_WAYPOINTS_GM_KILL_PERIOD", 60},
+				{"COMPETITION_GM_KILL_TIME", 5},
+				{"COMPETITION_GM_KILL_ENGINE", true},
+			}},
+			{74,new(){
 			}},
 		};
 		public static Dictionary<int, int> RWPRoundToIndex = new() { { 0, 0 } }, RWPIndexToRound = new() { { 0, 0 } }; // Helpers for the UI slider.
@@ -175,7 +199,7 @@ namespace BDArmory.Settings
 			{
 				RestoreSettings(); // Restore the non-RWP settings.
 			}
-			SyncToGameSettings();
+			if (HighLogic.LoadedSceneIsFlight || HighLogic.LoadedSceneIsEditor) SyncWithGameSettings(); // Enable our overrides (if active).
 			RWPEnabled = enabled;
 			if (BDArmorySetup.Instance != null) BDArmorySetup.Instance.UpdateSelectedMutators(); // Update the mutators selected in the UI.
 		}
@@ -229,6 +253,7 @@ namespace BDArmory.Settings
 		{
 			if (!RWPOverrides.ContainsKey(0)) return;
 			if (BDArmorySettings.DEBUG_OTHER) Debug.Log($"[BDArmory.RWPSettings]: Setting RWP setting filters");
+			if (!RWPOverrides.ContainsKey(BDArmorySettings.RUNWAY_PROJECT_ROUND)) BDArmorySettings.RUNWAY_PROJECT_ROUND = 0; // Sanity check the round number.
 			currentFilter.Clear();
 			var fields = typeof(BDArmorySettings).GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
 			foreach (var field in fields)
@@ -286,23 +311,48 @@ namespace BDArmory.Settings
 		/// Synchronise any settings between BDA and KSP that need syncing.
 		/// Note: This needs to be called after Awake (e.g., in Start) otherwise game-loading on scene initialisation overwrites these changes.
 		/// </summary>
-		public static void SyncToGameSettings()
+		public static void SyncWithGameSettings(bool toKSP = true, bool restoreOverrides = false)
 		{
 			if (HighLogic.CurrentGame != null)
 			{
 				var advancedParams = HighLogic.CurrentGame.Parameters.CustomParams<GameParameters.AdvancedParams>();
-				if (BDArmorySettings.DEBUG_OTHER) Debug.Log($"[BDArmory.RWPSettings]: G-limits: {BDArmorySettings.G_LIMITS}, part limits: {BDArmorySettings.PART_GLIMIT} / {advancedParams.GPartLimits}, Kerbal limits: {BDArmorySettings.KERB_GLIMIT} / {advancedParams.GKerbalLimits}, Kerb G-tol: {BDArmorySettings.G_TOLERANCE:0.0} / {advancedParams.KerbalGToleranceMult * 20.5f:0.0}");
-				if (BDArmorySettings.G_LIMITS)
+				if (toKSP)
 				{
-					advancedParams.GPartLimits = BDArmorySettings.PART_GLIMIT;
-					advancedParams.GKerbalLimits = BDArmorySettings.KERB_GLIMIT;
-					advancedParams.KerbalGToleranceMult = BDArmorySettings.G_TOLERANCE / 20.5f; //Default 0.5 Courage BadS Pilot kerb has a GLimit of 20.5
+					if (BDArmorySettings.G_LIMITS && !restoreOverrides)
+					{
+						if (BDArmorySettings.DEBUG_OTHER) Debug.Log($"[BDArmory.RWPSettings]: Adjusting G-limits: part limits: {advancedParams.GPartLimits} -> {BDArmorySettings.PART_GLIMIT}, kerbal limits: {advancedParams.GKerbalLimits} -> {BDArmorySettings.KERB_GLIMIT}, tolerance: {advancedParams.KerbalGToleranceMult * 20.5f:0.0}g -> {BDArmorySettings.G_TOLERANCE:0.0}g");
+						advancedParams.GPartLimits = BDArmorySettings.PART_GLIMIT;
+						advancedParams.GKerbalLimits = BDArmorySettings.KERB_GLIMIT;
+						advancedParams.KerbalGToleranceMult = BDArmorySettings.G_TOLERANCE / 20.5f; //Default 0.5 Courage BadS Pilot kerb has a GLimit of 20.5
+					}
+					else if (restoreOverrides) // Restore the override values and save the game (due to changing scenes since KSP reloads these from the save file).
+					{
+						if (BDArmorySettings.G_LIMITS) // If G-limit was active and settings were changed in the Game Difficulty, but not synced to BDA due to the menu not being open, sync them now.
+						{
+							if (BDArmorySettings.PART_GLIMIT != (BDArmorySettings.PART_GLIMIT = advancedParams.GPartLimits)) BDArmorySettings._PART_GLIMIT = BDArmorySettings.PART_GLIMIT;
+							if (BDArmorySettings.KERB_GLIMIT != (BDArmorySettings.KERB_GLIMIT = advancedParams.GKerbalLimits)) BDArmorySettings._KERB_GLIMIT = BDArmorySettings.KERB_GLIMIT;
+							if (BDArmorySettings.G_TOLERANCE != (BDArmorySettings.G_TOLERANCE = BDAMath.RoundToUnit(advancedParams.KerbalGToleranceMult * 20.5f, 0.5f))) BDArmorySettings._G_TOLERANCE = BDArmorySettings.G_TOLERANCE;
+							BDArmorySetup.SaveConfig(); // We need to update the saved settings for these to be kept.
+						}
+						if (BDArmorySettings.DEBUG_OTHER) Debug.Log($"[BDArmory.RWPSettings]: Reverting to Game Difficulty G-limits for saving game state or scene change: part limits: {BDArmorySettings._PART_GLIMIT}, kerbal limits: {BDArmorySettings._KERB_GLIMIT}, tolerance: {BDArmorySettings._G_TOLERANCE:0.0}g");
+						advancedParams.GPartLimits = BDArmorySettings._PART_GLIMIT;
+						advancedParams.GKerbalLimits = BDArmorySettings._KERB_GLIMIT;
+						advancedParams.KerbalGToleranceMult = BDArmorySettings._G_TOLERANCE / 20.5f;
+					}
+					else // G-Limits was disabled, revert to the last seen values from the user adjusting the Game Difficulty menu
+					{
+						advancedParams.GPartLimits = BDArmorySettings._PART_GLIMIT;
+						advancedParams.GKerbalLimits = BDArmorySettings._KERB_GLIMIT;
+						advancedParams.KerbalGToleranceMult = BDArmorySettings._G_TOLERANCE / 20.5f;
+						if (BDArmorySettings.DEBUG_OTHER) Debug.Log($"[BDArmory.RWPSettings]: Reverting to Game Difficulty G-limits: part limits: {BDArmorySettings._PART_GLIMIT}, kerbal limits: {BDArmorySettings._KERB_GLIMIT}, tolerance: {BDArmorySettings._G_TOLERANCE:0.0}g");
+					}
 				}
-				else // Reset G-Limits to defaults and disable them.
+				else
 				{
-					advancedParams.GPartLimits = false;
-					advancedParams.GKerbalLimits = false;
-					advancedParams.KerbalGToleranceMult = 1f;
+					BDArmorySettings._PART_GLIMIT = advancedParams.GPartLimits;
+					BDArmorySettings._KERB_GLIMIT = advancedParams.GKerbalLimits;
+					BDArmorySettings._G_TOLERANCE = BDAMath.RoundToUnit(advancedParams.KerbalGToleranceMult * 20.5f, 0.5f); //Default 0.5 Courage BadS Pilot kerb has a GLimit of 20.5
+					if (BDArmorySettings.DEBUG_OTHER) Debug.Log($"[BDArmory.RWPSettings]: Updating BDA's Game Difficulty backing values: part limits: {BDArmorySettings._PART_GLIMIT}, kerbal limits: {BDArmorySettings._KERB_GLIMIT}, tolerance: {BDArmorySettings._G_TOLERANCE:0.0}g");
 				}
 			}
 		}

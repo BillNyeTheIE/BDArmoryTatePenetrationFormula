@@ -443,6 +443,9 @@ namespace BDArmory.UI
                             nameof(AI.steerMult),
                             nameof(AI.steerKiAdjust),
                             nameof(AI.steerDamping),
+                            nameof(AI.steerDampingPitch),
+                            nameof(AI.steerDampingYaw),
+                            nameof(AI.steerDampingRoll),
                             nameof(AI.DynamicDampingMin),
                             nameof(AI.DynamicDampingMax),
                             nameof(AI.dynamicSteerDampingFactor),
@@ -467,6 +470,7 @@ namespace BDArmory.UI
                             nameof(AI.defaultAltitude),
                             nameof(AI.minAltitude),
                             nameof(AI.maxAltitude),
+                            nameof(AI.bombingAltitude),
 
                             nameof(AI.maxSpeed),
                             nameof(AI.takeOffSpeed),
@@ -729,7 +733,7 @@ namespace BDArmory.UI
             if (!stylesConfigured) ConfigureStyles();
             if (HighLogic.LoadedSceneIsFlight) BDArmorySetup.SetGUIOpacity();
             if (resizingWindow && Event.current.type == EventType.MouseUp) { resizingWindow = false; }
-            if (BDArmorySettings._UI_SCALE != 1) GUIUtility.ScaleAroundPivot(BDArmorySettings._UI_SCALE * Vector2.one, BDArmorySetup.WindowRectAI.position);
+            if (BDArmorySettings.UI_SCALE_ACTUAL != 1) GUIUtility.ScaleAroundPivot(BDArmorySettings.UI_SCALE_ACTUAL * Vector2.one, BDArmorySetup.WindowRectAI.position);
             BDArmorySetup.WindowRectAI = GUI.Window(GUIUtility.GetControlID(FocusType.Passive), BDArmorySetup.WindowRectAI, WindowRectAI, "", BDArmorySetup.BDGuiSkin.window);//"BDA Weapon Manager"
             if (HighLogic.LoadedSceneIsFlight) BDArmorySetup.SetGUIOpacity(false);
         }
@@ -998,57 +1002,80 @@ namespace BDArmory.UI
                                     GUI.BeginGroup(new Rect(contentBorder, pidLines * entryHeight, contentWidth, sectionHeight * entryHeight), GUIContent.none, BDArmorySetup.BDGuiSkin.box);
                                     pidLines += 0.25f;
 
-                                    GUI.Label(SettinglabelRect(pidLines++), StringUtils.Localize("#LOC_BDArmory_AIWindow_PID"), BoldLabel);//"Pid Controller"
+                                    GUI.Label(SettinglabelRect(pidLines++), StringUtils.Localize("#LOC_BDArmory_AIWindow_PID"), BoldLabel);
                                     pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.steerMult, nameof(AI.steerMult), "SteerPower", $"{AI.steerMult:0.0}", splitContext: true);
                                     pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.steerKiAdjust, nameof(AI.steerKiAdjust), "SteerKi", $"{AI.steerKiAdjust:0.00}", splitContext: true);
-                                    pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.steerDamping, nameof(AI.steerDamping), "SteerDamping", $"{AI.steerDamping:0.00}", splitContext: true);
-
-                                    AI.dynamicSteerDamping = GUI.Toggle(ToggleButtonRect(pidLines, contentWidth), AI.dynamicSteerDamping, StringUtils.Localize("#LOC_BDArmory_AI_DynamicDamping"), AI.dynamicSteerDamping ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button);//"Dynamic damping"
-                                    pidLines += 1.25f;
-
-                                    if (AI.dynamicSteerDamping)
+                                    if (!AI.threeAxisSteerDamping && !AI.dynamicSteerDamping)
                                     {
-                                        AI.CustomDynamicAxisFields = GUI.Toggle(ToggleButtonRect(pidLines, contentWidth), AI.CustomDynamicAxisFields, StringUtils.Localize("#LOC_BDArmory_AI_3AxisDynamicSteerDamping"), AI.CustomDynamicAxisFields ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button);//"3 axis damping"
-                                        pidLines += 1.25f;
-
-                                        if (!AI.CustomDynamicAxisFields)
+                                        pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.steerDamping, nameof(AI.steerDamping), "SteerDamping", $"{AI.steerDamping:0.00}", splitContext: true);
+                                    }
+                                    if (AI.threeAxisSteerDamping != (AI.threeAxisSteerDamping = GUI.Toggle(ToggleButtonRects(pidLines, 0, 2, contentWidth), AI.threeAxisSteerDamping, StringUtils.Localize("#LOC_BDArmory_AI_3AxisSteerDamping"), AI.threeAxisSteerDamping ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button)))
+                                    { AI.OnDampingTogglesChanged(); }
+                                    if (AI.dynamicSteerDamping != (AI.dynamicSteerDamping = GUI.Toggle(ToggleButtonRects(pidLines, 1, 2, contentWidth), AI.dynamicSteerDamping, StringUtils.Localize("#LOC_BDArmory_AI_DynamicDamping"), AI.dynamicSteerDamping ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button)))
+                                    { AI.OnDampingTogglesChanged(); }
+                                    pidLines += 1.25f;
+                                    if (!AI.threeAxisSteerDamping && AI.dynamicSteerDamping)
+                                    {
+                                        GUI.Label(SettinglabelRect(pidLines++), StringUtils.Localize("#LOC_BDArmory_AI_DynamicDamping") + $": {AI.dynSteerDampingValue}", Label);
+                                        pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingMin, nameof(AI.DynamicDampingMin), "DynDampMin", $"{AI.DynamicDampingMin:0.0}");
+                                        pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingMax, nameof(AI.DynamicDampingMax), "DynDampMax", $"{AI.DynamicDampingMax:0.0}");
+                                        pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.dynamicSteerDampingFactor, nameof(AI.dynamicSteerDampingFactor), "DynDampMult", $"{AI.dynamicSteerDampingFactor:0.0}");
+                                    }
+                                    if (AI.threeAxisSteerDamping)
+                                    {
+                                        // Pitch
+                                        if (AI.dynamicSteerDamping)
                                         {
-                                            GUI.Label(SettinglabelRect(pidLines++), StringUtils.Localize("#LOC_BDArmory_AI_DynamicDamping") + $": {AI.dynSteerDampingValue}", Label);
-                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingMin, nameof(AI.DynamicDampingMin), "DynDampMin", $"{AI.DynamicDampingMin:0.0}");
-                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingMax, nameof(AI.DynamicDampingMax), "DynDampMax", $"{AI.DynamicDampingMax:0.0}");
-                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.dynamicSteerDampingFactor, nameof(AI.dynamicSteerDampingFactor), "DynDampMult", $"{AI.dynamicSteerDampingFactor:0.0}");
+                                            if (AI.dynamicDampingPitch != (AI.dynamicDampingPitch = GUI.Toggle(ToggleButtonRect(pidLines, contentWidth), AI.dynamicDampingPitch, StringUtils.Localize("#LOC_BDArmory_AI_DynamicDampingPitch"), AI.dynamicDampingPitch ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button)))
+                                            { AI.OnDampingTogglesChanged(); }
+                                            pidLines += 1.25f;
+                                        }
+                                        if (AI.dynamicSteerDamping && AI.dynamicDampingPitch)
+                                        {
+                                            GUI.Label(SettinglabelRect(pidLines++), StringUtils.Localize("#LOC_BDArmory_AI_DynamicDampingPitch") + $": {AI.dynSteerDampingPitchValue}", Label);
+                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingPitchMin, nameof(AI.DynamicDampingPitchMin), "DynDampMin", $"{AI.DynamicDampingPitchMin:0.0}");
+                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingPitchMax, nameof(AI.DynamicDampingPitchMax), "DynDampMax", $"{AI.DynamicDampingPitchMax:0.0}");
+                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.dynamicSteerDampingPitchFactor, nameof(AI.dynamicSteerDampingPitchFactor), "DynDampMult", $"{AI.dynamicSteerDampingPitchFactor:0.0}");
                                         }
                                         else
                                         {
-                                            AI.dynamicDampingPitch = GUI.Toggle(ToggleButtonRect(pidLines, contentWidth), AI.dynamicDampingPitch, StringUtils.Localize("#LOC_BDArmory_AI_DynamicDampingPitch"), AI.dynamicDampingPitch ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button);//"Dynamic damp pitch"
+                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.steerDampingPitch, nameof(AI.steerDampingPitch), "SteerDampingPitch", $"{AI.steerDampingPitch:0.00}", splitContext: true);
+                                        }
+                                        // Yaw
+                                        if (AI.dynamicSteerDamping)
+                                        {
+                                            if (AI.dynamicDampingYaw != (AI.dynamicDampingYaw = GUI.Toggle(ToggleButtonRect(pidLines, contentWidth), AI.dynamicDampingYaw, StringUtils.Localize("#LOC_BDArmory_AI_DynamicDampingYaw"), AI.dynamicDampingYaw ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button)))
+                                            { AI.OnDampingTogglesChanged(); }
                                             pidLines += 1.25f;
-                                            if (AI.dynamicDampingPitch)
-                                            {
-                                                GUI.Label(SettinglabelRect(pidLines++), StringUtils.Localize("#LOC_BDArmory_AI_DynamicDampingPitch") + $": {AI.dynSteerDampingPitchValue}", Label);
-                                                pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingPitchMin, nameof(AI.DynamicDampingPitchMin), "DynDampMin", $"{AI.DynamicDampingPitchMin:0.0}");
-                                                pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingPitchMax, nameof(AI.DynamicDampingPitchMax), "DynDampMax", $"{AI.DynamicDampingPitchMax:0.0}");
-                                                pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.dynamicSteerDampingPitchFactor, nameof(AI.dynamicSteerDampingPitchFactor), "DynDampMult", $"{AI.dynamicSteerDampingPitchFactor:0.0}");
-                                            }
-
-                                            AI.dynamicDampingYaw = GUI.Toggle(ToggleButtonRect(pidLines, contentWidth), AI.dynamicDampingYaw, StringUtils.Localize("#LOC_BDArmory_AI_DynamicDampingYaw"), AI.dynamicDampingYaw ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button);//"Dynamic damp yaw"
+                                        }
+                                        if (AI.dynamicSteerDamping && AI.dynamicDampingYaw)
+                                        {
+                                            GUI.Label(SettinglabelRect(pidLines++), StringUtils.Localize("#LOC_BDArmory_AI_DynamicDampingYaw") + $": {AI.dynSteerDampingYawValue}", Label);
+                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingYawMin, nameof(AI.DynamicDampingYawMin), "DynDampMin", $"{AI.DynamicDampingYawMin:0.0}");
+                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingYawMax, nameof(AI.DynamicDampingYawMax), "DynDampMax", $"{AI.DynamicDampingYawMax:0.0}");
+                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.dynamicSteerDampingYawFactor, nameof(AI.dynamicSteerDampingYawFactor), "DynDampMult", $"{AI.dynamicSteerDampingYawFactor:0.0}");
+                                        }
+                                        else
+                                        {
+                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.steerDampingYaw, nameof(AI.steerDampingYaw), "SteerDampingYaw", $"{AI.steerDampingYaw:0.00}", splitContext: true);
+                                        }
+                                        // Roll
+                                        if (AI.dynamicSteerDamping)
+                                        {
+                                            if (AI.dynamicDampingRoll != (AI.dynamicDampingRoll = GUI.Toggle(ToggleButtonRect(pidLines, contentWidth), AI.dynamicDampingRoll, StringUtils.Localize("#LOC_BDArmory_AI_DynamicDampingRoll"), AI.dynamicDampingRoll ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button)))
+                                            { AI.OnDampingTogglesChanged(); }
                                             pidLines += 1.25f;
-                                            if (AI.dynamicDampingYaw)
-                                            {
-                                                GUI.Label(SettinglabelRect(pidLines++), StringUtils.Localize("#LOC_BDArmory_AI_DynamicDampingYaw") + $": {AI.dynSteerDampingYawValue}", Label);
-                                                pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingYawMin, nameof(AI.DynamicDampingYawMin), "DynDampMin", $"{AI.DynamicDampingYawMin:0.0}");
-                                                pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingYawMax, nameof(AI.DynamicDampingYawMax), "DynDampMax", $"{AI.DynamicDampingYawMax:0.0}");
-                                                pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.dynamicSteerDampingYawFactor, nameof(AI.dynamicSteerDampingYawFactor), "DynDampMult", $"{AI.dynamicSteerDampingYawFactor:0.0}");
-                                            }
-
-                                            AI.dynamicDampingRoll = GUI.Toggle(ToggleButtonRect(pidLines, contentWidth), AI.dynamicDampingRoll, StringUtils.Localize("#LOC_BDArmory_AI_DynamicDampingRoll"), AI.dynamicDampingRoll ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button);//"Dynamic damp roll"
-                                            pidLines += 1.25f;
-                                            if (AI.dynamicDampingRoll)
-                                            {
-                                                GUI.Label(SettinglabelRect(pidLines++), StringUtils.Localize("#LOC_BDArmory_AI_DynamicDampingRoll") + $": {AI.dynSteerDampingRollValue}", Label);//"dynamic damp roll"
-                                                pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingRollMin, nameof(AI.DynamicDampingRollMin), "DynDampMin", $"{AI.DynamicDampingRollMin:0.0}");
-                                                pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingRollMax, nameof(AI.DynamicDampingRollMax), "DynDampMax", $"{AI.DynamicDampingRollMax:0.0}");
-                                                pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.dynamicSteerDampingRollFactor, nameof(AI.dynamicSteerDampingRollFactor), "DynDampMult", $"{AI.dynamicSteerDampingRollFactor:0.0}");
-                                            }
+                                        }
+                                        if (AI.dynamicSteerDamping && AI.dynamicDampingRoll)
+                                        {
+                                            GUI.Label(SettinglabelRect(pidLines++), StringUtils.Localize("#LOC_BDArmory_AI_DynamicDampingRoll") + $": {AI.dynSteerDampingRollValue}", Label);
+                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingRollMin, nameof(AI.DynamicDampingRollMin), "DynDampMin", $"{AI.DynamicDampingRollMin:0.0}");
+                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.DynamicDampingRollMax, nameof(AI.DynamicDampingRollMax), "DynDampMax", $"{AI.DynamicDampingRollMax:0.0}");
+                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.dynamicSteerDampingRollFactor, nameof(AI.dynamicSteerDampingRollFactor), "DynDampMult", $"{AI.dynamicSteerDampingRollFactor:0.0}");
+                                        }
+                                        else
+                                        {
+                                            pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.steerDampingRoll, nameof(AI.steerDampingRoll), "SteerDampingRoll", $"{AI.steerDampingRoll:0.00}", splitContext: true);
                                         }
                                     }
 
@@ -1061,9 +1088,18 @@ namespace BDArmory.UI
                                     if (AI.AutoTune) // Auto-tuning
                                     {
                                         pidLines += 0.25f;
-                                        GUI.Label(SettinglabelRect(pidLines++), StringUtils.Localize("#LOC_BDArmory_AI_PID_AutoTuning_Loss") + $": {AI.autoTuningLossLabel}", Label);
-                                        GUI.Label(SettinglabelRect(pidLines++), $"\tParams: {AI.autoTuningLossLabel2}", Label);
-                                        GUI.Label(SettinglabelRect(pidLines++), $"\tField: {AI.autoTuningLossLabel3}", Label);
+                                        if (HighLogic.LoadedSceneIsEditor)
+                                        {
+                                            if (!string.IsNullOrEmpty(AI.autoTuningLossLabel)) // Not auto-tuning, but have been previously => show a summary of the last results.
+                                                GUI.Label(new Rect(contentInnerMargin + labelWidth / 8, pidLines++ * entryHeight, labelWidth, entryHeight),
+                                                    StringUtils.Localize("#LOC_BDArmory_AI_PID_AutoTuning_Summary") + $":   {AI.autoTuningSummary}", Label);
+                                        }
+                                        else
+                                        {
+                                            GUI.Label(SettinglabelRect(pidLines++), StringUtils.Localize("#LOC_BDArmory_AI_PID_AutoTuning_Loss") + $": {AI.autoTuningLossLabel}", Label);
+                                            GUI.Label(SettinglabelRect(pidLines++), $"\tParams: {AI.autoTuningLossLabel2}", Label);
+                                            GUI.Label(SettinglabelRect(pidLines++), $"\tField: {AI.autoTuningLossLabel3}", Label);
+                                        }
 
                                         pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.autoTuningOptionNumSamples, nameof(AI.autoTuningOptionNumSamples), "PIDAutoTuningNumSamples", $"{AI.autoTuningOptionNumSamples:0}", splitContext: true);
                                         pidLines = ContentEntry(ContentType.FloatSlider, pidLines, contentWidth, ref AI.autoTuningOptionFastResponseRelevance, nameof(AI.autoTuningOptionFastResponseRelevance), "PIDAutoTuningFastResponseRelevance", $"{AI.autoTuningOptionFastResponseRelevance:G3}", splitContext: true);
@@ -1079,43 +1115,80 @@ namespace BDArmory.UI
 
                                         if (showSection[Section.FixedAutoTuneFields])
                                         {
-                                            bool resetGradient = false;
+                                            bool resetAutoTuning = false;
                                             if (!AI.dynamicSteerDamping)
                                             {
-                                                if (AI.autoTuningOptionFixedP != (AI.autoTuningOptionFixedP = GUI.Toggle(ToggleButtonRects(pidLines, 0, 3, contentWidth), AI.autoTuningOptionFixedP, StringUtils.Localize("P"), AI.autoTuningOptionFixedP ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedI != (AI.autoTuningOptionFixedI = GUI.Toggle(ToggleButtonRects(pidLines, 1, 3, contentWidth), AI.autoTuningOptionFixedI, StringUtils.Localize("I"), AI.autoTuningOptionFixedI ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedD != (AI.autoTuningOptionFixedD = GUI.Toggle(ToggleButtonRects(pidLines, 2, 3, contentWidth), AI.autoTuningOptionFixedD, StringUtils.Localize("D"), AI.autoTuningOptionFixedD ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                            }
-                                            else if (!AI.CustomDynamicAxisFields)
-                                            {
-                                                if (AI.autoTuningOptionFixedP != (AI.autoTuningOptionFixedP = GUI.Toggle(ToggleButtonRects(pidLines, 0, 5, contentWidth), AI.autoTuningOptionFixedP, StringUtils.Localize("P"), AI.autoTuningOptionFixedP ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedI != (AI.autoTuningOptionFixedI = GUI.Toggle(ToggleButtonRects(pidLines, 1, 5, contentWidth), AI.autoTuningOptionFixedI, StringUtils.Localize("I"), AI.autoTuningOptionFixedI ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedDOff != (AI.autoTuningOptionFixedDOff = GUI.Toggle(ToggleButtonRects(pidLines, 2, 5, contentWidth), AI.autoTuningOptionFixedDOff, StringUtils.Localize("DOff"), AI.autoTuningOptionFixedDOff ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedDOn != (AI.autoTuningOptionFixedDOn = GUI.Toggle(ToggleButtonRects(pidLines, 3, 5, contentWidth), AI.autoTuningOptionFixedDOn, StringUtils.Localize("DOn"), AI.autoTuningOptionFixedDOn ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedDF != (AI.autoTuningOptionFixedDF = GUI.Toggle(ToggleButtonRects(pidLines, 4, 5, contentWidth), AI.autoTuningOptionFixedDF, StringUtils.Localize("DF"), AI.autoTuningOptionFixedDF ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
+                                                if (!AI.threeAxisSteerDamping) // Normal PID
+                                                {
+                                                    if (AI.autoTuningOptionFixedP != (AI.autoTuningOptionFixedP = GUI.Toggle(ToggleButtonRects(pidLines, 0, 3, contentWidth), AI.autoTuningOptionFixedP, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_P"), AI.autoTuningOptionFixedP ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    if (AI.autoTuningOptionFixedI != (AI.autoTuningOptionFixedI = GUI.Toggle(ToggleButtonRects(pidLines, 1, 3, contentWidth), AI.autoTuningOptionFixedI, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_I"), AI.autoTuningOptionFixedI ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    if (AI.autoTuningOptionFixedD != (AI.autoTuningOptionFixedD = GUI.Toggle(ToggleButtonRects(pidLines, 2, 3, contentWidth), AI.autoTuningOptionFixedD, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_D"), AI.autoTuningOptionFixedD ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                }
+                                                else // PID with 3-axis static damping
+                                                {
+                                                    if (AI.autoTuningOptionFixedP != (AI.autoTuningOptionFixedP = GUI.Toggle(ToggleButtonRects(pidLines, 0, 5, contentWidth), AI.autoTuningOptionFixedP, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_P"), AI.autoTuningOptionFixedP ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    if (AI.autoTuningOptionFixedI != (AI.autoTuningOptionFixedI = GUI.Toggle(ToggleButtonRects(pidLines, 1, 5, contentWidth), AI.autoTuningOptionFixedI, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_I"), AI.autoTuningOptionFixedI ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    if (AI.autoTuningOptionFixedDP != (AI.autoTuningOptionFixedDP = GUI.Toggle(ToggleButtonRects(pidLines, 2, 5, contentWidth), AI.autoTuningOptionFixedDP, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DPitch"), AI.autoTuningOptionFixedDP ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    if (AI.autoTuningOptionFixedDY != (AI.autoTuningOptionFixedDY = GUI.Toggle(ToggleButtonRects(pidLines, 3, 5, contentWidth), AI.autoTuningOptionFixedDY, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DYaw"), AI.autoTuningOptionFixedDY ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    if (AI.autoTuningOptionFixedDR != (AI.autoTuningOptionFixedDR = GUI.Toggle(ToggleButtonRects(pidLines, 4, 5, contentWidth), AI.autoTuningOptionFixedDR, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DRoll"), AI.autoTuningOptionFixedDR ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                }
                                             }
                                             else
                                             {
-                                                if (AI.autoTuningOptionFixedP != (AI.autoTuningOptionFixedP = GUI.Toggle(ToggleButtonRects(pidLines, 0, 11, contentWidth), AI.autoTuningOptionFixedP, StringUtils.Localize("P"), AI.autoTuningOptionFixedP ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedI != (AI.autoTuningOptionFixedI = GUI.Toggle(ToggleButtonRects(pidLines, 1, 11, contentWidth), AI.autoTuningOptionFixedI, StringUtils.Localize("I"), AI.autoTuningOptionFixedI ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedDPOff != (AI.autoTuningOptionFixedDPOff = GUI.Toggle(ToggleButtonRects(pidLines, 2, 11, contentWidth), AI.autoTuningOptionFixedDPOff, StringUtils.Localize("DPOff"), AI.autoTuningOptionFixedDPOff ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedDPOn != (AI.autoTuningOptionFixedDPOn = GUI.Toggle(ToggleButtonRects(pidLines, 3, 11, contentWidth), AI.autoTuningOptionFixedDPOn, StringUtils.Localize("DPOn"), AI.autoTuningOptionFixedDPOn ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedDPF != (AI.autoTuningOptionFixedDPF = GUI.Toggle(ToggleButtonRects(pidLines, 4, 11, contentWidth), AI.autoTuningOptionFixedDPF, StringUtils.Localize("DPF"), AI.autoTuningOptionFixedDPF ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedDYOff != (AI.autoTuningOptionFixedDYOff = GUI.Toggle(ToggleButtonRects(pidLines, 5, 11, contentWidth), AI.autoTuningOptionFixedDYOff, StringUtils.Localize("DYOff"), AI.autoTuningOptionFixedDYOff ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedDYOn != (AI.autoTuningOptionFixedDYOn = GUI.Toggle(ToggleButtonRects(pidLines, 6, 11, contentWidth), AI.autoTuningOptionFixedDYOn, StringUtils.Localize("DYOn"), AI.autoTuningOptionFixedDYOn ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedDYF != (AI.autoTuningOptionFixedDYF = GUI.Toggle(ToggleButtonRects(pidLines, 7, 11, contentWidth), AI.autoTuningOptionFixedDYF, StringUtils.Localize("DYF"), AI.autoTuningOptionFixedDYF ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedDROff != (AI.autoTuningOptionFixedDROff = GUI.Toggle(ToggleButtonRects(pidLines, 8, 11, contentWidth), AI.autoTuningOptionFixedDROff, StringUtils.Localize("DROff"), AI.autoTuningOptionFixedDROff ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedDROn != (AI.autoTuningOptionFixedDROn = GUI.Toggle(ToggleButtonRects(pidLines, 9, 11, contentWidth), AI.autoTuningOptionFixedDROn, StringUtils.Localize("DROn"), AI.autoTuningOptionFixedDROn ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
-                                                if (AI.autoTuningOptionFixedDRF != (AI.autoTuningOptionFixedDRF = GUI.Toggle(ToggleButtonRects(pidLines, 10, 11, contentWidth), AI.autoTuningOptionFixedDRF, StringUtils.Localize("DRF"), AI.autoTuningOptionFixedDRF ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetGradient = true;
+                                                if (!AI.threeAxisSteerDamping) // PID with dynamic damping
+                                                {
+                                                    if (AI.autoTuningOptionFixedP != (AI.autoTuningOptionFixedP = GUI.Toggle(ToggleButtonRects(pidLines, 0, 5, contentWidth), AI.autoTuningOptionFixedP, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_P"), AI.autoTuningOptionFixedP ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    if (AI.autoTuningOptionFixedI != (AI.autoTuningOptionFixedI = GUI.Toggle(ToggleButtonRects(pidLines, 1, 5, contentWidth), AI.autoTuningOptionFixedI, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_I"), AI.autoTuningOptionFixedI ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    if (AI.autoTuningOptionFixedDOff != (AI.autoTuningOptionFixedDOff = GUI.Toggle(ToggleButtonRects(pidLines, 2, 5, contentWidth), AI.autoTuningOptionFixedDOff, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_D_OffTarget"), AI.autoTuningOptionFixedDOff ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    if (AI.autoTuningOptionFixedDOn != (AI.autoTuningOptionFixedDOn = GUI.Toggle(ToggleButtonRects(pidLines, 3, 5, contentWidth), AI.autoTuningOptionFixedDOn, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_D_OnTarget"), AI.autoTuningOptionFixedDOn ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    if (AI.autoTuningOptionFixedDF != (AI.autoTuningOptionFixedDF = GUI.Toggle(ToggleButtonRects(pidLines, 4, 5, contentWidth), AI.autoTuningOptionFixedDF, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_D_Factor"), AI.autoTuningOptionFixedDF ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                }
+                                                else // PID with 3-axis dynamic damping (or mixed)
+                                                {
+                                                    int buttonCount = 2 + (AI.dynamicDampingPitch ? 3 : 1) + (AI.dynamicDampingRoll ? 3 : 1) + (AI.dynamicDampingYaw ? 3 : 1);
+                                                    int buttonIndex = -1;
+                                                    if (AI.autoTuningOptionFixedP != (AI.autoTuningOptionFixedP = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedP, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_P"), AI.autoTuningOptionFixedP ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    if (AI.autoTuningOptionFixedI != (AI.autoTuningOptionFixedI = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedI, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_I"), AI.autoTuningOptionFixedI ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    if (AI.dynamicDampingPitch)
+                                                    {
+                                                        if (AI.autoTuningOptionFixedDPOff != (AI.autoTuningOptionFixedDPOff = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedDPOff, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DPitch_OffTarget"), AI.autoTuningOptionFixedDPOff ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                        if (AI.autoTuningOptionFixedDPOn != (AI.autoTuningOptionFixedDPOn = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedDPOn, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DPitch_OnTarget"), AI.autoTuningOptionFixedDPOn ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                        if (AI.autoTuningOptionFixedDPF != (AI.autoTuningOptionFixedDPF = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedDPF, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DPitch_Factor"), AI.autoTuningOptionFixedDPF ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    }
+                                                    else
+                                                    {
+                                                        if (AI.autoTuningOptionFixedDP != (AI.autoTuningOptionFixedDP = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedDP, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DPitch"), AI.autoTuningOptionFixedDP ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    }
+                                                    if (AI.dynamicDampingYaw)
+                                                    {
+                                                        if (AI.autoTuningOptionFixedDYOff != (AI.autoTuningOptionFixedDYOff = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedDYOff, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DYaw_OffTarget"), AI.autoTuningOptionFixedDYOff ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                        if (AI.autoTuningOptionFixedDYOn != (AI.autoTuningOptionFixedDYOn = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedDYOn, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DYaw_OnTarget"), AI.autoTuningOptionFixedDYOn ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                        if (AI.autoTuningOptionFixedDYF != (AI.autoTuningOptionFixedDYF = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedDYF, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DYaw_Factor"), AI.autoTuningOptionFixedDYF ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    }
+                                                    else
+                                                    {
+                                                        if (AI.autoTuningOptionFixedDY != (AI.autoTuningOptionFixedDY = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedDY, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DYaw"), AI.autoTuningOptionFixedDY ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    }
+                                                    if (AI.dynamicDampingRoll)
+                                                    {
+                                                        if (AI.autoTuningOptionFixedDROff != (AI.autoTuningOptionFixedDROff = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedDROff, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DRoll_OffTarget"), AI.autoTuningOptionFixedDROff ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                        if (AI.autoTuningOptionFixedDROn != (AI.autoTuningOptionFixedDROn = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedDROn, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DRoll_OnTarget"), AI.autoTuningOptionFixedDROn ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                        if (AI.autoTuningOptionFixedDRF != (AI.autoTuningOptionFixedDRF = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedDRF, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DRoll_Factor"), AI.autoTuningOptionFixedDRF ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    }
+                                                    else
+                                                    {
+                                                        if (AI.autoTuningOptionFixedDR != (AI.autoTuningOptionFixedDR = GUI.Toggle(ToggleButtonRects(pidLines, ++buttonIndex, buttonCount, contentWidth), AI.autoTuningOptionFixedDR, StringUtils.Localize("#LOC_BDArmory_AIWindow_PIDAutoTuningFixed_DRoll"), AI.autoTuningOptionFixedDR ? BDArmorySetup.BDGuiSkin.box : BDArmorySetup.BDGuiSkin.button))) resetAutoTuning = true;
+                                                    }
+                                                }
                                             }
-                                            if (resetGradient && HighLogic.LoadedSceneIsFlight) AI.pidAutoTuning.ResetGradient();
+                                            if (resetAutoTuning && HighLogic.LoadedSceneIsFlight) AI.pidAutoTuning.ResetGradient();
                                             pidLines += 1.25f;
                                         }
                                     }
                                     else if (!string.IsNullOrEmpty(AI.autoTuningLossLabel)) // Not auto-tuning, but have been previously => show a summary of the last results.
                                     {
-                                        GUI.Label(new Rect(contentInnerMargin + labelWidth / 6, pidLines * entryHeight, labelWidth, entryHeight),
-                                            StringUtils.Localize("#LOC_BDArmory_AI_PID_AutoTuning_Summary") + $":   Loss: {AI.autoTuningLossLabel}, {AI.autoTuningLossLabel2}", Label);
+                                        GUI.Label(new Rect(contentInnerMargin + labelWidth / 8, pidLines * entryHeight, labelWidth, entryHeight),
+                                            StringUtils.Localize("#LOC_BDArmory_AI_PID_AutoTuning_Summary") + $":   {AI.autoTuningSummary}", Label);
                                         pidLines += 1.25f;
                                     }
                                     #endregion
@@ -1169,7 +1242,11 @@ namespace BDArmory.UI
                                             inputFields["defaultAltitude"].SetCurrentValue(AI.defaultAltitude);
                                         }
                                     }
+                                    altLines = ContentEntry(ContentType.FloatSlider, altLines, contentWidth, ref AI.bombingAltitude, nameof(AI.bombingAltitude), "BombingAltitude", $"{AI.bombingAltitude:0}m");
 
+                                    AI.divebombing = GUI.Toggle(ToggleButtonRects(altLines, 0, 2, contentWidth), AI.divebombing,
+StringUtils.Localize("#LOC_BDArmory_AIWindow_DiveBomb"), AI.divebombing ? BDArmorySetup.SelectedButtonStyle : BDArmorySetup.ButtonStyle);//"Hard Min Altitude"
+                                    altLines += 1.25f;
                                     GUI.EndGroup();
                                     sectionHeights[Section.Altitude] = Mathf.Lerp(sectionHeight, altLines, 0.15f);
                                     altLines += 0.1f;
@@ -1411,7 +1488,7 @@ namespace BDArmory.UI
                                         GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_AIWindow_infolink_Pilot_PidHelp_SteerKi"), infoLinkStyle, Width(ColumnWidth - contentMargin * 4 - 20)); //steer ki desc.
                                         GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_AIWindow_infolink_Pilot_PidHelp_Steerdamp"), infoLinkStyle, Width(ColumnWidth - contentMargin * 4 - 20)); //steer damp description
                                         GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_AIWindow_infolink_Pilot_PidHelp_Dyndamp"), infoLinkStyle, Width(ColumnWidth - contentMargin * 4 - 20)); //dynamic damping desc
-                                        GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_AIWindow_infolink_Pilot_PidHelp_AutoTune") + (AI.AutoTune ? StringUtils.Localize("#LOC_BDArmory_AIWindow_PidHelp_AutoTune_details") : ""), infoLinkStyle, Width(ColumnWidth - contentMargin * 4 - 20)); //auto-tuning desc
+                                        GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_AIWindow_infolink_Pilot_PidHelp_AutoTune") + (AI.AutoTune ? StringUtils.Localize("#LOC_BDArmory_AIWindow_infolink_Pilot_PidHelp_AutoTune_details") : ""), infoLinkStyle, Width(ColumnWidth - contentMargin * 4 - 20)); //auto-tuning desc
                                     }
                                     if (showSection[Section.Altitude])
                                     {
@@ -1420,6 +1497,7 @@ namespace BDArmory.UI
                                         GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_AIWindow_infolink_Pilot_AltHelp_Def"), infoLinkStyle, Width(ColumnWidth - (contentMargin * 4) - 20)); //default alt desc
                                         GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_AIWindow_infolink_Pilot_AltHelp_min"), infoLinkStyle, Width(ColumnWidth - (contentMargin * 4) - 20)); //min alt desc
                                         GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_AIWindow_infolink_Pilot_AltHelp_max"), infoLinkStyle, Width(ColumnWidth - (contentMargin * 4) - 20)); //max alt desc
+                                        GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_AIWindow_infolink_Pilot_AltHelp_bombing"), infoLinkStyle, Width(ColumnWidth - (contentMargin * 4) - 20)); //bombing alt desc
                                     }
                                     if (showSection[Section.Speed])
                                     {
@@ -1776,6 +1854,7 @@ namespace BDArmory.UI
 
                                     line = ContentEntry(ContentType.FloatSlider, line, contentWidth, ref AI.defaultAltitude, nameof(AI.defaultAltitude), "DefaultAltitude", $"{AI.defaultAltitude:0}m");
                                     line = ContentEntry(ContentType.FloatSlider, line, contentWidth, ref AI.CombatAltitude, nameof(AI.CombatAltitude), "CombatAltitude", $"{AI.CombatAltitude:0}m");
+                                    line = ContentEntry(ContentType.FloatSlider, line, contentWidth, ref AI.bombingAltitude, nameof(AI.bombingAltitude), "BombingAltitude", $"{AI.bombingAltitude:0}m");
                                     line = ContentEntry(ContentType.FloatSlider, line, contentWidth, ref AI.minAltitude, nameof(AI.minAltitude), "MinAltitude", $"{AI.minAltitude:0}m");
 
                                     GUI.EndGroup();
@@ -2178,9 +2257,9 @@ namespace BDArmory.UI
 
             if (Event.current.type == EventType.Repaint && resizingWindow)
             {
-                WindowHeight += Mouse.delta.y / BDArmorySettings._UI_SCALE;
+                WindowHeight += Mouse.delta.y / BDArmorySettings.UI_SCALE_ACTUAL;
                 WindowHeight = Mathf.Max(WindowHeight, 305);
-                if (BDArmorySettings.DEBUG_OTHER) GUI.Label(new Rect(WindowWidth / 2, WindowHeight - 26, WindowWidth / 2 - 26, 26), $"Resizing: {Mathf.Round(WindowHeight * BDArmorySettings._UI_SCALE)}", Label);
+                if (BDArmorySettings.DEBUG_OTHER) GUI.Label(new Rect(WindowWidth / 2, WindowHeight - 26, WindowWidth / 2 - 26, 26), $"Resizing: {Mathf.Round(WindowHeight * BDArmorySettings.UI_SCALE_ACTUAL)}", Label);
             }
             #endregion
 

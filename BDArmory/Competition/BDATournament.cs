@@ -2,7 +2,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 
 using BDArmory.Competition.OrchestrationStrategies;
@@ -104,7 +106,7 @@ namespace BDArmory.Competition
         HashSet<string> npcs = [];
         Dictionary<string, List<ScoringData>> scoreDetails = []; // Scores per player per round. Rounds players weren't involved in contain default ScoringData entries.
         List<CompetitionOutcome> competitionOutcomes = [];
-        public static Dictionary<string, float> weights = new()
+        public static readonly Dictionary<string, float> defaultWeights = new()
         {
             {"Wins",                    1f},
             {"Survived",                0f},
@@ -118,12 +120,12 @@ namespace BDArmory.Competition
             {"Hits Taken",              0f},
             {"Bullet Damage",           0.0001f},
             {"Bullet Damage Taken",     4e-05f},
-            {"Rocket Hits",             0.035f},
+            {"Rocket Hits",             0.01f},
             {"Rocket Hits Taken",       0f},
-            {"Rocket Parts Hit",        0.0006f},
+            {"Rocket Parts Hit",        0.0005f},
             {"Rocket Parts Hit Taken",  0f},
-            {"Rocket Damage",           0.00015f},
-            {"Rocket Damage Taken",     5e-05f},
+            {"Rocket Damage",           0.0001f},
+            {"Rocket Damage Taken",     4e-05f},
             {"Missile Hits",            0.15f},
             {"Missile Hits Taken",      0f},
             {"Missile Parts Hit",       0.002f},
@@ -137,10 +139,11 @@ namespace BDArmory.Competition
             {"HP Remaining",            0f},
             {"Accuracy",                0f},
             {"Rocket Accuracy",         0f},
-            {"Waypoint Count",         10f},
-            {"Waypoint Time",          -1f},
-            {"Waypoint Deviation",     -1f}
+            {"Waypoint Count",         1f}, // Waypoint weighting logic: 1 for passing a gate, 1s = 5 deviation, break-even at 60s + 200 deviation per gate.
+            {"Waypoint Time",          -0.01f},
+            {"Waypoint Deviation",     -0.002f}
         };
+        public static Dictionary<string, float> weights = new(defaultWeights);
 
         /// <summary>
         /// Reset scores for a new tournament.
@@ -507,7 +510,7 @@ namespace BDArmory.Competition
 
         public static void SaveWeights()
         {
-            ConfigNode fileNode = ConfigNode.Load(BDArmorySettings.settingsConfigURL);
+            ConfigNode fileNode = ConfigNode.Load(ScoreWindow.scoreWeightsURL) ?? new ConfigNode();
 
             if (!fileNode.HasNode("ScoreWeights"))
             {
@@ -520,13 +523,13 @@ namespace BDArmory.Competition
             {
                 settings.SetValue(kvp.Key, kvp.Value.ToString(), true);
             }
-            fileNode.Save(BDArmorySettings.settingsConfigURL);
+            fileNode.Save(ScoreWindow.scoreWeightsURL);
         }
 
         public static void LoadWeights()
         {
-            ConfigNode fileNode = ConfigNode.Load(BDArmorySettings.settingsConfigURL);
-            if (!fileNode.HasNode("ScoreWeights")) return;
+            ConfigNode fileNode = ConfigNode.Load(ScoreWindow.scoreWeightsURL);
+            if (fileNode == null || !fileNode.HasNode("ScoreWeights")) return;
 
             ConfigNode settings = fileNode.GetNode("ScoreWeights");
 
@@ -634,7 +637,7 @@ namespace BDArmory.Competition
                 case -1: // Auto
                     var autoVesselsPerHeat = OptimiseVesselsPerHeat(craftFiles.Count, npcsPerHeat);
                     vesselsPerHeat = autoVesselsPerHeat.Item1;
-                    fullHeatCount = Mathf.CeilToInt(craftFiles.Count / vesselsPerHeat) - autoVesselsPerHeat.Item2;
+                    fullHeatCount = Mathf.CeilToInt(craftFiles.Count / (float)vesselsPerHeat) - autoVesselsPerHeat.Item2;
                     break;
                 case 0: // Unlimited (all vessels in one heat).
                     vesselsPerHeat = craftFiles.Count;
@@ -642,7 +645,8 @@ namespace BDArmory.Competition
                     break;
                 default:
                     vesselsPerHeat = Mathf.Clamp(Mathf.Max(1, vesselsPerHeat - npcsPerHeat), 1, craftFiles.Count);
-                    fullHeatCount = craftFiles.Count / vesselsPerHeat;
+                    fullHeatCount = Mathf.CeilToInt(craftFiles.Count / (float)vesselsPerHeat) - (Mathf.CeilToInt(craftFiles.Count / (float)vesselsPerHeat) * vesselsPerHeat - craftFiles.Count); // Spread the deficit amongst the other heats if possible.
+                    if (fullHeatCount <= 0) fullHeatCount = craftFiles.Count / vesselsPerHeat;
                     break;
             }
             rounds = [];
@@ -685,7 +689,7 @@ namespace BDArmory.Competition
                                     selectedFiles.ToList() // Add a copy of the craft files list.
                                 ));
                                 count += vesselsThisHeat;
-                                vesselsThisHeat = heatIndex++ < fullHeatCount ? vesselsPerHeat : vesselsPerHeat - 1; // Take one less for the remaining heats to distribute the deficit of craft files.
+                                vesselsThisHeat = ++heatIndex < fullHeatCount ? vesselsPerHeat : vesselsPerHeat - 1; // Take one less for the remaining heats to distribute the deficit of craft files.
                                 selectedFiles = craftFiles.Skip(count).Take(vesselsThisHeat).ToList();
                             }
                         }
@@ -1126,7 +1130,8 @@ namespace BDArmory.Competition
                                 npcFiles.Shuffle();
                                 selectedFiles.AddRange(Enumerable.Repeat(npcFiles, Mathf.CeilToInt((float)npcsPerHeat / (float)npcFiles.Count)).SelectMany(x => x).Take(npcsPerHeat));
                             }
-                            rounds[roundIndex].Add(rounds[roundIndex].Count, new CircularSpawnConfig(circularSpawnConfigTemplate){
+                            rounds[roundIndex].Add(rounds[roundIndex].Count, new CircularSpawnConfig(circularSpawnConfigTemplate)
+                            {
                                 craftFiles = selectedFiles // Set the craft file list to the currently selected ones.
                             }); // Add a copy of the template to the heats.
                             count += vesselsThisHeat;
@@ -1321,7 +1326,17 @@ namespace BDArmory.Competition
 
                 if (!Directory.GetParent(stateFile).Exists)
                 { Directory.GetParent(stateFile).Create(); }
-                File.WriteAllText(stateFile, JsonUtility.ToJson(this));
+                try // Write the state with gzip compression to reduce bloat.
+                {
+                    using FileStream fileStream = File.Create(stateFile);
+                    using GZipStream gzStream = new(fileStream, CompressionMode.Compress);
+                    var stateBytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(this));
+                    gzStream.Write(stateBytes, 0, stateBytes.Length);
+                }
+                catch // Revert to plain UTF8.
+                {
+                    File.WriteAllText(stateFile, JsonUtility.ToJson(this));
+                }
                 Debug.Log($"[BDArmory.BDATournament]: Tournament state saved to {stateFile}");
                 return true;
             }
@@ -1336,8 +1351,19 @@ namespace BDArmory.Competition
         {
             try
             {
-                if (!File.Exists(stateFile)) return false;
-                var data = JsonUtility.FromJson<TournamentState>(File.ReadAllText(stateFile));
+                if (!(File.Exists(stateFile) || File.Exists(stateFile))) return false;
+                TournamentState data;
+                try // Try with gzip compression.
+                {
+                    using FileStream fileStream = File.OpenRead(stateFile);
+                    using GZipStream gZipStream = new(fileStream, CompressionMode.Decompress);
+                    using StreamReader streamReader = new(gZipStream, Encoding.UTF8);
+                    data = JsonUtility.FromJson<TournamentState>(streamReader.ReadToEnd());
+                }
+                catch // Revert to plain ASCII text.
+                {
+                    data = JsonUtility.FromJson<TournamentState>(File.ReadAllText(stateFile));
+                }
                 tournamentID = data.tournamentID;
                 savegame = data.savegame;
                 vesselCount = data.vesselCount;
@@ -1665,6 +1691,7 @@ namespace BDArmory.Competition
                 StopCoroutine(runTournamentCoroutine);
             runTournamentCoroutine = StartCoroutine(RunTournamentCoroutine());
             if (BDArmorySettings.AUTO_DISABLE_UI) SetGameUI(false);
+            ScoreWindow.SetMode(ScoreWindow.Mode.Tournament, tournamentState.tournamentType == TournamentType.FFA ? Toggle.Off : Toggle.On);
         }
 
         public void StopTournament()
@@ -1706,7 +1733,7 @@ namespace BDArmory.Competition
                         if (BDArmorySettings.WAYPOINTS_MODE)
                             yield return ExecuteWaypointHeat(roundIndex, heatIndex);
                         else
-                            yield return ExecuteHeat(roundIndex, heatIndex, attempts == 3 && BDArmorySettings.COMPETITION_START_DESPITE_FAILURES); // On the third attempt, start despite failures if the option is set.
+                            yield return ExecuteHeat(roundIndex, heatIndex, attempts == BDArmorySettings.TOURNAMENT_START_DESPITE_FAILURES_ON_ATTEMPT && BDArmorySettings.COMPETITION_START_DESPITE_FAILURES); // On the third attempt, start despite failures if the option is set.
                         if (!competitionStarted)
                         {
                             switch (spawnerBase.spawnFailureReason)
@@ -1887,7 +1914,7 @@ namespace BDArmory.Competition
                     yield break;
                 }
                 // Populate the VS window's UI entries with the spawned vessels.
-                CustomTemplateSpawning.Instance.PopulateEntriesFromTournament(customSpawnConfig);
+                CustomTemplateSpawning.Instance.PopulateEntriesFromConfig(customSpawnConfig);
             }
             else
             {
@@ -2178,6 +2205,8 @@ namespace BDArmory.Competition
             Debug.Log($"[BDArmory.BDATournament]: BDArmory settings loaded, auto-load to KSC: {BDArmorySettings.AUTO_LOAD_TO_KSC}, auto-resume tournaments: {BDArmorySettings.AUTO_RESUME_TOURNAMENT}, auto-resume continuous spawn: {BDArmorySettings.AUTO_RESUME_CONTINUOUS_SPAWN}, auto-resume evolution: {BDArmorySettings.AUTO_RESUME_EVOLUTION}, generate clean save: {BDArmorySettings.GENERATE_CLEAN_SAVE}.");
             if (BDArmorySettings.AUTO_RESUME_TOURNAMENT || BDArmorySettings.AUTO_RESUME_CONTINUOUS_SPAWN || BDArmorySettings.AUTO_RESUME_EVOLUTION || BDArmorySettings.AUTO_LOAD_TO_KSC)
             { yield return StartCoroutine(AutoResumeTournament()); }
+            else if (BDArmorySettings.GENERATE_CLEAN_SAVE && TryLoadCleanSlate())
+            { GenerateCleanGame(false); }
         }
 
         IEnumerator AutoResumeTournament()
@@ -2208,7 +2237,7 @@ namespace BDArmory.Competition
             var tic = Time.time;
             sceneLoaded = false;
             if (!(BDArmorySettings.GENERATE_CLEAN_SAVE ? GenerateCleanGame() : LoadGame())) yield break;
-            yield return new WaitUntil(() => (sceneLoaded || Time.time - tic > 10));
+            yield return new WaitUntil(() => sceneLoaded || Time.time - tic > 10);
             if (!sceneLoaded) { Debug.Log("[BDArmory.BDATournament]: Failed to load scene."); yield break; }
             if (!(resumingEvolution || resumingTournament || resumingContinuousSpawn)) yield break; // Just load to the KSC.
             var lastUsedWorldIndex = BDArmorySettings.VESSEL_SPAWN_WORLDINDEX; // Store the last used world index as it gets reset when entering flight mode.
@@ -2341,7 +2370,7 @@ namespace BDArmory.Competition
             return File.Exists(savegame) || BDArmorySettings.GENERATE_CLEAN_SAVE;
         }
 
-        bool GenerateCleanGame()
+        bool GenerateCleanGame(bool startGame = true)
         {
             // Grab the scenarios from the previous persistent game.
             HighLogic.CurrentGame = GamePersistence.LoadGame("persistent", game, true, false);
@@ -2373,7 +2402,7 @@ namespace BDArmory.Competition
             // Update the game state and save it to the persistent save (since that's what eventually ends up getting loaded when we call Start()).
             HighLogic.CurrentGame.Updated();
             GamePersistence.SaveGame("persistent", game, SaveMode.OVERWRITE);
-            HighLogic.CurrentGame.Start();
+            if (startGame) HighLogic.CurrentGame.Start();
             return true;
         }
 

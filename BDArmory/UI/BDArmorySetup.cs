@@ -99,6 +99,7 @@ namespace BDArmory.UI
         //particle optimization
         public static int numberOfParticleEmitters = 0;
         public static BDArmorySetup Instance;
+        static GameScenes InScene = GameScenes.CREDITS; // The scene the instance was instantiated in (for duplicate detection).
         public static bool GAME_UI_ENABLED = true;
         public static string Version { get; private set; } = "Unknown";
 
@@ -230,6 +231,7 @@ namespace BDArmory.UI
 
         bool drawCursor;
         Texture2D cursorTexture = GameDatabase.Instance.GetTexture(textureDir + "aimer", false);
+        bool temporarilyShowMouse = false;
 
         private Texture2D dti;
 
@@ -329,6 +331,16 @@ namespace BDArmory.UI
             }
         }
 
+        private Texture2D gC;
+
+        public Texture2D greenCross
+        {
+            get
+            {
+                return gC ? gC : gC = GameDatabase.Instance.GetTexture(textureDir + "greenCross", false);
+            }
+        }
+
         private Texture2D wSqr;
 
         public Texture2D whiteSquareTexture
@@ -393,8 +405,19 @@ namespace BDArmory.UI
 
         void Awake()
         {
-            if (Instance != null) Destroy(Instance);
+            if (Instance != null)
+            {
+                if (InScene == HighLogic.LoadedScene)
+                {
+                    // In some scenes (such as the editors) addons get instantiated multiple times if using KSPAddon.Startup.EveryScene.
+                    // This avoids the duplicate instance from messing with our syncing to KSP's settings.
+                    Destroy(this);
+                    return;
+                }
+                Destroy(Instance);
+            }
             Instance = this;
+            InScene = HighLogic.LoadedScene;
             if (!(HighLogic.LoadedSceneIsFlight || HighLogic.LoadedSceneIsEditor))
             {
                 windowSettingsEnabled = false; // Close the settings on other scenes (it's been saved when the other scene was destroyed).
@@ -486,6 +509,8 @@ namespace BDArmory.UI
                 GameEvents.onVesselChange.Add(VesselChange);
             }
             GameEvents.onGameSceneSwitchRequested.Add(OnGameSceneSwitchRequested);
+            GameEvents.onGameStateSave.Add(OnGameStateSave);
+            GameEvents.onGameStateSaved.Add(OnGameStateSaved);
 
             BulletInfo.Load();
             RocketInfo.Load();
@@ -498,7 +523,8 @@ namespace BDArmory.UI
             compIntraTeamSeparationBase = BDArmorySettings.COMPETITION_INTRA_TEAM_SEPARATION_BASE.ToString();
             compIntraTeamSeparationPerMember = BDArmorySettings.COMPETITION_INTRA_TEAM_SEPARATION_PER_MEMBER.ToString();
             HoSTag = BDArmorySettings.HOS_BADGE;
-            RWPSettings.SyncToGameSettings(); // Re-sync BDA settings to game settings in Start since they get overwritten during scene initialisation.
+            if (HighLogic.LoadedSceneIsFlight || HighLogic.LoadedSceneIsEditor) RWPSettings.SyncWithGameSettings(); // Re-sync BDA settings to game settings in Start since they get overwritten during scene initialisation.
+            if (!HighLogic.LoadedSceneIsFlight) OtherUtils.SetTimeOverride(false); // Make sure time override is disabled when switching to any scene other than flight.
 
             if (HighLogic.LoadedSceneIsFlight || HighLogic.LoadedSceneIsEditor)
             { StartCoroutine(ToolbarButtonRoutine()); }
@@ -677,6 +703,7 @@ namespace BDArmory.UI
 #if DEBUG
                 if (BDInputUtils.GetKeyDown(BDInputSettingsFields.DEBUG_CLEAR_DEV_CONSOLE)) Debug.ClearDeveloperConsole();
 #endif
+                if (temporarilyShowMouse != (temporarilyShowMouse = BDInputUtils.GetKey(BDInputSettingsFields.TEMPORARILY_SHOW_MOUSE))) UpdateCursorState();
             }
             else if (HighLogic.LoadedSceneIsEditor)
             {
@@ -710,7 +737,6 @@ namespace BDArmory.UI
             if (windowSettingsEnabled)
             {
                 // LoadConfig(); // Don't reload settings, since they're already loaded and mess with other settings windows.
-                if (HighLogic.CurrentGame != null) advancedParams = HighLogic.CurrentGame.Parameters.CustomParams<GameParameters.AdvancedParams>(); // Grab the current AdvancedParams.
             }
             else
             {
@@ -720,6 +746,12 @@ namespace BDArmory.UI
 
         public void UpdateCursorState()
         {
+            if (temporarilyShowMouse)
+            {
+                drawCursor = false;
+                Cursor.visible = true;
+                return;
+            }
             if (ActiveWeaponManager == null)
             {
                 drawCursor = false;
@@ -833,10 +865,14 @@ namespace BDArmory.UI
                 BDAPersistentSettingsField.Load();
                 BDInputSettingsFields.LoadSettings();
                 TournamentScores.LoadWeights();
+                ContinuousSpawning.LoadWeights();
                 SanitiseSettings();
+                RWPSettings.SyncWithGameSettings(toKSP: false); // Sync KSP's advanced settings to BDA's backing values before we load any overrides.
                 RWPSettings.Load();
                 CompSettings.Load();
+                VesselSpawnerField.Load();
                 BDArmorySettings.ready = true;
+                if (BDAEditorArmorWindow.Instance) BDAEditorArmorWindow.Instance.SetupLegalityValues();
             }
             catch (NullReferenceException e)
             {
@@ -864,6 +900,7 @@ namespace BDArmory.UI
 
                 BDInputSettingsFields.SaveSettings();
                 TournamentScores.SaveWeights();
+                ContinuousSpawning.SaveWeights();
 
                 if (OnSavedSettings != null)
                 {
@@ -905,7 +942,7 @@ namespace BDArmory.UI
             {
                 var guiMatrix = GUI.matrix; // Store and restore the GUI.matrix so we can apply a different scaling for the WM window.
                 if (scalingUI && Mouse.Left.GetButtonUp()) scalingUI = false; // Don't rescale the settings window until the mouse is released otherwise it messes with the slider.
-                if (!scalingUI) { oldUIScale = BDArmorySettings.UI_SCALE; BDArmorySettings.PREVIOUS_UI_SCALE = BDArmorySettings.UI_SCALE; }
+                if (!scalingUI) { oldUIScale = BDArmorySettings.UI_SCALE_ACTUAL; BDArmorySettings.PREVIOUS_UI_SCALE = BDArmorySettings.UI_SCALE; }
                 if (oldUIScale != 1) GUIUtility.ScaleAroundPivot(oldUIScale * Vector2.one, WindowRectSettings.position);
                 WindowRectSettings = GUI.Window(129419, WindowRectSettings, WindowSettings, GUIContent.none, settingsTitleStyle);
                 GUI.matrix = guiMatrix;
@@ -925,7 +962,7 @@ namespace BDArmory.UI
 
             if (!windowBDAToolBarEnabled || !HighLogic.LoadedSceneIsFlight) return;
             SetGUIOpacity();
-            if (BDArmorySettings._UI_SCALE != 1) GUIUtility.ScaleAroundPivot(BDArmorySettings._UI_SCALE * Vector2.one, WindowRectToolbar.position);
+            if (BDArmorySettings.UI_SCALE_ACTUAL != 1) GUIUtility.ScaleAroundPivot(BDArmorySettings.UI_SCALE_ACTUAL * Vector2.one, WindowRectToolbar.position);
             WindowRectToolbar = GUI.Window(321, WindowRectToolbar, WindowBDAToolbar, "", BDGuiSkin.window);//"BDA Weapon Manager"
             SetGUIOpacity(false);
             GUIUtils.UseMouseEventInRect(WindowRectToolbar);
@@ -1851,8 +1888,8 @@ namespace BDArmory.UI
                     if (ActiveWeaponManager.radars.Count > 0)
                     {
                         numberOfModules++;
-                        string Radarlabel = StringUtils.Localize("#LOC_BDArmory_DynamicRadar", (ActiveWeaponManager.DynamicRadarOverride ? StringUtils.Localize("#LOC_BDArmory_false") : StringUtils.Localize("#LOC_BDArmory_true")));//"Dynamic Radar vs ARMs: True, False
-                        if (GUI.Button(new Rect(leftIndent, +(moduleLines * entryHeight), columnWidth - 2 * leftIndent, entryHeight), Radarlabel, ActiveWeaponManager.DynamicRadarOverride ? BDGuiSkin.box : BDGuiSkin.button))
+                        string Radarlabel = $"{StringUtils.Localize("#LOC_BDArmory_DynamicRadar")}: {(ActiveWeaponManager.DynamicRadarOverride ? StringUtils.Localize("#LOC_BDArmory_false") : StringUtils.Localize("#LOC_BDArmory_true"))}";//"Dynamic Radar vs ARMs: True, False
+                        if (GUI.Button(new Rect(leftIndent, +(moduleLines * entryHeight), columnWidth - 2 * leftIndent, entryHeight), Radarlabel, ActiveWeaponManager.DynamicRadarOverride ? BDGuiSkin.button : BDGuiSkin.box))
                         {
                             ActiveWeaponManager.DynamicRadarOverride = !ActiveWeaponManager.DynamicRadarOverride;
                         }
@@ -1946,6 +1983,7 @@ namespace BDArmory.UI
                         while (jammer.MoveNext())
                         {
                             if (jammer.Current == null) continue;
+                            if (jammer.Current.isMissileECM) continue;
                             if (jammer.Current.alwaysOn) continue;
 
                             numberOfModules++;
@@ -2387,7 +2425,7 @@ namespace BDArmory.UI
             if (BDArmorySettings.GRAPHICS_UI_SETTINGS_TOGGLE)
             {
                 line += 0.2f;
-                GUI.Label(SQuarterRect(++line, 0), $"{StringUtils.Localize("#LOC_BDArmory_Settings_UIScale")}: {BDArmorySettings._UI_SCALE:0.00}x", leftLabel); // UI Scale
+                GUI.Label(SQuarterRect(++line, 0), $"{StringUtils.Localize("#LOC_BDArmory_Settings_UIScale")}: {BDArmorySettings.UI_SCALE_ACTUAL:0.00}x", leftLabel); // UI Scale
                 BDArmorySettings.UI_SCALE_FOLLOWS_STOCK = GUI.Toggle(SQuarterRect(line, 1), BDArmorySettings.UI_SCALE_FOLLOWS_STOCK, $"{StringUtils.Localize("#LOC_BDArmory_Settings_UIScaleFollowsStock")}");
                 if (!BDArmorySettings.UI_SCALE_FOLLOWS_STOCK)
                 {
@@ -2574,6 +2612,7 @@ namespace BDArmory.UI
                         // GUI.Label(SLeftSliderRect(++line), $"Initial correction: {(TestNumericalMethodsIC == 0 ? "None" : TestNumericalMethodsIC == 1 ? "All" : TestNumericalMethodsIC == 2 ? "Local" : "Gravity")}");
                         // TestNumericalMethodsIC = Mathf.RoundToInt(GUI.HorizontalSlider(SRightSliderRect(line), TestNumericalMethodsIC, 0, 3));
                         // if (GUI.Button(SLineRect(++line), $"Test Forward Euler vs Semi-Implicit Euler vs Leap-frog ({PROF_N * Time.fixedDeltaTime}s, {PROF_N / Math.Min(PROF_N / 2, PROF_n)} steps)")) StartCoroutine(TestNumericalMethods(PROF_N * Time.fixedDeltaTime, PROF_N / Math.Min(PROF_N / 2, PROF_n)));
+                        // if (GUI.Button(SLineRect(++line), "Test Abs")) TestAbs();
                         // if (GUI.Button(SLineRect(++line), "Test \"up\"")) TestUp();
                         // if (GUI.Button(SLineRect(++line), "Test inside vs on unit sphere")) TestInOnUnitSphere();
                         // if (GUI.Button(SLineRect(++line), "Test Sqr vs x*x")) TestMaxRelSpeed();
@@ -3013,13 +3052,14 @@ namespace BDArmory.UI
                     BDArmorySettings.REMOTE_SHOOTING = GUI.Toggle(SLeftRect(++line), BDArmorySettings.REMOTE_SHOOTING, StringUtils.Localize("#LOC_BDArmory_Settings_RemoteFiring"));//"Remote Firing"
                     BDArmorySettings.BOMB_CLEARANCE_CHECK = GUI.Toggle(SRightRect(line), BDArmorySettings.BOMB_CLEARANCE_CHECK, StringUtils.Localize("#LOC_BDArmory_Settings_ClearanceCheck"));//"Clearance Check"
                     BDArmorySettings.DISABLE_RAMMING = GUI.Toggle(SLeftRect(++line), BDArmorySettings.DISABLE_RAMMING, StringUtils.Localize("#LOC_BDArmory_Settings_DisableRamming"));// Disable Ramming
-                    BDArmorySettings.RESET_HP = GUI.Toggle(SRightRect(line), BDArmorySettings.RESET_HP, StringUtils.Localize("#LOC_BDArmory_Settings_ResetHP"));
+                    BDArmorySettings.DISABLE_GUARDMODE_ON_SPAWN = GUI.Toggle(SRightRect(line), BDArmorySettings.DISABLE_GUARDMODE_ON_SPAWN, StringUtils.Localize("#LOC_BDArmory_Settings_DisableGuardModeOnSpawn")); // Disable Guard Mode on Spawn
                     BDArmorySettings.BULLET_WATER_DRAG = GUI.Toggle(SLeftRect(++line), BDArmorySettings.BULLET_WATER_DRAG, StringUtils.Localize("#LOC_BDArmory_Settings_waterDrag"));// Underwater bullet drag
-                    BDArmorySettings.RESET_ARMOUR = GUI.Toggle(SRightRect(line), BDArmorySettings.RESET_ARMOUR, StringUtils.Localize("#LOC_BDArmory_Settings_ResetArmor"));
+                    BDArmorySettings.RESET_HP = GUI.Toggle(SRightRect(line), BDArmorySettings.RESET_HP, StringUtils.Localize("#LOC_BDArmory_Settings_ResetHP"));
                     BDArmorySettings.VESSEL_RELATIVE_BULLET_CHECKS = GUI.Toggle(SLeftRect(++line), BDArmorySettings.VESSEL_RELATIVE_BULLET_CHECKS, StringUtils.Localize("#LOC_BDArmory_Settings_VesselRelativeBulletChecks"));//"Vessel-Relative Bullet Checks"
-                    BDArmorySettings.RESET_HULL = GUI.Toggle(SRightRect(line), BDArmorySettings.RESET_HULL, StringUtils.Localize("#LOC_BDArmory_Settings_ResetHull")); //Reset Hull
+                    BDArmorySettings.RESET_ARMOUR = GUI.Toggle(SRightRect(line), BDArmorySettings.RESET_ARMOUR, StringUtils.Localize("#LOC_BDArmory_Settings_ResetArmor"));
                     if (BDArmorySettings.RESTORE_KAL != (BDArmorySettings.RESTORE_KAL = GUI.Toggle(SLeftRect(++line), BDArmorySettings.RESTORE_KAL, StringUtils.Localize("#LOC_BDArmory_Settings_RestoreKAL")))) //Restore KAL
                     { SpawnUtils.RestoreKALGlobally(BDArmorySettings.RESTORE_KAL); }
+                    BDArmorySettings.RESET_HULL = GUI.Toggle(SRightRect(line), BDArmorySettings.RESET_HULL, StringUtils.Localize("#LOC_BDArmory_Settings_ResetHull")); //Reset Hull
                     BDArmorySettings.AUTO_LOAD_TO_KSC = GUI.Toggle(SLeftRect(++line), BDArmorySettings.AUTO_LOAD_TO_KSC, StringUtils.Localize("#LOC_BDArmory_Settings_AutoLoadToKSC")); // Auto-Load To KSC
                     BDArmorySettings.GENERATE_CLEAN_SAVE = GUI.Toggle(SRightRect(line), BDArmorySettings.GENERATE_CLEAN_SAVE, StringUtils.Localize("#LOC_BDArmory_Settings_GenerateCleanSave")); // Generate Clean Save
                     BDArmorySettings.AUTO_RESUME_TOURNAMENT = GUI.Toggle(SLeftRect(++line), BDArmorySettings.AUTO_RESUME_TOURNAMENT, StringUtils.Localize("#LOC_BDArmory_Settings_AutoResumeTournaments")); // Auto-Resume Tournaments
@@ -3203,11 +3243,23 @@ namespace BDArmory.UI
                                 SpawnUtils.HackActuators(vessel, BDArmorySettings.RUNWAY_PROJECT);
                             }
                         }
-                        if (HighLogic.LoadedSceneIsEditor && EditorLogic.fetch.ship is not null) GameEvents.onEditorShipModified.Fire(EditorLogic.fetch.ship);
+                        if (HighLogic.LoadedSceneIsEditor)
+                        {
+                            if (BDArmorySettings.RUNWAY_PROJECT && BDAEditorArmorWindow.Instance) BDAEditorArmorWindow.Instance.SetupLegalityValues();
+                            if (EditorLogic.fetch.ship is not null) GameEvents.onEditorShipModified.Fire(EditorLogic.fetch.ship);
+                        }
                     }
                     if (CompSettings.CompOverridesEnabled)
-                        BDArmorySettings.COMP_CONVENIENCE_CHECKS = GUI.Toggle(SRightRect(line), BDArmorySettings.COMP_CONVENIENCE_CHECKS, StringUtils.Localize("Use AI/WM Overrides"));
-
+                    {
+                        if (BDArmorySettings.COMP_CONVENIENCE_CHECKS != (BDArmorySettings.COMP_CONVENIENCE_CHECKS = GUI.Toggle(SRightRect(line), BDArmorySettings.COMP_CONVENIENCE_CHECKS, StringUtils.Localize("#LOC_BDArmory_Settings_CompChecks"))))//Runway Project
+                        {
+                            if (HighLogic.LoadedSceneIsEditor)
+                            {
+                                if (BDArmorySettings.COMP_CONVENIENCE_CHECKS && BDAEditorArmorWindow.Instance) BDAEditorArmorWindow.Instance.SetupLegalityValues();
+                                if (EditorLogic.fetch.ship is not null) GameEvents.onEditorShipModified.Fire(EditorLogic.fetch.ship);
+                            }
+                        }
+                    }
                     if (BDArmorySettings.RUNWAY_PROJECT)
                     {
                         GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_Settings_RunwayProjectRound")}: ({(BDArmorySettings.RUNWAY_PROJECT_ROUND > 10 ? $"S{(BDArmorySettings.RUNWAY_PROJECT_ROUND - 1) / 10}R{(BDArmorySettings.RUNWAY_PROJECT_ROUND - 1) % 10 + 1}" : "—")})", leftLabel); // RWP round
@@ -3573,24 +3625,30 @@ namespace BDArmory.UI
                 {
                     CheatOptions.InfiniteElectricity = BDArmorySettings.INFINITE_EC;
                 }
-                bool advParamsChanged = false;
-                if (HighLogic.CurrentGame != null) advancedParams = HighLogic.CurrentGame.Parameters.CustomParams<GameParameters.AdvancedParams>(); // Grab the current AdvancedParams.
-                if (!BDArmorySettings.G_LIMITS && (advancedParams.GPartLimits || advancedParams.GKerbalLimits))
-                    BDArmorySettings.G_LIMITS = true;
-                BDArmorySettings.PART_GLIMIT = advancedParams.GPartLimits; // Sync with the Game Difficulty window if the checkbox was toggled there.
-                BDArmorySettings.KERB_GLIMIT = advancedParams.GKerbalLimits;
-                BDArmorySettings.G_TOLERANCE = BDAMath.RoundToUnit(advancedParams.KerbalGToleranceMult * 20.5f, 0.5f);
                 if (BDArmorySettings.G_LIMITS != (BDArmorySettings.G_LIMITS = GUI.Toggle(SLeftRect(line), BDArmorySettings.G_LIMITS, StringUtils.Localize("#LOC_BDArmory_Settings_GLimitsMode"))))//G-Force Limits
                 {
-                    if (!BDArmorySettings.G_LIMITS)
+                    if (BDArmorySettings.G_LIMITS) // Sync the initial override values to the current ones.
                     {
-                        BDArmorySettings.KERB_GLIMIT = false;
-                        BDArmorySettings.PART_GLIMIT = false;
-                        advParamsChanged = true;
+                        RWPSettings.SyncWithGameSettings(toKSP: false); // Update the current backing values from the Game Difficulty.
+                        RWPSettings.SyncWithGameSettings(); // Then override them.
+                    }
+                    else
+                    {
+                        RWPSettings.SyncWithGameSettings(); // Sync so that the Game Difficulty values get reverted to the backing values.
                     }
                 }
                 if (BDArmorySettings.G_LIMITS)
                 {
+                    if (HighLogic.CurrentGame != null)
+                    {
+                        // Sync with the Game Difficulty window if the checkbox was toggled there and update the backing values. (Note: this only happens if the menu is open.)
+                        advancedParams = HighLogic.CurrentGame.Parameters.CustomParams<GameParameters.AdvancedParams>(); // Grab the latest values, in case KSP has changed the instance.
+                        if (BDArmorySettings.PART_GLIMIT != (BDArmorySettings.PART_GLIMIT = advancedParams.GPartLimits)) BDArmorySettings._PART_GLIMIT = BDArmorySettings.PART_GLIMIT;
+                        if (BDArmorySettings.KERB_GLIMIT != (BDArmorySettings.KERB_GLIMIT = advancedParams.GKerbalLimits)) BDArmorySettings._KERB_GLIMIT = BDArmorySettings.KERB_GLIMIT;
+                        if (BDArmorySettings.G_TOLERANCE != (BDArmorySettings.G_TOLERANCE = BDAMath.RoundToUnit(advancedParams.KerbalGToleranceMult * 20.5f, 0.5f))) BDArmorySettings._G_TOLERANCE = BDArmorySettings.G_TOLERANCE;
+                    }
+
+                    bool advParamsChanged = false;
                     if (BDArmorySettings.PART_GLIMIT != (BDArmorySettings.PART_GLIMIT = GUI.Toggle(SLeftRect(++line, 1), BDArmorySettings.PART_GLIMIT, StringUtils.Localize("#autoLOC_140950"))))//Part G-Force Limits
                         advParamsChanged = true;
                     if (BDArmorySettings.KERB_GLIMIT != (BDArmorySettings.KERB_GLIMIT = GUI.Toggle(SRightRect(line, 1), BDArmorySettings.KERB_GLIMIT, StringUtils.Localize("#autoLOC_140953"))))//Kerbal G-Force Limits
@@ -3602,10 +3660,10 @@ namespace BDArmory.UI
                         if (BDArmorySettings.G_TOLERANCE != (BDArmorySettings.G_TOLERANCE = BDAMath.RoundToUnit(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.G_TOLERANCE, 1f, 40f), 0.5f)))
                             advParamsChanged = true;
                     }
-                }
-                if (advParamsChanged)
-                {
-                    RWPSettings.SyncToGameSettings();
+                    if (advParamsChanged)
+                    {
+                        RWPSettings.SyncWithGameSettings();
+                    }
                 }
                 GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_Settings_AimingVisualMalus")}: ({BDArmorySettings.AIMING_VISUAL_MALUS:G2})", leftLabel); // Aiming Visual Malus
                 BDArmorySettings.AIMING_VISUAL_MALUS = BDAMath.RoundToUnit(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.AIMING_VISUAL_MALUS, 0f, 1f), 0.01f);
@@ -4217,7 +4275,7 @@ namespace BDArmory.UI
             settingsWidth = origSettingsWidth - 2 * settingsMargin;
             settingsHeight = origSettingsHeight - 100;
             Rect viewRect = new Rect(2, 20, settingsWidth + GUI.skin.verticalScrollbar.fixedWidth, settingsHeight);
-            Rect scrollerRect = new Rect(0, 0, settingsWidth - GUI.skin.verticalScrollbar.fixedWidth - 1, inputFields != null ? (inputFields.Length + 13) * settingsLineHeight : settingsHeight);
+            Rect scrollerRect = new Rect(0, 0, settingsWidth - GUI.skin.verticalScrollbar.fixedWidth - 1, inputFields != null ? (inputFields.Length + 2 * 9) * settingsLineHeight : settingsHeight);
 
             _displayViewerPosition = GUI.BeginScrollView(viewRect, _displayViewerPosition, scrollerRect, false, true);
 
@@ -4253,6 +4311,11 @@ namespace BDArmory.UI
 
             GUI.Label(SLineRect(line++), $"- {StringUtils.Localize("#LOC_BDArmory_InputSettings_TimeScaling")} -", centerLabel);//Time Scaling
             InputSettingsList("TIME_", ref inputID, ref line);
+            ++line;
+
+            GUI.Label(SLineRect(line++), $"- {StringUtils.Localize("#LOC_BDArmory_InputSettings_TemporarilyShowMouse")} -", centerLabel);//Temporarily Show Mouse
+            InputSettingsList("SHOW_MOUSE", ref inputID, ref line);
+            ++line;
             GUI.EndScrollView();
 
             line = settingsHeight / settingsLineHeight;
@@ -4351,6 +4414,7 @@ namespace BDArmory.UI
                 // Switch visible/hidden window rects
                 _WindowRectScoresUIVisible = WindowRectScores;
                 if (_WindowRectScoresUIHidden != default) WindowRectScores = _WindowRectScoresUIHidden;
+                if (ScoreWindow.Instance.autoResizingWindow) WindowRectScores.height = _WindowRectScoresUIVisible.height;
                 _WindowRectVesselSwitcherUIVisible = WindowRectVesselSwitcher;
                 if (_WindowRectVesselSwitcherUIHidden != default) WindowRectVesselSwitcher = _WindowRectVesselSwitcherUIHidden;
             }
@@ -4367,6 +4431,7 @@ namespace BDArmory.UI
                 // Switch visible/hidden window rects
                 _WindowRectScoresUIHidden = WindowRectScores;
                 if (_WindowRectScoresUIVisible != default) WindowRectScores = _WindowRectScoresUIVisible;
+                if (ScoreWindow.Instance.autoResizingWindow) WindowRectScores.height = _WindowRectScoresUIHidden.height;
                 _WindowRectVesselSwitcherUIHidden = WindowRectVesselSwitcher;
                 if (_WindowRectVesselSwitcherUIVisible != default) WindowRectVesselSwitcher = _WindowRectVesselSwitcherUIVisible;
             }
@@ -4402,6 +4467,8 @@ namespace BDArmory.UI
             GameEvents.OnGameSettingsApplied.Remove(SaveVolumeSettings);
             GameEvents.onVesselChange.Remove(VesselChange);
             GameEvents.onGameSceneSwitchRequested.Remove(OnGameSceneSwitchRequested);
+            GameEvents.onGameStateSave.Remove(OnGameStateSave);
+            GameEvents.onGameStateSaved.Remove(OnGameStateSaved);
         }
 
         void OnVesselGoOffRails(Vessel v)
@@ -4742,6 +4809,27 @@ namespace BDArmory.UI
             Debug.Log($"DEBUG {Time.time}: After {duration}s ({steps}*{dt}={steps * dt}), Actual x = {x}, Forward Euler predicts x = {x0} (Δ = {(x - x0).magnitude}), Semi-implicit Euler predicts x = {x1} (Δ = {(x - x1).magnitude}), Leap-frog predicts x = {x2} (Δ = {(x - x2).magnitude})");
         }
 
+        public static void TestAbs()
+        {
+            Vessel vessel = FlightGlobals.ActiveVessel;
+            Vector3 pos = vessel.CoM;
+            var watch = new System.Diagnostics.Stopwatch();
+            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float x = 1.234f, y = -1.234f, zx = 0, zy = 0;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)] float Abs(float x) { return x < 0 ? -x : x; }
+            var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { zx = Mathf.Abs(x); zy = Mathf.Abs(y); } };
+            Debug.Log($"DEBUG Mathf.Abs took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {zx}, {zy}");
+            func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { zx = Math.Abs(x); zy = Math.Abs(y); } };
+            Debug.Log($"DEBUG Math.Abs(x) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {zx}, {zy}");
+            func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { zx = (float)Math.Abs((double)x); zy = (float)Math.Abs((double)y); } };
+            Debug.Log($"DEBUG (float)Math.Abs((double)x) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {zx}, {zy}");
+            func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { zx = Abs(x); zy = Abs(y); } };
+            Debug.Log($"DEBUG Abs(x) {{ return x < 0 ? -x : x; }} took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {zx}, {zy}");
+            func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { zx = x < 0 ? -x : x; zy = y < 0 ? -y : y; } };
+            Debug.Log($"DEBUG inline x<0?-x:x took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {zx}, {zy}");
+        }
+
         public static void TestUp()
         {
             Vessel vessel = FlightGlobals.ActiveVessel;
@@ -5056,9 +5144,28 @@ namespace BDArmory.UI
         /// </summary>
         void OnGameSceneSwitchRequested(GameEvents.FromToAction<GameScenes, GameScenes> fromTo)
         {
+            if (windowSettingsEnabled) ToggleWindowSettings(); // Close the settings window so that the following settings changes don't propagate back into the settings window.
+            if (BDArmorySettings.G_LIMITS && (fromTo.from == GameScenes.EDITOR || fromTo.from == GameScenes.FLIGHT))
+            {
+                RWPSettings.SyncWithGameSettings(restoreOverrides: true);
+            }
             if (fromTo.from == GameScenes.FLIGHT && fromTo.to != GameScenes.FLIGHT)
             {
                 DisableAllFXAndProjectiles();
+            }
+        }
+        void OnGameStateSave(ConfigNode node)
+        {
+            if (BDArmorySettings.G_LIMITS)
+            {
+                RWPSettings.SyncWithGameSettings(restoreOverrides: true);
+            }
+        }
+        void OnGameStateSaved(Game game)
+        {
+            if (BDArmorySettings.G_LIMITS)
+            {
+                RWPSettings.SyncWithGameSettings();
             }
         }
         public static void DisableAllFXAndProjectiles()

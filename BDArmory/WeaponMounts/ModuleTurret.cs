@@ -35,6 +35,11 @@ namespace BDArmory.WeaponMounts
          UI_FloatRange(minValue = 1f, maxValue = 60f, stepIncrement = 1f, scene = UI_Scene.All)]
         public float yawRange;
 
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_YawStandbyAngle"),
+         UI_FloatRange(minValue = -90f, maxValue = 90f, stepIncrement = 0.5f, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.None)]
+        public float yawStandbyAngle = 0;
+        Quaternion standbyLocalRotation;// = Quaternion.identity;
+
         [KSPField(isPersistant = true)] public float minPitchLimit = 400;
         [KSPField(isPersistant = true)] public float maxPitchLimit = 400;
         [KSPField(isPersistant = true)] public float yawRangeLimit = 400;
@@ -61,8 +66,6 @@ namespace BDArmory.WeaponMounts
         {
             base.OnStart(state);
 
-            SetupTweakables();
-
             pitchTransform = part.FindModelTransform(pitchTransformName);
             yawTransform = part.FindModelTransform(yawTransformName);
 
@@ -78,8 +81,13 @@ namespace BDArmory.WeaponMounts
 
             if (!referenceTransform)
             {
-                SetReferenceTransform(pitchTransform);
+                if (pitchTransform)
+                    SetReferenceTransform(pitchTransform);
+                else
+                    SetReferenceTransform(yawTransform);
             }
+
+            SetupTweakables();
 
             if (!string.IsNullOrEmpty(audioPath) && (yawSpeedDPS != 0 || pitchSpeedDPS != 0))
             {
@@ -155,6 +163,11 @@ namespace BDArmory.WeaponMounts
                     }
                 }
             }
+        }
+
+        void OnDestroy()
+        {
+            GameEvents.onEditorPartPlaced.Remove(OnEditorPartPlaced);
         }
 
         public void AimToTarget(Vector3 targetPosition, bool pitch = true, bool yaw = true)
@@ -247,7 +260,7 @@ namespace BDArmory.WeaponMounts
 
             float deltaTime = Time.fixedDeltaTime;
 
-            float yawOffset = Vector3.Angle(yawTransform.forward, yawTransform.parent.forward);
+            float yawOffset = Quaternion.Angle(yawTransform.localRotation, standbyLocalRotation);
             float pitchOffset = Vector3.Angle(pitchTransform.forward, yawTransform.forward);
 
             float yawSpeed;
@@ -270,12 +283,10 @@ namespace BDArmory.WeaponMounts
             yawSpeed *= linYawMult;
             pitchSpeed *= linPitchMult;
 
-            yawTransform.localRotation = Quaternion.RotateTowards(yawTransform.localRotation, Quaternion.identity,
-                yawSpeed);
-            pitchTransform.localRotation = Quaternion.RotateTowards(pitchTransform.localRotation, Quaternion.identity,
-                pitchSpeed);
+            yawTransform.localRotation = Quaternion.RotateTowards(yawTransform.localRotation, standbyLocalRotation, yawSpeed);
+            pitchTransform.localRotation = Quaternion.RotateTowards(pitchTransform.localRotation, Quaternion.identity, pitchSpeed);
 
-            if (yawTransform.localRotation == Quaternion.identity && pitchTransform.localRotation == Quaternion.identity)
+            if (yawTransform.localRotation == standbyLocalRotation && pitchTransform.localRotation == Quaternion.identity)
             {
                 return true;
             }
@@ -352,6 +363,46 @@ namespace BDArmory.WeaponMounts
             }
             if (yawRange != 0)
                 yawRangeEd.stepIncrement = Mathf.Pow(10, Math.Min(1f, Mathf.Floor(Mathf.Log10(Mathf.Abs(yawRange)) + (1 - Mathf.Log10(20f) - 1e-4f)))) / 10f; // Use between 20 and 200 divisions
+
+            yawRangeEd.onFieldChanged = SetupStandbyLocalRotation;
+            SetupStandbyLocalRotation();
+        }
+        void SetupStandbyLocalRotation(BaseField field = null, object obj = null)
+        {
+            UI_FloatRange yawStandbyAngleEd = (UI_FloatRange)Fields["yawStandbyAngle"].uiControlEditor;
+            yawStandbyAngleEd.minValue = -yawRange / 2f;
+            yawStandbyAngleEd.maxValue = yawRange / 2f;
+            yawStandbyAngle = Mathf.Clamp(yawStandbyAngle, yawStandbyAngleEd.minValue, yawStandbyAngleEd.maxValue);
+            yawStandbyAngleEd.onFieldChanged = OnStandbyAngleChanged;
+            GameEvents.onEditorPartPlaced.Add(OnEditorPartPlaced);
+            SetStandbyAngle();
+        }
+
+        void OnEditorPartPlaced(Part p = null) { if (p == part) OnStandbyAngleChanged(); }
+
+        void OnStandbyAngleChanged(BaseField field = null, object obj = null)
+        {
+            SetStandbyAngle();
+            foreach (Part symmetryPart in part.symmetryCounterparts)
+            {
+                ModuleTurret symmetryTurret = symmetryPart.FindModuleImplementing<ModuleTurret>();
+                if (part.symMethod == SymmetryMethod.Mirror)
+                {
+                    symmetryTurret.yawStandbyAngle = -yawStandbyAngle;
+                }
+                else
+                {
+                    symmetryTurret.yawStandbyAngle = yawStandbyAngle;
+                }
+
+                symmetryTurret.SetStandbyAngle();
+            }
+        }
+
+        void SetStandbyAngle()
+        {
+            standbyLocalRotation = Quaternion.AngleAxis(yawStandbyAngle, Vector3.up);
+            if (yawTransform != null) yawTransform.localRotation = standbyLocalRotation;
         }
     }
     public class BDAScaleByDistance : PartModule

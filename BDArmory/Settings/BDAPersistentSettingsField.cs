@@ -123,6 +123,14 @@ namespace BDArmory.Settings
                 return;
             }
 
+            // Score weights have been moved to their own file.
+            if (fileNode.HasNode("ScoreWeights") || fileNode.HasNode("CtsScoreWeights"))
+            {
+                fileNode.RemoveNode("ScoreWeights");
+                fileNode.RemoveNode("CtsScoreWeights");
+                fileNode.Save(BDArmorySettings.settingsConfigURL);
+            }
+
             var excludedFields = new HashSet<string> { "LAST_USED_SAVEGAME", }; // A bunch of other stuff is also excluded below.
             ConfigNode settings = fileNode.GetNode("BDASettings");
             using (var field = typeof(BDArmorySettings).GetFields().AsEnumerable().GetEnumerator())
@@ -160,6 +168,7 @@ namespace BDArmory.Settings
                     }
                     field.Current.SetValue(null, currentValue); // Use the current value.
                 }
+
             Save(BDArmorySettings.settingsConfigURL); // Overwrite the settings with the modified ones.
         }
 

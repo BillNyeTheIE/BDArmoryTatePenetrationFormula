@@ -447,6 +447,8 @@ namespace BDArmory.Radar
                 if (slaveTurrets)
                 {
                     weaponManager.slavingTurrets = false;
+                    weaponManager.slavedPosition = Vector3.zero;
+                    weaponManager.slavedTarget = TargetSignatureData.noTarget;
                 }
             }
         }
@@ -662,13 +664,14 @@ namespace BDArmory.Radar
 
         private bool UpdateSlaveData()
         {
-            if (!weaponManager)
+            if (!weaponManager) //don't turn on auto-turret slaving when in manual control, let players use the button for that
             {
                 return false;
             }
             if (!slaveTurrets || !locked)
             {
                 weaponManager.slavedTarget = TargetSignatureData.noTarget;
+                weaponManager.slavingTurrets = false;
                 return false;
             }
             weaponManager.slavingTurrets = true;
@@ -980,6 +983,8 @@ namespace BDArmory.Radar
             {
                 weaponManager.slavingTurrets = false;
             }
+            weaponManager.slavedPosition = Vector3.zero;
+            weaponManager.slavedTarget = TargetSignatureData.noTarget; //reset and null these so hitting the slave target button on a weapon later doesn't lock it to a legacy position/target
         }
 
         private void OnGUI()
@@ -1029,7 +1034,7 @@ namespace BDArmory.Radar
 
             if (resizingWindow && Event.current.type == EventType.MouseUp) { resizingWindow = false; }
             const string windowTitle = "Radar";
-            if (BDArmorySettings._UI_SCALE != 1) GUIUtility.ScaleAroundPivot(BDArmorySettings._UI_SCALE * Vector2.one, BDArmorySetup.WindowRectRadar.position);
+            if (BDArmorySettings.UI_SCALE_ACTUAL != 1) GUIUtility.ScaleAroundPivot(BDArmorySettings.UI_SCALE_ACTUAL * Vector2.one, BDArmorySetup.WindowRectRadar.position);
             BDArmorySetup.WindowRectRadar = GUI.Window(524141, BDArmorySetup.WindowRectRadar, WindowRadar, windowTitle, GUI.skin.window);
             GUIUtils.UseMouseEventInRect(BDArmorySetup.WindowRectRadar);
 
@@ -1330,7 +1335,7 @@ namespace BDArmory.Radar
             {
                 if (Mouse.delta.x != 0 || Mouse.delta.y != 0)
                 {
-                    float diff = (Mathf.Abs(Mouse.delta.x) > Mathf.Abs(Mouse.delta.y) ? Mouse.delta.x : Mouse.delta.y) / BDArmorySettings._UI_SCALE;
+                    float diff = (Mathf.Abs(Mouse.delta.x) > Mathf.Abs(Mouse.delta.y) ? Mouse.delta.x : Mouse.delta.y) / BDArmorySettings.UI_SCALE_ACTUAL;
                     BDArmorySettings.RADAR_WINDOW_SCALE = Mathf.Clamp(BDArmorySettings.RADAR_WINDOW_SCALE + diff / RadarScreenSize, BDArmorySettings.RADAR_WINDOW_SCALE_MIN, BDArmorySettings.RADAR_WINDOW_SCALE_MAX);
                     BDArmorySetup.ResizeRadarWindow(BDArmorySettings.RADAR_WINDOW_SCALE);
                 }
@@ -1753,11 +1758,8 @@ namespace BDArmory.Radar
 
             if (!receivedData) //don't prevent VRD from e.g. getting datalinked sonar data from an ally boat despite being airborne
             {
-                if (rData.vessel.altitude < -20 && radar.sonarMode == ModuleRadar.SonarModes.None) addContact = false; // Normal Radar Should not detect Underwater vessels
                 if (!rData.vessel.LandedOrSplashed && radar.sonarMode != ModuleRadar.SonarModes.None) addContact = false; //Sonar should not detect Aircraft
                 if (rData.vessel.Splashed && radar.sonarMode != ModuleRadar.SonarModes.None && vessel.Splashed) addContact = true; //Sonar only detects underwater vessels // Sonar should only work when in the water
-                if (!vessel.Splashed && radar.sonarMode != ModuleRadar.SonarModes.None) addContact = false; // Sonar should only work when in the water
-                if (rData.vessel.Landed && radar.sonarMode != ModuleRadar.SonarModes.None) addContact = false; //Sonar should not detect land vessels
             }
 
             if (addContact == false) return;

@@ -22,7 +22,7 @@ namespace BDArmory.Competition
     public enum CompetitionStartFailureReason { None, OnlyOneTeam, TeamsChanged, TeamLeaderDisappeared, PilotDisappeared, Other };
     public enum CompetitionType { FFA, SEQUENCED, WAYPOINTS };
 
-
+    
     [KSPAddon(KSPAddon.Startup.Flight, false)]
     public class BDACompetitionMode : MonoBehaviour
     {
@@ -260,25 +260,25 @@ namespace BDArmory.Competition
             int shadowOffset = 2;
             if (BDArmorySetup.GAME_UI_ENABLED)
             {
-                float rectOffset = Mathf.Max(100, Mathf.CeilToInt(100 * BDArmorySettings.UI_SCALE));
+                float rectOffset = Mathf.Max(100, Mathf.CeilToInt(100 * BDArmorySettings.UI_SCALE_ACTUAL));
                 clockRect = new Rect(10, Mathf.CeilToInt(42 * GameSettings.UI_SCALE), rectOffset, 30);
                 dateRect = new Rect(rectOffset, Mathf.CeilToInt(38 * GameSettings.UI_SCALE), rectOffset, 20);
                 versionRect = new Rect(rectOffset * 2, Mathf.CeilToInt(46 * GameSettings.UI_SCALE), rectOffset, 20);
                 statusRect = new Rect(30, Mathf.CeilToInt(60 * GameSettings.UI_SCALE) + rectOffset / 5, Screen.width - 130, Mathf.FloorToInt(Screen.height / 2));
-                statusStyle.fontSize = Mathf.Max(22, Mathf.CeilToInt(22 * BDArmorySettings.UI_SCALE));
-                dateStyle.fontSize = Mathf.Max(14, Mathf.CeilToInt(14 * BDArmorySettings.UI_SCALE));
+                statusStyle.fontSize = Mathf.Max(22, Mathf.CeilToInt(22 * BDArmorySettings.UI_SCALE_ACTUAL));
+                dateStyle.fontSize = Mathf.Max(14, Mathf.CeilToInt(14 * BDArmorySettings.UI_SCALE_ACTUAL));
             }
             else
             {
-                float RectLength = Mathf.Max(100, Mathf.CeilToInt(100 * BDArmorySettings.UI_SCALE));
-                float RectHeight = Mathf.Max(20, Mathf.CeilToInt(20 * BDArmorySettings.UI_SCALE));
+                float RectLength = Mathf.Max(100, Mathf.CeilToInt(100 * BDArmorySettings.UI_SCALE_ACTUAL));
+                float RectHeight = Mathf.Max(20, Mathf.CeilToInt(20 * BDArmorySettings.UI_SCALE_ACTUAL));
                 clockRect = new Rect(10, 6, RectLength, RectHeight);
                 dateRect = new Rect(10, RectHeight + 6, RectLength, RectHeight);
                 versionRect = new Rect(10, (RectHeight * 2) + 8, RectLength, RectHeight);
                 statusRect = new Rect(RectLength, 6, Screen.width - 80, Mathf.FloorToInt(Screen.height / 2));
                 shadowOffset = 1;
-                statusStyle.fontSize = Mathf.Max(14, Mathf.CeilToInt(14 * BDArmorySettings.UI_SCALE));
-                dateStyle.fontSize = Mathf.Max(10, Mathf.CeilToInt(10 * BDArmorySettings.UI_SCALE));
+                statusStyle.fontSize = Mathf.Max(14, Mathf.CeilToInt(14 * BDArmorySettings.UI_SCALE_ACTUAL));
+                dateStyle.fontSize = Mathf.Max(10, Mathf.CeilToInt(10 * BDArmorySettings.UI_SCALE_ACTUAL));
             }
             clockRectShadow = new Rect(clockRect);
             clockRectShadow.x += shadowOffset;
@@ -742,11 +742,11 @@ namespace BDArmory.Competition
 
             if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 67)
             { // For S6R7 switch to piñata teams and enable guard mode prior to take-off to avoid orbiting issues.
-                foreach (var pilot in GetAllPilots())
+                if (!string.IsNullOrEmpty(BDArmorySettings.PINATA_NAME) && hasPinata)
                 {
-                    if (!string.IsNullOrEmpty(BDArmorySettings.PINATA_NAME) && hasPinata)
+                    SpawnUtils.SaveTeams();
+                    foreach (var pilot in GetAllPilots())
                     {
-                        SpawnUtils.SaveTeams();
                         if (!pilot.vessel.GetName().Contains(BDArmorySettings.PINATA_NAME))
                         {
                             pilot.weaponManager.SetTeam(BDTeam.Get("PinataPoppers"));
@@ -758,6 +758,7 @@ namespace BDArmory.Competition
                         }
                         Scores.ScoreData[pilot.vessel.vesselName].team = pilot.weaponManager.Team.Name;
                     }
+                    leaderNames = RefreshPilots(out pilots, out leaders, true);
                 }
             }
 
@@ -810,11 +811,11 @@ namespace BDArmory.Competition
 
             if (!(BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 67))
             { // Switch to piñata teams after everyone is ready.
-                foreach (var pilot in GetAllPilots())
+                if (!string.IsNullOrEmpty(BDArmorySettings.PINATA_NAME) && hasPinata)
                 {
-                    if (!string.IsNullOrEmpty(BDArmorySettings.PINATA_NAME) && hasPinata)
+                    SpawnUtils.SaveTeams();
+                    foreach (var pilot in GetAllPilots())
                     {
-                        SpawnUtils.SaveTeams();
                         if (!pilot.vessel.GetName().Contains(BDArmorySettings.PINATA_NAME))
                             pilot.weaponManager.SetTeam(BDTeam.Get("PinataPoppers"));
                         else
@@ -827,6 +828,7 @@ namespace BDArmory.Competition
                         }
                         Scores.ScoreData[pilot.vessel.vesselName].team = pilot.weaponManager.Team.Name;
                     }
+                    leaderNames = RefreshPilots(out pilots, out leaders, true);
                 }
             }
             if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 67) startCompetitionNow = true;
@@ -1272,7 +1274,7 @@ namespace BDArmory.Competition
         }
 
         enum UncontrolledReason { Uncontrolled, Bricked };
-        HashSet<Vessel> explodingWM = new HashSet<Vessel>();
+        HashSet<Vessel> explodingWM = [];
         IEnumerator DelayedExplodeWMs(Vessel vessel, float delay = 1f, UncontrolledReason reason = UncontrolledReason.Uncontrolled)
         {
             if (explodingWM.Contains(vessel)) yield break; // Already scheduled for exploding.
@@ -1313,8 +1315,13 @@ namespace BDArmory.Competition
             yield return new WaitForSecondsFixed(delay);
             if (vessel == null) // It's already dead.
             {
-                explodingWM = explodingWM.Where(v => v != null).ToHashSet(); // Clean the hashset.
+                explodingWM = [.. explodingWM.Where(v => v != null)]; // Clean the hashset.
                 yield break;
+            }
+            if (killReason.Contains("engines") && SpawnUtils.CountActiveEngines(vessel, true) != 0)
+            {
+                explodingWM.Remove(vessel); //reset this so future DelayedGMKill calls don't immediately abort
+                yield break; //engine(s) (re)activated since delayedGMKill triggered, abort
             }
 
             var vesselName = vessel.GetName();
@@ -2359,7 +2366,7 @@ namespace BDArmory.Competition
                 Scores.ScoreData[vesselName].lastPersonWhoDamagedMe = $"Failed to reach a waypoint within {threshold:0}s";
                 Scores.RegisterDeath(vesselName, GMKillReason.BigRedButton); // Mark it as a Big Red Button GM kill.
                 var message = $"{vesselName} failed to reach a waypoint within {threshold:0}s, killing it.";
-                if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 55) message = $"{vesselName} failed to reach a waypoint within {threshold:0}s and was killed by a Tusken Raider.";
+                if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.WAYPOINTS_MODE) message = $"{vesselName} failed to reach a waypoint within {threshold:0}s and was killed by {(BDArmorySettings.RUNWAY_PROJECT_ROUND == 55 ? "a Tusken Raider" : "the GM")}.";
                 competitionStatus.Add(message);
                 Debug.Log($"[BDArmory.BDACompetitionMode:" + CompetitionID.ToString() + "]: " + message);
                 VesselUtils.ForceDeadVessel(weaponManager.vessel);
@@ -2445,7 +2452,7 @@ namespace BDArmory.Competition
                 if (VesselModuleRegistry.ignoredVesselTypes.Contains(vessel.vesselType)) continue;  // Debris handled by DebrisDelayedCleanUp, others are ignored.
                 if (nonCompetitorsToRemove.Contains(vessel)) continue; // Already scheduled for removal.
                 bool activePilot = false;
-                if (vessel.GetName() == BDArmorySettings.PINATA_NAME)
+                if (vessel.GetName().Contains(BDArmorySettings.PINATA_NAME))
                 {
                     activePilot = true;
                 }
@@ -2617,7 +2624,7 @@ namespace BDArmory.Competition
         public void DoUpdate()
         {
             if (competitionStartTime < 0) return; // Note: this is the same condition as competitionIsActive and could probably be dropped.
-            if (competitionType == CompetitionType.WAYPOINTS && (BDArmorySettings.RUNWAY_PROJECT_ROUND != 55 && BDArmorySettings.WAYPOINT_GUARD_INDEX < 0)) return; // Don't do anything below when running waypoints unless guardmode is set to activate at somepoint or if set to podracers (for tuskenRaider GM culling of slow pods)
+            if (competitionType == CompetitionType.WAYPOINTS && (BDArmorySettings.RUNWAY_PROJECT_ROUND != 55 && BDArmorySettings.COMPETITION_WAYPOINTS_GM_KILL_PERIOD <= 0 && BDArmorySettings.WAYPOINT_GUARD_INDEX < 0)) return; // Don't do anything below when running waypoints unless guardmode is set to activate at somepoint or if set to podracers (for tuskenRaider GM culling of slow pods)
             if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 55 && competitionIsActive) AdjustKerbalDrag(605, 0.01f); // Over 605m/s, add drag at a rate of 0.01 per m/s.
 
             // Example usage of UpcomingCollisions(). Note that the timeToCPA values are only updated after an interval of half the current timeToCPA.
@@ -3143,7 +3150,7 @@ namespace BDArmory.Competition
 
             if (now - competitionStartTime > altitudeLimitGracePeriod)
                 CheckAltitudeLimits();
-            if (competitionIsActive && competitionType == CompetitionType.WAYPOINTS && BDArmorySettings.RUNWAY_PROJECT_ROUND == 55 && BDArmorySettings.COMPETITION_WAYPOINTS_GM_KILL_PERIOD > 0 && now - competitionStartTime > BDArmorySettings.COMPETITION_INITIAL_GRACE_PERIOD) CullSlowWaypointRunners(BDArmorySettings.COMPETITION_WAYPOINTS_GM_KILL_PERIOD);
+            if (competitionIsActive && competitionType == CompetitionType.WAYPOINTS && BDArmorySettings.COMPETITION_WAYPOINTS_GM_KILL_PERIOD > 0 && now - competitionStartTime > BDArmorySettings.COMPETITION_INITIAL_GRACE_PERIOD) CullSlowWaypointRunners(BDArmorySettings.COMPETITION_WAYPOINTS_GM_KILL_PERIOD);
             if (BDArmorySettings.RUNWAY_PROJECT)
             {
                 FindVictim();

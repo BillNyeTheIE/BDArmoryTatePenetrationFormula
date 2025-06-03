@@ -7,6 +7,7 @@ using BDArmory.Competition.OrchestrationStrategies;
 using BDArmory.Settings;
 using BDArmory.VesselSpawning.SpawnStrategies;
 using BDArmory.VesselSpawning;
+using BDArmory.Utils;
 
 namespace BDArmory.Competition
 {
@@ -54,17 +55,31 @@ namespace BDArmory.Competition
         {
             IsRunning = true;
 
-            // clear all vessels
-            yield return SpawnUtils.RemoveAllVessels();
-
-            // first, spawn vessels
-            yield return spawnStrategy.Spawn(vesselSpawner);
-
-            if (!spawnStrategy.DidComplete())
+            if (spawnStrategy != null && vesselSpawner != null) // Allow just running a course with the currently spawned vessels.
             {
-                Debug.Log($"[BDArmory.TournamentCoordinator]: TournamentCoordinator spawn failed: {vesselSpawner.spawnFailureReason}");
-                IsRunning = false;
-                yield break;
+                // clear all vessels
+                yield return SpawnUtils.RemoveAllVessels();
+
+                // first, spawn vessels
+                yield return spawnStrategy.Spawn(vesselSpawner);
+
+                if (!spawnStrategy.DidComplete())
+                {
+                    Debug.Log($"[BDArmory.TournamentCoordinator]: TournamentCoordinator spawn failed: {vesselSpawner.spawnFailureReason}");
+                    IsRunning = false;
+                    yield break;
+                }
+            }
+            else
+            {
+                var tic = Time.time;
+                yield return new WaitWhileFixed(() => Time.time - tic < 10 && FlightGlobals.ActiveVessel != null && (!FlightGlobals.ActiveVessel.loaded || FlightGlobals.ActiveVessel.packed));
+                if (FlightGlobals.ActiveVessel == null || !FlightGlobals.ActiveVessel.loaded || FlightGlobals.ActiveVessel.packed)
+                {
+                    Debug.Log($"[BDArmory.TournamentCoordinator]: Active vessel failed to be ready within 10s");
+                    IsRunning = false;
+                    yield break;
+                }
             }
 
             // now, hand off to orchestrator

@@ -15,7 +15,7 @@ namespace BDArmory.Competition
 {
     public enum DamageFrom { None, Guns, Rockets, Missiles, Ramming, Incompetence, Asteroids };
     public enum AliveState { Alive, CleanKill, HeadShot, KillSteal, AssistedKill, Dead };
-    public enum GMKillReason { None, GM, OutOfAmmo, BigRedButton, LandedTooLong, Asteroids };
+    public enum GMKillReason { None, LandedTooLong, Asteroids, GM, OutOfAmmo, BigRedButton };
     public enum SurvivalState { Alive, MIA, Dead };
     public enum CompetitionResult { Win, Draw, MutualAnnihilation };
 
@@ -124,8 +124,10 @@ namespace BDArmory.Competition
             var now = Planetarium.GetUniversalTime();
 
             // Attacker stats.
-            ++ScoreData[attacker].hits;
-            if (victim == BDArmorySettings.PINATA_NAME) ++ScoreData[attacker].PinataHits; //not registering hits? Try switching to victim.Contains(BDArmorySettings.PINATA_NAME)?
+            if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 74 && victim.Contains(BDArmorySettings.REMOTE_ORCHESTRATION_NPC_SWAPPER)) ScoreData[attacker].hits += BDArmorySettings.VS_NPC_SCORE_MOD; //score double vs NPC
+            else
+                ++ScoreData[attacker].hits;
+            if (victim.Contains(BDArmorySettings.PINATA_NAME)) ++ScoreData[attacker].PinataHits; //not registering hits? Try switching to victim.Contains(BDArmorySettings.PINATA_NAME)?
             // Victim stats.
             if (ScoreData[victim].lastPersonWhoDamagedMe != attacker)
             {
@@ -185,7 +187,7 @@ namespace BDArmory.Competition
                 Debug.Log($"[BDArmory.BDACompetitionMode.Scores]: {attacker} did {damage} damage to {victim} with a gun.");
 
             var now = Planetarium.GetUniversalTime();
-
+            if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 74 && victim.Contains(BDArmorySettings.REMOTE_ORCHESTRATION_NPC_SWAPPER)) damage *= BDArmorySettings.VS_NPC_SCORE_MOD;
             if (ScoreData[victim].lastPersonWhoDamagedMe != attacker)
             {
                 ScoreData[victim].previousLastDamageTime = ScoreData[victim].lastDamageTime;
@@ -261,7 +263,7 @@ namespace BDArmory.Competition
             // Attacker stats.
             ScoreData[attacker].totalDamagedPartsDueToRockets += partsHit;
 
-            if (victim == BDArmorySettings.PINATA_NAME) ++ScoreData[attacker].PinataHits;
+            if (victim.Contains(BDArmorySettings.PINATA_NAME)) ++ScoreData[attacker].PinataHits;
             // Victim stats.
             if (ScoreData[victim].lastPersonWhoDamagedMe != attacker)
             {
@@ -319,7 +321,7 @@ namespace BDArmory.Competition
             if (damage <= 0 || attacker == null || victim == null || !ScoreData.ContainsKey(attacker) || !ScoreData.ContainsKey(victim)) return false; // Note: we allow attacker=victim here to track self damage.
             if (ScoreData[victim].aliveState != AliveState.Alive) return false; // Ignore damage after the victim is dead.
             if (VesselModuleRegistry.GetModuleCount<MissileFire>(victimVessel) == 0) return false; // The victim is dead, but hasn't been registered as such yet. We want to check this here as it's common for BD to occur as the vessel is killed.
-
+            if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 74 && victim.Contains(BDArmorySettings.REMOTE_ORCHESTRATION_NPC_SWAPPER)) damage *= BDArmorySettings.VS_NPC_SCORE_MOD;
             if (ScoreData[victim].battleDamageFrom.ContainsKey(attacker)) { ScoreData[victim].battleDamageFrom[attacker] += damage; }
             else { ScoreData[victim].battleDamageFrom[attacker] = damage; }
 
@@ -343,6 +345,7 @@ namespace BDArmory.Competition
                 Debug.Log($"[BDArmory.BDACompetitionMode.Scores]: {attacker} rammed {victim} at {timeOfCollision} and the victim lost {partsLost} parts.");
 
             // Attacker stats.
+            if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 74 && victim.Contains(BDArmorySettings.REMOTE_ORCHESTRATION_NPC_SWAPPER)) partsLost *= BDArmorySettings.VS_NPC_SCORE_MOD;
             ScoreData[attacker].totalDamagedPartsDueToRamming += partsLost;
 
             // Victim stats.
@@ -538,7 +541,7 @@ namespace BDArmory.Competition
                 if (BDArmorySettings.REMOTE_LOGGING_ENABLED)
                 { BDAScoreService.Instance.ComputeAssists(vesselName, "", now - BDACompetitionMode.Instance.competitionStartTime); }
             }
-            if (BDArmorySettings.VESSEL_SPAWN_DUMP_LOG_EVERY_SPAWN && ContinuousSpawning.Instance.vesselsSpawningContinuously) ContinuousSpawning.Instance.DumpContinuousSpawningScores();
+            if (ContinuousSpawning.Instance.vesselsSpawningContinuously) ContinuousSpawning.Instance.DumpContinuousSpawningScores();
 
             return true;
         }

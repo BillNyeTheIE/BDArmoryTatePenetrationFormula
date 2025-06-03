@@ -15,6 +15,7 @@ using BDArmory.UI;
 using BDArmory.Damage;
 using BDArmory.FX;
 using BDArmory.Weapons;
+using BDArmory.ModIntegration;
 
 namespace BDArmory.VesselSpawning
 {
@@ -122,8 +123,17 @@ namespace BDArmory.VesselSpawning
         /// <param name="viewDistance">The viewing distance if killing everything off and relocating the camera.</param>
         /// <param name="spawnAirborne">Whether the craft are to be air-spawned or not (also only if relocating the camera).</param>
         /// <returns></returns>
-        protected IEnumerator AcquireSpawnPoint(SpawnConfig spawnConfig, float viewDistance, bool spawnAirborne)
+        protected IEnumerator AcquireSpawnPoint(SpawnConfig spawnConfig, float spawnDistance, bool spawnAirborne)
         {
+            // Sanitise the viewDistance to at most one third the PRE range.
+            var preRange = PhysicsRangeExtender.GetPRERange();
+            if (preRange < 2.5f * spawnDistance)
+            {
+                preRange = 2.5f * spawnDistance;
+                PhysicsRangeExtender.SetPRERange((int)preRange);
+                LogMessage($"PRE range is insufficient for the spawn distance ({spawnDistance / 1000:0}km), increasing PRE range to {preRange / 1000:0}km");
+            }
+            var viewDistance = Mathf.Min(1.5f * spawnDistance, preRange / 3); // Try to capture the entire spawn circle, within reason.
             if (spawnConfig.killEverythingFirst) // If we're killing everything, relocate the camera and floating origin to the spawn point and wait for the terrain. Note: this sets the variables in the "else" branch.
             {
                 yield return SpawnUtils.RemoveAllVessels();
@@ -135,7 +145,7 @@ namespace BDArmory.VesselSpawning
                 // Get the spawning point in world position coordinates.
                 terrainAltitude = FlightGlobals.currentMainBody.TerrainAltitude(spawnConfig.latitude, spawnConfig.longitude);
                 spawnPoint = FlightGlobals.currentMainBody.GetWorldSurfacePosition(spawnConfig.latitude, spawnConfig.longitude, terrainAltitude + spawnConfig.altitude);
-                if ((spawnPoint - FloatingOrigin.fetch.offset).magnitude > 100e3)
+                if ((spawnPoint - FloatingOrigin.fetch.offset).sqrMagnitude > preRange * preRange)
                 { LogMessage("WARNING The spawn point is " + ((spawnPoint - FloatingOrigin.fetch.offset).magnitude / 1000).ToString("G4") + "km away. Expect vessels to be killed immediately.", true, false); }
             }
         }
@@ -826,7 +836,7 @@ namespace BDArmory.VesselSpawning
                         vessel.SetWorldVelocity(orbitVelocity);
                     }
                 }
-                if (weaponManager.guardMode)
+                if (BDArmorySettings.DISABLE_GUARDMODE_ON_SPAWN && weaponManager.guardMode)
                 {
                     if (BDArmorySettings.DEBUG_SPAWNING) LogMessage($"Disabling guardMode on {vessel.vesselName}.", false);
                     weaponManager.ToggleGuardMode(); // Disable guard mode (in case someone enabled it on AG10 or in the SPH).

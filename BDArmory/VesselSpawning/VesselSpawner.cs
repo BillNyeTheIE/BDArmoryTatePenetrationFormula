@@ -474,13 +474,13 @@ namespace BDArmory.VesselSpawning
 
         static List<Part> SortPartTree(List<Part> parts)
         {
-            List<Part> Parts = parts.Where(p => p.parent == null).ToList(); // There can be only one.
+            List<Part> Parts = [.. parts.Where(p => p.parent == null)]; // There can be only one.
             while (Parts.Count() < parts.Count())
             {
                 var partsToAdd = parts.Where(p => !Parts.Contains(p) && Parts.Contains(p.parent));
                 if (partsToAdd.Count() == 0)
                 {
-                    Debug.Log($"[BDArmory.VesselSpawner]: Part count mismatch when sorting the part-tree: {Parts.Count()} vs {parts.Count()}");
+                    Debug.LogError($"[BDArmory.VesselSpawner]: Part count mismatch when sorting the part-tree: {Parts.Count()} vs {parts.Count()}");
                     break;
                 }
                 Parts.AddRange(partsToAdd);

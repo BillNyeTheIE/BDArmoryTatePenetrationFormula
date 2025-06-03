@@ -494,7 +494,7 @@ namespace BDArmory.GameModes
         /// <param name="count"></param>
         void AddAsteroidsToPool(int count)
         {
-            Debug.Log($"[BDArmory.Asteroids]: Increasing asteroid pool size to {asteroidPool.Count + count}.");
+            Debug.Log($"[BDArmory.Asteroids]: Increasing asteroid pool size to {asteroidPool.Count + count} from {asteroidPool.Count}.");
             spawnPoint = FlightGlobals.currentMainBody.GetWorldSurfacePosition(geoCoords.x, geoCoords.y, altitude);
             upDirection = (spawnPoint - FlightGlobals.currentMainBody.transform.position).normalized;
             var refDirection = Math.Abs(Vector3d.Dot(Vector3.up, upDirection)) < 0.71f ? Vector3d.up : Vector3d.forward; // Avoid that the reference direction is colinear with the local surface normal.
