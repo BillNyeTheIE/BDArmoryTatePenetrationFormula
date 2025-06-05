@@ -1,6 +1,8 @@
 ﻿IMPROVEMENTS / FIXES
 - General:
 	- Fix the g-limit overrides from needing to save the persistent savegame, which was leaving spawned craft in play when reverting to the SPH.
+- UI:
+	-	Fix spelling of "ordnance" in localisation files (settings and modules retain the misspelling).
 - AI / WM:
 	- Add missing unclamped limits for 3-axis static damping.
 	- Adjust the release of the "Attack" command so that craft don't go dead-stick when under attack but not threatened enough to trigger evasion.
@@ -84,7 +86,7 @@ IMPROVEMENTS / FIXES
 		- Added "hasIFF" field to missiles allowing for missile seekers without IFF functionality. Defaults to true.
 		- Fix AAMLoft implementation for MMGs.
 		- Fix reload gauge for reloadable launchers.
-		- Add dynamic ordinance offset for reloadable rails so larger missiles no longer clip into rails/hardpoint mounts.
+		- Add dynamic ordnance offset for reloadable rails so larger missiles no longer clip into rails/hardpoint mounts.
 		- Fix lock-less Radar missiles doing a loop instead of going straight.
 		- Fix Reload Gauge on reloadable launchers.
 		- Fix Account For Mass/Cost not applying to Missile magazines.
@@ -156,7 +158,7 @@ IMPROVEMENTS / FIXES
 		- Add support for nuclear/kinetic warheads on Modular Missiles.
 		- Fix custom beehive warhead firing submunitions sideways.
 		- Fix MultiMissileLaunchers using 'ignoreColliders = true' not properly disabling colliders on spawned missiles and potentially resulting in RUD if the launcher is clipped into the vessel.
-		- MultiMissileLaunchers with multiple tubes/cells/rails now properly display the amount of ordinance loaded into the launcher when Ordinance Available set to lower than the number of tubes.
+		- MultiMissileLaunchers with multiple tubes/cells/rails now properly display the amount of ordnance loaded into the launcher when Ordnance Available set to lower than the number of tubes.
 		- Fix radar-guided missiles fired from a VLS detonating immediately after launch due to lost lock.
 		- Missile 'hasMissed' grace period now adjusted based on missile velocity and motor state, so things like slow VLS launches don't time out before they can tip over and get on target.
 		- Fix GPS missile NRE when trying to fire from beyond Targeting Camera max range using a missile turret.
@@ -167,7 +169,7 @@ IMPROVEMENTS / FIXES
 		- Fix multi-missile launcher scaling bug, missiles should now scale correctly.
 		- Added multi-missile launcher offsetMax field, to allow increasing the offset limits from the default of 1m.
 		- Added multi-missile launcher deployTime field and slider, this allows changing how long the launcher is open for after launching from 0.5s to up to 5s. This is primarily intended for launching slower missiles out of VLS.
-		- Reloadable rails no longer do a reload when there's no ordinance remaining.
+		- Reloadable rails no longer do a reload when there's no ordnance remaining.
 		- Torpedos now use running depth (default -3m if unguided) and depth-keeping, instead of diving in a straight line towards target.
 		- Fix Stingray Torpedo buoyancy.
 		- Add AAM Loft as a guidance option for Modular Missile Guidance missiles.
@@ -203,11 +205,11 @@ IMPROVEMENTS / FIXES
 	- Fix AI not turning on Active sonar when trying to fire INS torpedoes if no passive sonar on vessel.
 	- AI visual detection of incoming missiles within visual range no longer requires a RWR. RWR detection of incoming missiles still requires a RWR on the craft.
 	- Tweak AI detection and reaction to incoming GPS/INS missiles, they should detect and react to them a bit more consistantly now.
-	- AI can now make use of non-DynamicRadar radars for missile targeting when being actively targeted by incoming anti-radiation ordinance.
+	- AI can now make use of non-DynamicRadar radars for missile targeting when being actively targeted by incoming anti-radiation ordnance.
 	- AI can now do non-linear evasion vs long-range targets while aiming missiles.
 	- Add Extend Min Gain Rate slider to set extend abort condition if not gaining distance fast enough.
 	- AI now checks for available secondary resource as well as primary for weapons using 2 ammo types (e.g. railguns using bullets + EC) when doing weapon selection checks.
-	- AI can now use an ally laserdot for targeting laser-guided ordinance if it lacks a targetcam of its own.
+	- AI can now use an ally laserdot for targeting laser-guided ordnance if it lacks a targetcam of its own.
 	- AI now uses a TWR factor in the climb rate limit calculations.
 	- Improvements to formation flying behaviour. Planes in follow mode should now hold their positions better and be more stable.
 	- Fix point-defense missile system, AI should now engage with the appropriate amount of missiles.
@@ -228,7 +230,7 @@ IMPROVEMENTS / FIXES
 	- Fix Acoustic Decoy launcher launch direction.
 	- Acoustic Decoys will no longer defy gravity and fly if launched out of water.
 	- Fix Bubble Curtain launcher NRE.
-	- "Infinite Ordinance" now also applies to countermeasure droppers.
+	- "Infinite Ordnance" now also applies to countermeasure droppers.
 	- Adjust cmThreshold timing for SLW countermeasures to 5x time set in WM to account for torpedoes being substantially slower than missiles.
 		-	This should allow proper CM behavior against both torpedoes and missiles without compromising one or the other.
 - Detectors:
@@ -265,10 +267,10 @@ IMPROVEMENTS / FIXES
 	- Missiles:
 		- Add "cruiseRangeTrigger" field to missiles. Missiles using this will delay firing their cruise motor until within the set distance to target.
 		- Tweak acoustic propagation loss rate for passive acoustic torpedoes, should have a bit further effective detection range now.
-		- Fix INS guidance ordinance not configured with a datalink immediately triggering the lost lock condition and self-destructing.
+		- Fix INS guidance ordnance not configured with a datalink immediately triggering the lost lock condition and self-destructing.
 		- Passive Sonar torpedoes now home in on loudest part, not COM. Respects targetCoM override in the .cfg.
 		- Fix Terminal Guidance Passive Sonar torpedoes not entering terminal guidance.
-		- Fix laser guided ordinance locking on to enemy laser dots.
+		- Fix laser guided ordnance locking on to enemy laser dots.
 		- Missile in-flight anims (flightAnimationName) now starts playing when boost motor ignites instead of post boost phase.
 		- Added "custom" warhead module, functions like a normal warhead, except it launches a bullet instead of exploding, integrated with missiles.
 		- Point-defense missile turrets will no longer follow mouse aim unless manually selected.
@@ -783,9 +785,9 @@ IMPROVEMENTS / FIXES
 	- Fix custom ammobelt UI overwriting belts on heterogeneous weapon groups.
 - AI / WM:
 	- AI GUI fixes for surface AI.
-	- Fix AI disengagement from launched nuclear/EMP ordinance if within projected blast radius.
+	- Fix AI disengagement from launched nuclear/EMP ordnance if within projected blast radius.
 	- Expose the weave strength factor as a tunable parameter for the surface and VTOL AI.
-	- AI will now toggle/disable ECM Jammers if under fire from GPS/antiradiation ordinance.
+	- AI will now toggle/disable ECM Jammers if under fire from GPS/antiradiation ordnance.
 	- Adjust the off-boresight angles for DLZ checks for extending to prevent super long-range extends.
 	- Fix FSM not being started when initially deploying landing gear.
 - Weapons:
@@ -806,7 +808,7 @@ IMPROVEMENTS / FIXES
 		- Craft without Radar/radarlock will now wait to fire radar LOAL missiles until target distance is close enough that radarTimeout < (tgtDist - activeRadarRange) / optimalAirspeed.
 		- Fix NRE when trying to fire laser-guided missiles from a turret with no targeting cam.
 		- Single stage Modular Missiles now activate their engine on launch without needing an AG setup.
-		- Continuously-updating GPS-guided ordinance can now be jammed by a ECM jammer if within the jammer's garble radius.
+		- Continuously-updating GPS-guided ordnance can now be jammed by a ECM jammer if within the jammer's garble radius.
 		- Missile Interception reworked, tied to PD logic. Missiles set to engage missiles will automatically launch to intercept incoming missiles (assuming viable launch geometry).
 		- Hopefully fix the Missile Turret phantom force issue.
 		- Fix GPS missiles fired from a cargo/custom bay losing lock immediately on firing.
@@ -1259,7 +1261,7 @@ IMPROVEMENTS / FIXES
 - Missiles:
 	- Fix issue that had broken MultiMissileLauncher parts last update.
 	- Add ability to jettison Multi-Missile rails via 'permitJettison = true' in their .cfg.
-	- Add 'displayOrdinance' bool for MultiMissileLaunchers for missilepods/bomb dispensers or similar where ordinance does not need to be visible.
+	- Add 'displayOrdinance' bool for MultiMissileLaunchers for missilepods/bomb dispensers or similar where ordnance does not need to be visible.
 	- Add 'OverrideDropSettings' bool for MultiMissileLaunchers for reloadable rails and similar to fix missile settings getting overwritten on launch.
 	- Fix issue with detonation distance and heat seekers targeting the engine exhaust plume.
 - GameModes:
@@ -1333,7 +1335,7 @@ IMPROVEMENTS / FIXES
 - Weapons:
 	- Use the combination of DEBUG_LINES and DEBUG_WEAPONS for showing the targeting component debug lines instead of only having them in the debug build.
 	- Further tweaks to the aim assist targeting reticle to account for the floating origin.
-	- Missiles/Bombs now arm their warheads when they reach a safe distance from their launching craft, to prevent anti-missile systems fragging craft by detonating ordinance immediately after launch.
+	- Missiles/Bombs now arm their warheads when they reach a safe distance from their launching craft, to prevent anti-missile systems fragging craft by detonating ordnance immediately after launch.
 - UI:
 	- Add a toolbar button for the BDA Vessel Mover.
 	- Make window states persistent across scene changes.
@@ -1751,7 +1753,7 @@ IMPROVEMENTS / FIXES
 	- Reworks ModuleMissileRearm, now works, integrated with WM, etc.
 	- Missiles with a ModuleMissileRearm can now have reloads, be affected by Infinite Ammo.
 	- Adds MultiMissileLauncher module.
-	- Adds new Infinite Ordinance toggle, for missiles with ModuleMissileRearm/MultiMissileLauncher.
+	- Adds new Infinite Ordnance toggle, for missiles with ModuleMissileRearm/MultiMissileLauncher.
 	- Fixes NRE with APS missile interception.
 	- Inaccurate or multi-shot APS (CIWS rotary cannon, etc) no longer guaranteed to kill incoming projectiles with first shot.
 	- Fixes Max Turret Targets not targeting more than 2 vessels.
@@ -1784,7 +1786,7 @@ IMPROVEMENTS / FIXES
 	- Adds optional adjustable Logarithmic HP clamp, replacing the Proc Part Max HP slider.
 	- Adds optional toggle to disable lift from colliderless PWing edges for better balance with stock wings/prevent pwing abuse.
 	- Apply the gapless particle emitter option to 'DecalGaplessParticleEmitter's too.
-	- Add Attachnode to the Ordinance bay to fix issues with Breaking Ground Robotics.
+	- Add Attachnode to the Ordnance bay to fix issues with Breaking Ground Robotics.
 	- Adds debugging messages to assist with making custom weapons.
 	- Adds MM patch to add liftless Proc Structural Panel if B9 Pwings installed.
 	- Reduce frequency (hopefully to none) of null FX object pool entries by catching unloading events too and triggering OnJustAboutToBeDestroyed before recovering vessels.

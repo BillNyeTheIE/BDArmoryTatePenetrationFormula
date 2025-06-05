@@ -295,7 +295,7 @@ namespace BDArmory.Radar
                         RadarUtils.WorldToRadar(source, referenceTransform, RwrDisplayRect, rwrDisplayRange), Vector3.zero,
                         true, type);   
                     pingWorldPositions[openIndex] = source; //FIXME source is improperly defined
-                    if (weaponManager.hasAntiRadiationOrdinance)
+                    if (weaponManager.hasAntiRadiationOrdnance)
                     {
                         BDATargetManager.ReportVessel(AIUtils.VesselClosestTo(source), weaponManager); // Report RWR ping as target for anti-rads
                     } //MissileFire RWR-vessel checks are all (RWR ping position - guardtarget.CoM).Magnitude < 20*20?, could we simplify the more complex vessel aquistion function used here?

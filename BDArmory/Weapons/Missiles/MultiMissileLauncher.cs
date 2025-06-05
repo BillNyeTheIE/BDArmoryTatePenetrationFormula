@@ -79,7 +79,7 @@ namespace BDArmory.Weapons.Missiles
     UI_FloatRange(minValue = 0.5f, maxValue = 2, stepIncrement = 0.05f, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.Editor)]
         public float Length = 1;
 
-        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_Offset"),// Ordinance Offset
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_Offset"),// Ordnance Offset
     UI_FloatRange(minValue = -1, maxValue = 1, stepIncrement = 0.1f, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.Editor)]
         public float attachOffset = 0;
 
@@ -682,8 +682,8 @@ namespace BDArmory.Weapons.Missiles
                     existingDummy.Deactivate(); //if changing out missiles loaded into a VLS or similar, reset missile dummies
                 }
             }
-            int loadedOrdinance = (BDArmorySettings.INFINITE_ORDINANCE ? launchTransforms.Length : missileSpawner != null ? Math.Min((int)missileSpawner.railAmmo, launchTransforms.Length) : launchTransforms.Length);
-            for (int i = 0; i < loadedOrdinance; i++)
+            int loadedOrdnance = (BDArmorySettings.INFINITE_ORDINANCE ? launchTransforms.Length : missileSpawner != null ? Math.Min((int)missileSpawner.railAmmo, launchTransforms.Length) : launchTransforms.Length);
+            for (int i = 0; i < loadedOrdnance; i++)
             {
                 if (!refresh)
                 {

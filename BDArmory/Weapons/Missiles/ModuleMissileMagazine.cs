@@ -21,11 +21,11 @@ namespace BDArmory.Weapons.Missiles
         [KSPField(isPersistant = true, guiActive = true, guiName = "#LOC_BDArmory_WeaponName", guiActiveEditor = false), UI_Label(affectSymCounterparts = UI_Scene.All, scene = UI_Scene.All)]//Weapon Name 
         public string loadedMissileName = "";
 
-        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_OrdinanceAvailable"),//Ordinance Available
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_OrdnanceAvailable"),//Ordnance Available
 UI_FloatRange(minValue = 1f, maxValue = 4, stepIncrement = 1f, scene = UI_Scene.All)]
         public float ammoCount = 1;
 
-        [KSPField(guiActive = true, guiActiveEditor = false, guiName = "#LOC_BDArmory_OrdinanceAvailable"),//Ordinance Available
+        [KSPField(guiActive = true, guiActiveEditor = false, guiName = "#LOC_BDArmory_OrdnanceAvailable"),//Ordnance Available
 UI_ProgressBar(affectSymCounterparts = UI_Scene.None, controlEnabled = false, scene = UI_Scene.Flight, maxValue = 100, minValue = 0, requireFullControl = false)]
         public float ammoRemaining = 1;
 
@@ -93,8 +93,8 @@ UI_FloatRange(minValue = 1f, maxValue = 4, stepIncrement = 1f, scene = UI_Scene.
             }
             if (HighLogic.LoadedSceneIsFlight)
             {
-                UI_ProgressBar ordinance = (UI_ProgressBar)Fields["ammoRemaining"].uiControlFlight;
-                ordinance.maxValue = ammoCount;
+                UI_ProgressBar ordnance = (UI_ProgressBar)Fields["ammoRemaining"].uiControlFlight;
+                ordnance.maxValue = ammoCount;
                 ammoRemaining = ammoCount;
             }
             GUIUtils.RefreshAssociatedWindows(part);
@@ -231,8 +231,8 @@ UI_FloatRange(minValue = 1f, maxValue = 4, stepIncrement = 1f, scene = UI_Scene.
 
             output.Append(Environment.NewLine);
             output.AppendLine($"Missile Magazine");
-            output.AppendLine($"Attach a missile to this to load magazine with selected ordinance");
-            output.AppendLine($"- Maximum Ordinance: {maxAmmo}");
+            output.AppendLine($"Attach a missile to this to load magazine with selected ordnance");
+            output.AppendLine($"- Maximum Ordnance: {maxAmmo}");
             output.AppendLine($"- Ammo has Mass/Cost: {AccountForAmmo}");
             return output.ToString();
         }

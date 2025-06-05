@@ -328,7 +328,7 @@ namespace BDArmory.CounterMeasure
 
         bool DropFlare()
         {
-            if (!BDArmorySettings.INFINITE_ORDINANCE)
+            if (!BDArmorySettings.INFINITE_COUNTERMEASURES)
             {
                 PartResource cmResource = GetCMResource();
                 if (cmResource == null || !(cmResource.amount >= 1)) return false;
@@ -356,7 +356,7 @@ namespace BDArmory.CounterMeasure
 
         bool DropChaff()
         {
-            if (!BDArmorySettings.INFINITE_ORDINANCE)
+            if (!BDArmorySettings.INFINITE_COUNTERMEASURES)
             {
                 PartResource cmResource = GetCMResource();
                 if (cmResource == null || !(cmResource.amount >= 1)) return false;
@@ -382,7 +382,7 @@ namespace BDArmory.CounterMeasure
 
         bool PopSmoke()
         {
-            if (!BDArmorySettings.INFINITE_ORDINANCE)
+            if (!BDArmorySettings.INFINITE_COUNTERMEASURES)
             {
                 PartResource smokeResource = GetCMResource();
                 if (smokeResource == null || !(smokeResource.amount >= 1)) return false;
@@ -425,7 +425,7 @@ namespace BDArmory.CounterMeasure
 
         bool LaunchDecoy()
         {
-            if (!BDArmorySettings.INFINITE_ORDINANCE)
+            if (!BDArmorySettings.INFINITE_COUNTERMEASURES)
             {
                 PartResource cmResource = GetCMResource();
                 if (cmResource == null || !(cmResource.amount >= 1)) return false;
@@ -453,7 +453,7 @@ namespace BDArmory.CounterMeasure
 
         bool DropBubbles()
         {
-            if (!BDArmorySettings.INFINITE_ORDINANCE)
+            if (!BDArmorySettings.INFINITE_COUNTERMEASURES)
             {
                 PartResource bubbleResource = GetCMResource();
                 if (bubbleResource == null || !(bubbleResource.amount >= 1)) return false;

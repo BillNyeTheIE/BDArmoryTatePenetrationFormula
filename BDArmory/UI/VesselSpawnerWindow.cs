@@ -455,7 +455,11 @@ namespace BDArmory.UI
                 ++line; // Placeholder for a removed entry.
                 BDArmorySettings.VESSEL_SPAWN_CS_FOLLOWS_CENTROID = GUI.Toggle(SRightRect(line), BDArmorySettings.VESSEL_SPAWN_CS_FOLLOWS_CENTROID, StringUtils.Localize("#LOC_BDArmory_Settings_CSFollowsCentroid")); //CS spawn-point follows centroid.
 
-                if (GUI.Button(SRightRect(++line), StringUtils.Localize("#LOC_BDArmory_Settings_SpawnSpawnProbeHere"), BDArmorySetup.BDGuiSkin.button))
+                if (GUI.Button(SLeftButtonRect(++line), StringUtils.Localize("#LOC_BDArmory_Settings_WarpHere"), BDArmorySetup.BDGuiSkin.button))
+                {
+                    SpawnUtils.ShowSpawnPoint(selected_index, BDArmorySettings.VESSEL_SPAWN_GEOCOORDS.x, BDArmorySettings.VESSEL_SPAWN_GEOCOORDS.y, BDArmorySettings.VESSEL_SPAWN_ALTITUDE);
+                }
+                if (GUI.Button(SRightButtonRect(line), StringUtils.Localize("#LOC_BDArmory_Settings_SpawnSpawnProbeHere"), BDArmorySetup.BDGuiSkin.button))
                 {
                     var spawnProbe = VesselSpawner.SpawnSpawnProbe(FlightCamera.fetch.Distance * FlightCamera.fetch.mainCamera.transform.forward);
                     if (spawnProbe != null)
@@ -526,10 +530,6 @@ namespace BDArmory.UI
                 }
                 planetBox.UpdateRect(SLeftButtonRect(line));
                 selected_index = planetBox.Show();
-                if (GUI.Button(SRightButtonRect(line), StringUtils.Localize("#LOC_BDArmory_Settings_WarpHere"), BDArmorySetup.BDGuiSkin.button))
-                {
-                    SpawnUtils.ShowSpawnPoint(selected_index, BDArmorySettings.VESSEL_SPAWN_GEOCOORDS.x, BDArmorySettings.VESSEL_SPAWN_GEOCOORDS.y, BDArmorySettings.VESSEL_SPAWN_ALTITUDE);
-                }
                 if (planetBox.IsOpen)
                 {
                     line += planetBox.Height / _lineHeight;

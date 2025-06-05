@@ -752,7 +752,7 @@ namespace BDArmory.Weapons.Missiles
                         if (!String.IsNullOrEmpty(((MultiMissileLauncher)partModule).subMunitionName))
                         {
                             //shouldn't have both MML and ClusterBomb/BDExplosivepart/ModuleEMP/BDModuleNuke on the same part; explosive would be on the submunition .cfg
-                            //so instead need a check if the MML comes with a default ordinance, and see what it is to inherit stats.
+                            //so instead need a check if the MML comes with a default ordnance, and see what it is to inherit stats.
                             using (var parts = PartLoader.LoadedPartsList.GetEnumerator())
                                 while (parts.MoveNext())
                                 {
@@ -1577,7 +1577,7 @@ namespace BDArmory.Weapons.Missiles
 
         public IEnumerator MissileReload()
         {
-            reloadableRail.loadOrdinance(multiLauncher ? multiLauncher.launchTubes : 1);
+            reloadableRail.loadOrdnance(multiLauncher ? multiLauncher.launchTubes : 1);
             if (reloadableRail.railAmmo > 0 || BDArmorySettings.INFINITE_ORDINANCE)
             {
                 if (vessel.isActiveVessel) gauge.UpdateReloadMeter(reloadTimer);
@@ -3762,7 +3762,7 @@ namespace BDArmory.Weapons.Missiles
             }
             if (missileType.ToLower() == "launcher")
             {
-                return "Requires Ordinance";
+                return "Requires Ordnance";
             }
             //else: missiles:
 

@@ -116,7 +116,7 @@ namespace BDArmory.Radar
                                                        //default to 0.25, so all cross sections of landed/splashed/submerged vessels are reduced to 1/4th, as these vessel usually a quite large
         [KSPField]
         public float radarChaffClutterFactor = 1.0f;     //Factor defining how effective the radar is at compensating for enemy chaff (0 = ineffective, 1 = no decrease in signal position/strength)
-                                                         //default to 1, since that's legacy behavior. Relevant for guiding SARH ordinance.
+                                                         //default to 1, since that's legacy behavior. Relevant for guiding SARH ordnance.
         [KSPField]
         public int sonarType = 0; //0 = Radar; 1 == Active Sonar; 2 == Passive Sonar
 

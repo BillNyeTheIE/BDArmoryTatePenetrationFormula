@@ -3451,9 +3451,29 @@ namespace BDArmory.UI
                 {
                     BDArmorySettings.PAINTBALL_MODE = false;
                 }
-                BDArmorySettings.INFINITE_AMMO = GUI.Toggle(SRightRect(line), BDArmorySettings.INFINITE_AMMO, StringUtils.Localize("#LOC_BDArmory_Settings_InfiniteAmmo"));//"Infinite Ammo"
+                BDArmorySettings.INFINITE_AMMO = GUI.Toggle(SRightRect(line), BDArmorySettings.INFINITE_AMMO, StringUtils.Localize("#LOC_BDArmory_Settings_InfiniteAmmo"));
+                if (BDArmorySettings.PAINTBALL_MODE != (BDArmorySettings.PAINTBALL_MODE = GUI.Toggle(SLeftRect(++line), BDArmorySettings.PAINTBALL_MODE, StringUtils.Localize("#LOC_BDArmory_Settings_PaintballMode"))))//"Paintball Mode"
+                {
+                    BulletHitFX.SetupShellPool();
+                    BDArmorySettings.BATTLEDAMAGE = false;
+                }
+                BDArmorySettings.INFINITE_ORDINANCE = GUI.Toggle(SRightRect(line), BDArmorySettings.INFINITE_ORDINANCE, StringUtils.Localize("#LOC_BDArmory_Settings_InfiniteMissiles"));
+                if (BDArmorySettings.PEACE_MODE != (BDArmorySettings.PEACE_MODE = GUI.Toggle(SLeftRect(++line), BDArmorySettings.PEACE_MODE, StringUtils.Localize("#LOC_BDArmory_Settings_PeaceMode"))))//"Peace Mode"
+                {
+                    BDATargetManager.ClearDatabase();
+                    if (OnPeaceEnabled != null)
+                    {
+                        OnPeaceEnabled();
+                    }
+                    CheatOptions.InfinitePropellant = BDArmorySettings.PEACE_MODE || BDArmorySettings.INFINITE_FUEL;
+                }
+                BDArmorySettings.INFINITE_COUNTERMEASURES = GUI.Toggle(SRightRect(line), BDArmorySettings.INFINITE_COUNTERMEASURES, StringUtils.Localize("#LOC_BDArmory_Settings_InfiniteCountermeasures"));
                 BDArmorySettings.TAG_MODE = GUI.Toggle(SLeftRect(++line), BDArmorySettings.TAG_MODE, StringUtils.Localize("#LOC_BDArmory_Settings_TagMode"));//"Tag Mode"
-                BDArmorySettings.INFINITE_ORDINANCE = GUI.Toggle(SRightRect(line), BDArmorySettings.INFINITE_ORDINANCE, StringUtils.Localize("#LOC_BDArmory_Settings_InfiniteMissiles"));//"Infinite Ammo"
+                BDArmorySettings.INFINITE_FUEL = CheatOptions.InfinitePropellant; // Sync with the Alt-F12 window if the checkbox was toggled there.
+                if (BDArmorySettings.INFINITE_FUEL != (BDArmorySettings.INFINITE_FUEL = GUI.Toggle(SRightRect(line), BDArmorySettings.INFINITE_FUEL, StringUtils.Localize("#autoLOC_900349"))))//"Infinite Propellant"
+                {
+                    CheatOptions.InfinitePropellant = BDArmorySettings.INFINITE_FUEL;
+                }
                 if (BDArmorySettings.GRAVITY_HACKS != (BDArmorySettings.GRAVITY_HACKS = GUI.Toggle(SLeftRect(++line), BDArmorySettings.GRAVITY_HACKS, StringUtils.Localize("#LOC_BDArmory_Settings_GravityHacks"))))//"Gravity hacks"
                 {
                     if (BDArmorySettings.GRAVITY_HACKS)
@@ -3469,23 +3489,14 @@ namespace BDArmory.UI
                         VehiclePhysics.Gravity.Refresh();
                     }
                 }
-                if (BDArmorySettings.PAINTBALL_MODE != (BDArmorySettings.PAINTBALL_MODE = GUI.Toggle(SRightRect(line), BDArmorySettings.PAINTBALL_MODE, StringUtils.Localize("#LOC_BDArmory_Settings_PaintballMode"))))//"Paintball Mode"
+                BDArmorySettings.INFINITE_EC = CheatOptions.InfiniteElectricity; // Sync with the Alt-F12 window if the checkbox was toggled there.
+                if (BDArmorySettings.INFINITE_EC != (BDArmorySettings.INFINITE_EC = GUI.Toggle(SRightRect(line), BDArmorySettings.INFINITE_EC, StringUtils.Localize("#autoLOC_900361"))))//"Infinite Electricity"
                 {
-                    BulletHitFX.SetupShellPool();
-                    BDArmorySettings.BATTLEDAMAGE = false;
-                }
-                if (BDArmorySettings.PEACE_MODE != (BDArmorySettings.PEACE_MODE = GUI.Toggle(SRightRect(++line), BDArmorySettings.PEACE_MODE, StringUtils.Localize("#LOC_BDArmory_Settings_PeaceMode"))))//"Peace Mode"
-                {
-                    BDATargetManager.ClearDatabase();
-                    if (OnPeaceEnabled != null)
-                    {
-                        OnPeaceEnabled();
-                    }
-                    CheatOptions.InfinitePropellant = BDArmorySettings.PEACE_MODE || BDArmorySettings.INFINITE_FUEL;
+                    CheatOptions.InfiniteElectricity = BDArmorySettings.INFINITE_EC;
                 }
                 //Mutators
                 var oldMutators = BDArmorySettings.MUTATOR_MODE;
-                BDArmorySettings.MUTATOR_MODE = GUI.Toggle(SLeftRect(line), BDArmorySettings.MUTATOR_MODE, StringUtils.Localize("#LOC_BDArmory_Settings_Mutators"));
+                BDArmorySettings.MUTATOR_MODE = GUI.Toggle(SLeftRect(++line), BDArmorySettings.MUTATOR_MODE, StringUtils.Localize("#LOC_BDArmory_Settings_Mutators"));
                 {
                     if (BDArmorySettings.MUTATOR_MODE)
                     {
@@ -3604,13 +3615,8 @@ namespace BDArmory.UI
                         SpawnUtils.ApplyMutatorsOnNewVessels(false); // And prevent any new ones.
                     }
                 }
-                BDArmorySettings.INFINITE_FUEL = CheatOptions.InfinitePropellant; // Sync with the Alt-F12 window if the checkbox was toggled there.
-                if (BDArmorySettings.INFINITE_FUEL != (BDArmorySettings.INFINITE_FUEL = GUI.Toggle(SRightRect(++line), BDArmorySettings.INFINITE_FUEL, StringUtils.Localize("#autoLOC_900349"))))//"Infinite Propellant"
-                {
-                    CheatOptions.InfinitePropellant = BDArmorySettings.INFINITE_FUEL;
-                }
                 // Heartbleed
-                BDArmorySettings.HEART_BLEED_ENABLED = GUI.Toggle(SLeftRect(line), BDArmorySettings.HEART_BLEED_ENABLED, StringUtils.Localize("#LOC_BDArmory_Settings_HeartBleed"));//"Heart Bleed"
+                BDArmorySettings.HEART_BLEED_ENABLED = GUI.Toggle(SLeftRect(++line), BDArmorySettings.HEART_BLEED_ENABLED, StringUtils.Localize("#LOC_BDArmory_Settings_HeartBleed"));//"Heart Bleed"
                 if (BDArmorySettings.HEART_BLEED_ENABLED)
                 {
                     GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_Settings_HeartBleedRate")}:  ({BDArmorySettings.HEART_BLEED_RATE})", leftLabel);//Heart Bleed Rate
@@ -3620,12 +3626,7 @@ namespace BDArmory.UI
                     GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_Settings_HeartBleedThreshold")}:  ({BDArmorySettings.HEART_BLEED_THRESHOLD})", leftLabel);//Heart Bleed Threshold
                     BDArmorySettings.HEART_BLEED_THRESHOLD = Mathf.RoundToInt(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.HEART_BLEED_THRESHOLD, 1f, 100f));
                 }
-                BDArmorySettings.INFINITE_EC = CheatOptions.InfiniteElectricity; // Sync with the Alt-F12 window if the checkbox was toggled there.
-                if (BDArmorySettings.INFINITE_EC != (BDArmorySettings.INFINITE_EC = GUI.Toggle(SRightRect(++line), BDArmorySettings.INFINITE_EC, StringUtils.Localize("#autoLOC_900361"))))//"Infinite Electricity"
-                {
-                    CheatOptions.InfiniteElectricity = BDArmorySettings.INFINITE_EC;
-                }
-                if (BDArmorySettings.G_LIMITS != (BDArmorySettings.G_LIMITS = GUI.Toggle(SLeftRect(line), BDArmorySettings.G_LIMITS, StringUtils.Localize("#LOC_BDArmory_Settings_GLimitsMode"))))//G-Force Limits
+                if (BDArmorySettings.G_LIMITS != (BDArmorySettings.G_LIMITS = GUI.Toggle(SLeftRect(++line), BDArmorySettings.G_LIMITS, StringUtils.Localize("#LOC_BDArmory_Settings_GLimitsMode"))))//G-Force Limits
                 {
                     if (BDArmorySettings.G_LIMITS) // Sync the initial override values to the current ones.
                     {
