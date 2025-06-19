@@ -1229,6 +1229,7 @@ namespace BDArmory.Control
 
         private LineRenderer lr = null;
         private StringBuilder debugString = new StringBuilder();
+        private string dynRangeDebug = string.Empty;
         #endregion Declarations
 
         #region KSP Events
@@ -1614,6 +1615,7 @@ namespace BDArmory.Control
                 //BOMB/MISSILE HUD - calculate GUI element positions here instead of OnGUI for smoother display 
                 missileAimerUI.Clear();
                 MissileBase ml = CurrentMissile;
+                dynRangeDebug = string.Empty;
                 if (ml)
                 {
                     if (showBombAimer)
@@ -1735,11 +1737,9 @@ namespace BDArmory.Control
                                         //if (BDArmorySettings.DEBUG_MISSILES)
                                         if (BDArmorySettings.DEBUG_TELEMETRY)
                                         {
-                                            string dynRangeDebug = string.Empty;
                                             MissileLaunchParams dlz = MissileLaunchParams.GetDynamicLaunchParams(ml, vesselRadarData.lockedTargetData.targetData.velocity, vesselRadarData.lockedTargetData.targetData.predictedPosition);
                                             dynRangeDebug += "MaxDLZ: " + dlz.maxLaunchRange;
                                             dynRangeDebug += "\nMinDLZ: " + dlz.minLaunchRange;
-                                            GUI.Label(new Rect(800, 600, 200, 200), dynRangeDebug);
                                         }
                                     }
                                     else
@@ -2143,6 +2143,7 @@ namespace BDArmory.Control
 
                 if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_MISSILES || BDArmorySettings.DEBUG_WEAPONS)
                     debugString.Length = 0;
+                int lineCount = 0;
                 if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_MISSILES)
                 {
                     debugString.AppendLine($"Missiles away: {firedMissiles}; Current Target: {currentTarget}; targeted vessels: {engagedTargets}");
@@ -2162,7 +2163,6 @@ namespace BDArmory.Control
                 }
                 if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_WEAPONS)
                 {
-                    int lineCount = 0;
                     if (weaponArray != null) // Heat debugging
                     {
                         List<string> weaponHeatDebugStrings = new List<string>();
@@ -2204,10 +2204,13 @@ namespace BDArmory.Control
                             lineCount += weaponHeatDebugStrings.Count + weaponAimDebugStrings.Count;
                         }
                         if (!string.IsNullOrEmpty(bombAimerDebugString)) debugString.AppendLine($"Bomb aimer: {bombAimerDebugString}");
-                        lineCount += debugString.Length;
                     }
-                    GUI.Label(new Rect(200, Screen.height - 700, Screen.width / 2 - 200, 16 * lineCount), debugString.ToString());
                 }
+                lineCount += debugString.Length;
+                if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_MISSILES || BDArmorySettings.DEBUG_WEAPONS)
+                    GUI.Label(new Rect(200, Screen.height - 700, Screen.width / 2 - 200, 16 * lineCount), debugString.ToString());
+                if (BDArmorySettings.DEBUG_TELEMETRY && !string.IsNullOrEmpty(dynRangeDebug))
+                    GUI.Label(new Rect(800, 600, 200, 200), dynRangeDebug);
             }
             //else
             //{

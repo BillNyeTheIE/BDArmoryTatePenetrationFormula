@@ -46,6 +46,7 @@ namespace BDArmory.Control
         const float weaveLimit = 2.3f; // Scale factor for the limit of the WeaveFactor (original was 6.5 factor and 15 limit).
 
         Vector3 upDir;
+        Vector3 terrainNormal;
 
         AIUtils.TraversabilityMatrix pathingMatrix;
         List<Vector3> pathingWaypoints = new List<Vector3>();
@@ -397,6 +398,14 @@ namespace BDArmory.Control
             upDir = vessel.up;
             if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine("");
             if (IsRunningWaypoints) UpdateWaypoint(); // Update the waypoint state.
+            if (SurfaceType == AIUtils.VehicleMovementType.Stationary)
+            {
+                if (!vessel.Splashed && Physics.Raycast(new Ray(vessel.CoM, -upDir), out RaycastHit hit, (float)vessel.radarAltitude + vessel.GetRadius(), (int)LayerMasks.Scenery))
+                    terrainNormal = hit.normal;
+                else
+                    terrainNormal = upDir;
+            }
+
             // check if we should be panicking
             if (SurfaceType == AIUtils.VehicleMovementType.Stationary || !PanicModes()) // Stationary vehicles don't panic (so, free-fall stationary turrets are a possibility).
             {
@@ -960,7 +969,7 @@ namespace BDArmory.Control
                 driftMult = Mathf.Max(Vector3.Angle(vessel.srf_velocity, yawTarget) / MaxDrift, 1);
                 yawTarget = Vector3.RotateTowards(vessel.srf_velocity, yawTarget, MaxDrift * Mathf.Deg2Rad, 0);
             }
-            bool invertCtrlPoint = Vector3.Angle(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(vessel.up), vesselTransform.up) > 90 && Math.Round(vessel.srfSpeed, 1) > 1; //need to flip vessel 'forward' when reversing for proper steerage
+            bool invertCtrlPoint = SurfaceType != AIUtils.VehicleMovementType.Stationary && Vector3.Angle(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(vessel.up), vesselTransform.up) > 90 && Math.Round(vessel.srfSpeed, 1) > 1; //need to flip vessel 'forward' when reversing for proper steerage
             float yawError = VectorUtils.SignedAngle(invertCtrlPoint ? -vesselTransform.up : vesselTransform.up, yawTarget, vesselTransform.right) + (aimingMode ? 0 : weaveAdjustment);
             if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI)
             {
@@ -1080,7 +1089,8 @@ namespace BDArmory.Control
             }
             else
             {
-                pitchError = VectorUtils.SignedAngle(vesselTransform.up, targetDirection.ProjectOnPlanePreNormalized(vesselTransform.right), -vesselTransform.forward);
+                // Stationary vessels should align with the terrain to avoid constantly running reaction wheels.
+                pitchError = VectorUtils.SignedAngle(-vesselTransform.forward, terrainNormal.ProjectOnPlanePreNormalized(vesselTransform.right), -vesselTransform.up);
                 if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine($"pitch error: {pitchError}");
             }
             float rollError;
@@ -1099,7 +1109,9 @@ namespace BDArmory.Control
             }
             else
             {
-                rollError = VectorUtils.SignedAngle(-vesselTransform.forward, upDir, vesselTransform.right);
+                // Stationary vessels should align with the terrain to avoid constantly running reaction wheels.
+                rollError = VectorUtils.SignedAngle(-vesselTransform.forward, terrainNormal.ProjectOnPlanePreNormalized(vesselTransform.up), vesselTransform.right);
+                if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine($"roll error: {rollError}");
             }
 
             Vector3 localAngVel = vessel.angularVelocity;

@@ -529,14 +529,14 @@ namespace BDArmory.Utils
             {
                 cache = [
                     (value, UI_FloatSemiLogRange.ToSliderValue(value, minValue, sigFig, withZero, reducedPrecisionAtMin)),
-                    (minValue, withZero ? UI_FloatSemiLogRange.ToSliderValue(0, minValue, sigFig, withZero, reducedPrecisionAtMin) : 1),
+                    (minValue, UI_FloatSemiLogRange.ToSliderValue(withZero ? 0 : minValue, minValue, sigFig, withZero, reducedPrecisionAtMin)),
                     (maxValue, UI_FloatSemiLogRange.ToSliderValue(maxValue, minValue, sigFig, withZero, reducedPrecisionAtMin))
                 ];
             }
             else
             {
                 if (value != cache[0].Item1) cache[0] = (value, UI_FloatSemiLogRange.ToSliderValue(value, minValue, sigFig, withZero, reducedPrecisionAtMin));
-                if (minValue != cache[1].Item1) cache[1] = (minValue, withZero ? UI_FloatSemiLogRange.ToSliderValue(0, minValue, sigFig, withZero, reducedPrecisionAtMin) : 1);
+                if (minValue != cache[1].Item1) cache[1] = (minValue, UI_FloatSemiLogRange.ToSliderValue(withZero ? 0 : minValue, minValue, sigFig, withZero, reducedPrecisionAtMin));
                 if (maxValue != cache[2].Item1) cache[2] = (maxValue, UI_FloatSemiLogRange.ToSliderValue(maxValue, minValue, sigFig, withZero, reducedPrecisionAtMin));
             }
             float sliderValue = cache[0].Item2;

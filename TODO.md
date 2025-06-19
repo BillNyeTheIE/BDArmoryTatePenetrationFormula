@@ -4,7 +4,6 @@
 - Changing the slider resolution sometimes triggers clamping of unclamped values
 - Taking off with the global 'P' button for two VTOL craft on the runway disables their engines!
 - WM without AI or with stationary ground AI sometimes just sits there without attacking valid targets.
-- Fix the various StopCoroutine(newRoutine()) calls.
 
 ### TODO (smaller items and specific requests / higher priority)
 - Fix bugs

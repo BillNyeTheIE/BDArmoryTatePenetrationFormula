@@ -11,6 +11,7 @@
 	- Add an option to disable the behaviour of disabling guard mode when vessels are spawned.
 	- Fix pilot AI's standby mode to automatically trigger AG10 and enable engines if necessary when a threat is detected.
 	- Tweaks to the auto-tuning loss function to give a more stable roll-relevance. Show an auto-tuning summary to reduce confusion in the SPH about the auto-tuning results.
+	- Disable Battle Damage while auto-tuning to avoid wooden parts catching fire.
 - Countermeasures:
 	- Add 'Ammo' gauges for Countermeasure dispensers for how many CMs they have remaining.
 - Sensors:
@@ -31,11 +32,14 @@
 		- Fix maddog ARH missile launches not turning on seeker.
 		- Add WeaveUseAGMDescentRatio and WeaveRandomRange to weave guidance, when WeaveUseAGMDescentRatio is true it forces the use of agmDescentRatio to allow for sea-skimming weave missiles. WeaveRandomRange is a float that allows for randomization of weave maneuver parameters.
 		- Fix certain missiles becoming ghost-like entities that ignored bullets and interceptor missiles when fired from MultiMissileLaunchers with "ignoreLauncherColliders = true".
+- GameModes:
+	- Don't spawn new asteroids in asteroid rain mode while in high time-warp.
 - Competition:
 	- Add a "defaults" button to the scoring window to reset score weights to their default values.
 	- Updated parsing and plotting scripts.
 		- Using 'python parse_tournament_log_files.py -w cfg' reads the score weights from the score_weights.cfg file.
 		- Using 'python plot_summary.py -i regex' creates the plot ignoring any craft matching the regex string.
+	- Add a "Daylight" position on the "TimeWarp Between Rounds" tournament slider to warp to dawn whenever a round would start in darkness.
 - Spawning:
 	- Automatically adjust the PRE range if the spawn distance would put craft outside the physics range.
 

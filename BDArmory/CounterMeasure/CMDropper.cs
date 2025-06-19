@@ -178,17 +178,9 @@ namespace BDArmory.CounterMeasure
         public override void OnUpdate()
         {
             if (audioSource)
-            {
-                if (vessel.isActiveVessel)
-                {
-                    audioSource.dopplerLevel = 0;
-                }
-                else
-                {
-                    audioSource.dopplerLevel = 1;
-                }
-            }
-            if (maxCMCount > 0) gauge.UpdateCMMeter((cmCount >= 1 ? cmCount : 0) / (float)maxCMCount);
+                audioSource.dopplerLevel = vessel.isActiveVessel ? 0 : 1;
+            if (vessel.isActiveVessel && maxCMCount > 0)
+                gauge.UpdateCMMeter((cmCount >= 1 ? cmCount : 0) / (float)maxCMCount);
         }
 
         void FireParticleEffects()

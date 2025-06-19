@@ -2227,6 +2227,7 @@ namespace BDArmory.Competition
                 var limit = (BDArmorySettings.COMPETITION_ALTITUDE_LIMIT_HIGH < 20f ? BDArmorySettings.COMPETITION_ALTITUDE_LIMIT_HIGH / 10f : BDArmorySettings.COMPETITION_ALTITUDE_LIMIT_HIGH < 39f ? BDArmorySettings.COMPETITION_ALTITUDE_LIMIT_HIGH - 18f : (BDArmorySettings.COMPETITION_ALTITUDE_LIMIT_HIGH - 38f) * 5f + 20f) * 1000f;
                 foreach (var weaponManager in LoadedVesselSwitcher.Instance.WeaponManagers.SelectMany(tm => tm.Value).ToList())
                 {
+                    if (!Scores.ScoreData.ContainsKey(weaponManager.vessel.vesselName)) continue;
                     if (alive.Contains(weaponManager.vessel.vesselName) && BDArmorySettings.COMPETITION_ALTITUDE__LIMIT_ASL ? weaponManager.vessel.altitude > limit : weaponManager.vessel.radarAltitude > limit)
                     {
                         if (Scores.ScoreData[weaponManager.vessel.vesselName].AltitudeKillTimer == 0)
@@ -2278,6 +2279,7 @@ namespace BDArmory.Competition
                 }
                 foreach (var weaponManager in LoadedVesselSwitcher.Instance.WeaponManagers.SelectMany(tm => tm.Value).ToList())
                 {
+                    if (!Scores.ScoreData.ContainsKey(weaponManager.vessel.vesselName)) continue;
                     if (alive.Contains(weaponManager.vessel.vesselName) && BDArmorySettings.COMPETITION_ALTITUDE__LIMIT_ASL ? weaponManager.vessel.altitude < limit : weaponManager.vessel.radarAltitude < limit)
                     {
                         if (Scores.ScoreData[weaponManager.vessel.vesselName].AltitudeKillTimer == 0)

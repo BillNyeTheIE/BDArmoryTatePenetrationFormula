@@ -1100,7 +1100,7 @@ namespace BDArmory.Targeting
         {
             if (!resetting)
             {
-                StartCoroutine("ResetCamera");
+                resetCamera = StartCoroutine(ResetCamera());
             }
         }
 
@@ -1157,7 +1157,7 @@ namespace BDArmory.Targeting
             if (weaponManager.slavingTurrets) return; //turrets already slaved to active radar lock
             weaponManager.slavedPosition = groundStabilized ? groundTargetPosition : targetPointPosition;
             weaponManager.slavedVelocity = Vector3.zero;
-            weaponManager.slavedAcceleration = Vector3.zero; 
+            weaponManager.slavedAcceleration = Vector3.zero;
         }
 
         internal static void ResizeTargetWindow()
@@ -1404,6 +1404,7 @@ namespace BDArmory.Targeting
             groundStabilized = false;
         }
 
+        Coroutine resetCamera;
         IEnumerator ResetCamera()
         {
             resetting = true;
@@ -1481,7 +1482,7 @@ namespace BDArmory.Targeting
                 if (gimbalLimitReached)
                 {
                     ClearTarget();
-                    StartCoroutine("ResetCamera");
+                    resetCamera = StartCoroutine(ResetCamera());
                     slewingToPosition = false;
                     yield break;
                 }
@@ -1499,7 +1500,7 @@ namespace BDArmory.Targeting
         {
             if (resetting)
             {
-                StopCoroutine("ResetCamera");
+                StopCoroutine(resetCamera);
                 resetting = false;
             }
         }

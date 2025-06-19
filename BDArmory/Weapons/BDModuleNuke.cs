@@ -222,7 +222,7 @@ namespace BDArmory.Weapons
                 {
                     goingCritical = false;
                     if (BDArmorySettings.DEBUG_OTHER) Debug.Log("[BDArmory.BDModuleNuke]: engines on " + Sourcevessel + " still have fuel, aborting detonation");
-                    StopCoroutine(DelayedDetonation(delay));
+                    yield break;
                 }
                 if (BDACompetitionMode.Instance.competitionIsActive)
                 {

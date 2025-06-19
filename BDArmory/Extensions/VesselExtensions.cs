@@ -168,13 +168,17 @@ namespace BDArmory.Extensions
             }
             else
             {
-                var rootBound = GetRendererPartBounds(vessel.rootPart);
-                min = rootBound.min; max = rootBound.max;
+                var partBound = GetRendererPartBounds(vessel.rootPart);
+                if (partBound.min.sqrMagnitude > 1e6 || partBound.max.sqrMagnitude > 1e6) // Fall back to the first collider bounds if renderer bounds are nonsensical. This is usually temporary.
+                    partBound = vessel.rootPart.GetColliderBounds().FirstOrDefault();
+                min = partBound.min; max = partBound.max;
                 using (var part = vessel.Parts.GetEnumerator())
                     while (part.MoveNext())
                     {
                         if (badBoundsParts.Contains(part.Current.name)) continue; // Skip parts that are known to give bad bounds (e.g., lasers when firing).
-                        var partBound = GetRendererPartBounds(part.Current);
+                        partBound = GetRendererPartBounds(part.Current);
+                        if (partBound.min.sqrMagnitude > 1e6 || partBound.max.sqrMagnitude > 1e6)
+                            partBound = part.Current.GetColliderBounds().FirstOrDefault(); // Fall back to the first collider bounds if renderer bounds are nonsensical. This is usually temporary.
                         min.x = Mathf.Min(min.x, partBound.min.x);
                         min.y = Mathf.Min(min.y, partBound.min.y);
                         min.z = Mathf.Min(min.z, partBound.min.z);

@@ -1632,6 +1632,7 @@ namespace BDArmory.Control
 
             SetAutoTuneFields();
             MaintainFuelLevels(autoTune); // Prevent fuel drain while auto-tuning.
+            DisableBattleDamage(autoTune); // Disable battle damage while auto-tuning.
             OtherUtils.SetTimeOverride(autoTune);
         }
         void SetAutoTuneFields()
@@ -3182,7 +3183,7 @@ namespace BDArmory.Control
 
         private Vector3 WaypointSpline() // FIXME This doesn't work that well yet.
         {
-            // Note: here we're using distance instead of time as the waypoint parameter.
+            // Note: here we're using distance instead of time as the spline interpolation parameter.
             float minDistance = (float)vessel.speed * 2f; // Consider the radius of 2s around the waypoint.
 
             Vector3 point1 = waypointPosition + (vessel.transform.position - waypointPosition).normalized * minDistance; //waypointsRange > minDistance ? vessel.transform.position : waypointPosition + (vessel.transform.position - waypointPosition).normalized * minDistance;

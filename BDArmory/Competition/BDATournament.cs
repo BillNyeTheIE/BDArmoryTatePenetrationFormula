@@ -1713,6 +1713,23 @@ namespace BDArmory.Competition
             spawnerBase = tournamentState.tournamentStyle == TournamentStyle.TemplateRNG ? CustomTemplateSpawning.Instance : CircularSpawning.Instance;
             while (++roundIndex < tournamentState.rounds.Count) // tournamentState.rounds can change during the loop, so we can't just use an iterator now.
             {
+                if (BDArmorySettings.TOURNAMENT_TIMEWARP_BETWEEN_ROUNDS < 0)
+                {
+                    var spawnConfig = tournamentState.rounds[roundIndex][0];
+                    var body = FlightGlobals.Bodies[spawnConfig.worldIndex];
+                    if (!EarlyBird.IsDayTime(spawnConfig.latitude, spawnConfig.longitude, body, 10))
+                    {
+                        SpawnUtils.ShowSpawnPoint(spawnConfig.worldIndex, spawnConfig.latitude, spawnConfig.longitude, spawnConfig.altitude);
+                        BDACompetitionMode.Instance.competitionStatus.Add($"Warping ahead to morning, then running the next round.");
+                        yield return WarpAhead(EarlyBird.TimeToDaylight(
+                            spawnConfig.latitude,
+                            spawnConfig.longitude,
+                            body,
+                            10
+                        )); // Warp to morning +10mins.
+                    }
+                }
+
                 currentRound = roundIndex;
                 foreach (var heatIndex in tournamentState.rounds[roundIndex].Keys)
                 {
@@ -1975,6 +1992,7 @@ namespace BDArmory.Competition
                 yield return new WaitForSeconds(1);
         }
 
+        #region Warping
         GameObject warpCamera;
         IEnumerator WarpAhead(double warpTimeBetweenHeats)
         {
@@ -2066,6 +2084,79 @@ namespace BDArmory.Competition
 
             warpingInProgress = false;
         }
+
+        private class EarlyBird // Based on, but not the same as the EarlyBird mod.
+        {
+            /// <summary>
+            /// The time until the next sunrise (plus offset in minutes).
+            /// </summary>
+            /// <param name="lat">Latitude</param>
+            /// <param name="lon">Longitude</param>
+            /// <param name="body">The celestial body.</param>
+            /// <param name="offset">An offset in minutes.</param>
+            /// <returns>The time until the next sunrise.</returns>
+            public static double TimeToDaylight(double lat, double lon, CelestialBody body, double offset = 0)
+            {
+                if (body.isStar) return 0;
+                var sun = Planetarium.fetch.Sun;
+                var localTime = GetLocalTime(lon, body, sun);
+                offset *= 60 / body.solarDayLength;
+                double dayLength = GetDayLength(lat, body, sun);
+                double timeOfDawn = 0.5 - dayLength / 2 + offset;
+                return (timeOfDawn - localTime + 1.0) % 1.0 * body.solarDayLength;
+            }
+            /// <summary>
+            /// Check whether it's daytime (within the margin) at the give location.
+            /// </summary>
+            /// <param name="lat">Latitude</param>
+            /// <param name="lon">Longitude</param>
+            /// <param name="body">The celestial body.</param>
+            /// <param name="margin">Margin in minutes.</param>
+            /// <returns>True if it's daytime, otherwise false.</returns>
+            public static bool IsDayTime(double lat, double lon, CelestialBody body, double margin = 0)
+            {
+                if (body.isStar) return true;
+                var sun = Planetarium.fetch.Sun;
+                var localTime = GetLocalTime(lon, body, sun);
+                margin *= 60 / body.solarDayLength;
+                double dayLength = GetDayLength(lat, body, sun);
+                double timeOfDawn = 0.5 - dayLength / 2 + margin;
+                double timeOfDusk = 0.5 + dayLength / 2 - margin;
+                return localTime > timeOfDawn && localTime < timeOfDusk;
+            }
+            /// <summary>
+            /// Gets the day length in the range 0—1.
+            /// </summary>
+            /// <param name="lat"></param>
+            /// <param name="body"></param>
+            /// <param name="sun"></param>
+            /// <returns></returns>
+            public static double GetDayLength(double lat, CelestialBody body, CelestialBody sun)
+            {
+                if (body.isStar) return 1;
+                // cos ω₀ = -tan φ * tan δ
+                // ω₀ = solar hour angle, φ = observer latitude, δ = solar declination
+                var solarDeclination = body.GetLatitude(sun.position - body.position, true);
+                var cosW0 = -Math.Tan(lat * Math.PI / 180) * Math.Tan(solarDeclination * Math.PI / 180);
+                if (cosW0 <= -1) return 1;
+                if (cosW0 >= 1) return 0;
+                var solarHourAngle = Math.Acos(cosW0);
+                return solarHourAngle / Math.PI;
+            }
+            /// <summary>
+            /// Gets the local time in the range 0—1 with 0.5 being noon.
+            /// </summary>
+            /// <param name="lon"></param>
+            /// <param name="body"></param>
+            /// <param name="sun"></param>
+            /// <returns></returns>
+            public static double GetLocalTime(double lon, CelestialBody body, CelestialBody sun)
+            {
+                if (body.isStar) return 0.5;
+                return ((lon - body.GetLongitude(sun.position - body.position, true)) % 360 / 360.0 + 1.5) % 1.0;
+            }
+        }
+        #endregion
 
         void SetGameUI(bool enable)
         { if (isActiveAndEnabled) StartCoroutine(SetGameUIWorker(enable)); }

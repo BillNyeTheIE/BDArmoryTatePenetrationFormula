@@ -213,6 +213,7 @@ namespace BDArmory.Bullets
         private double initialHitDistance = 0;
         private float kDist = 1;
         private float iTime = 0; // Consistent naming with ModuleWeapon: TimeWarp.fixedDeltaTime - timeToCPA of proxy detonation.
+        private Coroutine frameDelayedRoutine = null;
 
         public double DistanceTraveled { get { return distanceTraveled; } set { distanceTraveled = value; } }
 
@@ -285,7 +286,7 @@ namespace BDArmory.Bullets
             deltaMass = -1f;
             kDist = 1;
             dragVelocityFactor = 1;
-            relaxationTime = 0.001f * 30f * (0.5f* caliber) / (sabot ? 3850f : 4500f);
+            relaxationTime = 0.001f * 30f * (0.5f * caliber) / (sabot ? 3850f : 4500f);
 
             startsUnderwater = FlightGlobals.getAltitudeAtPos(currentPosition) < 0;
             underwater = startsUnderwater;
@@ -364,7 +365,7 @@ namespace BDArmory.Bullets
             //leftPenetration = 1;
             penTicker = 0;
             wasInitiated = true;
-            StartCoroutine(FrameDelayedRoutine());
+            frameDelayedRoutine = StartCoroutine(FrameDelayedRoutine());
 
             // Log shots fired.
             if (sourceVessel)
@@ -402,7 +403,7 @@ namespace BDArmory.Bullets
 
         void OnDestroy()
         {
-            StopCoroutine(FrameDelayedRoutine());
+            StopCoroutine(frameDelayedRoutine);
         }
 
         IEnumerator FrameDelayedRoutine()
@@ -929,7 +930,7 @@ namespace BDArmory.Bullets
                 if (hitPart == sourceWeapon) return false; // Ignore weapon that fired the bullet.
                 if (bulletHit.isReverseHit && ProjectileUtils.IsArmorPart(hitPart)) return false; //only have bullet hit armor panels once - no back armor to hit if penetration
             }
-            
+
 
             CurrentPart = hitPart;
             if (hitEVA != null)
@@ -1233,10 +1234,10 @@ namespace BDArmory.Bullets
                         else
                         {
                             if (BDArmorySettings.DEBUG_ARMOR) Debug.Log($"[BDArmory.PooledBullet]: Hit Transform: {bulletHit.hit.collider.transform.name}");
-                            if (bulletHit.hit.collider.transform.name.Substring(0,8) == "section_")
+                            if (bulletHit.hit.collider.transform.name.Substring(0, 8) == "section_")
                             {
                                 Vector3 ERAnormal = bulletHit.hit.collider.transform.forward;
-                                    
+
                                 float normalDot = Vector3.Dot(ERAnormal, bulletHit.hit.normal);
                                 if (BDArmorySettings.DEBUG_ARMOR) Debug.Log($"[BDArmory.PooledBullet]: Normal Dot: {normalDot}, ERAnormal: {ERAnormal}, hit.normal: {bulletHit.hit.normal}.");
                                 if (Mathf.Abs(normalDot) > 0.943969f) // ERA and hit normal have to be within 20° of each other
@@ -1514,7 +1515,7 @@ namespace BDArmory.Bullets
                     {
                         //Debug.Log("[BDArmory.PooledBullet]: Active Delay Fuze failed to penetrate, detonating");
                         fuzeTriggered = false;
-                        StopCoroutine(DelayedDetonationRoutine());
+                        StopCoroutine(delayedDetonationRoutine);
                     }
                     ExplosiveDetonation(hitPart, bulletHit.hit, bulletRay);
                     ProjectileUtils.CalculateShrapnelDamage(hitPart, bulletHit.hit, caliber, tntMass, 0, sourceVesselName, ExplosionSourceType.Bullet, bulletMass, penetrationFactor); //calc damage from bullet exploding 
@@ -1608,7 +1609,7 @@ namespace BDArmory.Bullets
                         }
                         else
                         {
-                            float adjustedPenRatio = 1f - BDAMath.Sqrt(1f-penRatio);
+                            float adjustedPenRatio = 1f - BDAMath.Sqrt(1f - penRatio);
                             if (!ERAhit)
                                 deltaMass = bulletMass * (massRatio - adjustedPenRatio); //spacedFactor * adjustedPenRatio);
                             bulletMass *= massRatio;
@@ -1616,7 +1617,7 @@ namespace BDArmory.Bullets
                             // If we don't, I.E. the round isn't completely eroded, we decrease
                             // the velocity by a max of 5%, proportional to 1 - (thickness/penetration)^2
                             velocityRatio = 1f - penRatio; // thickness/penetration
-                            velocityRatio = 0.05f*(1f - velocityRatio * velocityRatio) + 0.95f; // 1 - (thickness/penetration)^2
+                            velocityRatio = 0.05f * (1f - velocityRatio * velocityRatio) + 0.95f; // 1 - (thickness/penetration)^2
                         }
                         ExplosionFx.CreateExplosion(currentPosition, oldBulletMass - bulletMass, "BDArmory/Models/explosion/30mmExplosion", explSoundPath, ExplosionSourceType.Bullet, caliber, null, sourceVesselName, null, null, currentVelocity, 70, false, bulletMass, -1, dmgMult, ExplosionFx.WarheadTypes.Standard, null, 1f, -1, currentVelocity); //explosion simming ablated material flashing into plasma, HE amount = bullet mass lost on hit
                     }
@@ -1732,10 +1733,12 @@ namespace BDArmory.Bullets
             return false;
         }
 
+        Coroutine delayedDetonationRoutine = null;
         IEnumerator DelayedDetonationRoutine()
         {
-            yield return new WaitForEndOfFrame();
-            yield return new WaitForEndOfFrame();
+            var wait = new WaitForEndOfFrame();
+            yield return wait;
+            yield return wait;
             fuzeTriggered = false;
             if (!hasDetonated)
             {
@@ -1963,7 +1966,7 @@ namespace BDArmory.Bullets
                     pBullet.debrisModelPath = nukeInfo.debrisModelPath;
                     pBullet.blastSoundPath = nukeInfo.blastSoundPath;
                 }
-                
+
                 // No sub-sub projectiles!
                 pBullet.beehive = bulletType.beehive && !isSubP;
                 if (bulletType.beehive && !isSubP)
@@ -1976,7 +1979,7 @@ namespace BDArmory.Bullets
 
                 //pBullet.homing = BulletInfo.homing;
                 pBullet.dragType = bulletType.bulletDragType;
-                
+
                 pBullet.tgtShell = targetShell;
                 pBullet.tgtRocket = targetRocket;
 
@@ -2033,8 +2036,8 @@ namespace BDArmory.Bullets
             if (BulletInfo.bulletNames.Contains(projType))
             {
                 BulletInfo sBullet = BulletInfo.bullets[projType];
- 
-                
+
+
 
                 float subDetonationRange = 0;
                 if (sBullet.tntMass > 0)
@@ -2053,11 +2056,11 @@ namespace BDArmory.Bullets
                 float subProjectileSpeed = dragAdjSpeed + sBullet.bulletVelocity;
                 float subTTL = Mathf.Max(sBullet.projectileTTL, 1.1f * detonationRange / subProjectileSpeed);
                 float subDetonationTime = sBullet.eFuzeType switch
-                        {
-                            BulletFuzeTypes.Timed => detonationRange / subProjectileSpeed, //because beehive TimedFuze for the parent shell is timeToDetonation - detonationRange / bulletVelocity
-                            BulletFuzeTypes.Flak => detonationRange / subProjectileSpeed + Time.fixedDeltaTime, // Detonate at expected impact time for flak (plus 1 frame to allow proximity detection).
-                            _ => subTTL // Otherwise detonate at the TTL.
-                        };
+                {
+                    BulletFuzeTypes.Timed => detonationRange / subProjectileSpeed, //because beehive TimedFuze for the parent shell is timeToDetonation - detonationRange / bulletVelocity
+                    BulletFuzeTypes.Flak => detonationRange / subProjectileSpeed + Time.fixedDeltaTime, // Detonate at expected impact time for flak (plus 1 frame to allow proximity detection).
+                    _ => subTTL // Otherwise detonate at the TTL.
+                };
 
                 FireBullet(sBullet, count * sBullet.projectileCount, sourceInfo, graphicsInfo, nukeInfo,
                         bulletDrop, subTTL, iTime, subDetonationRange, subDetonationTime,
@@ -2412,7 +2415,7 @@ namespace BDArmory.Bullets
             return tntMass > 0 ? tntMass : blastPower;
         }
     }
-    
+
     public class BulletHit
     {
         public RaycastHit hit { get; set; }
