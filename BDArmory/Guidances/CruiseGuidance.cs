@@ -196,8 +196,14 @@ namespace BDArmory.Guidances
                 {
                     float a = Vector3.Dot(_missile.GetForwardTransform(), upDirection);
 
+                    // Time taken to sweep through the turning arc is arc length / cruise speed
+                    // arc length = (angle in rad) * r
+                    // mv^2/r = ma -> v^2/a = r, a = (9.81) * gLoad
+                    // arc length = (angle in rad) * v^2 * invG * invg
+                    // thus: t = (angle in rad) * v * invG  * invg
                     _futureSpeed = CalculateFutureSpeed((_missile.CruisePopupAngle * Mathf.Deg2Rad - Mathf.Acos(a)) * (float)_lastHorizontalSpeed * invG * invg);
 
+                    // turn dist is just r * (sin(popup angle) - cos(curr angle)) due to simple trigonometry
                     float turnDist = (float)(_futureSpeed * _futureSpeed) * invG * invg * (_popupSin - a);
 
                     _missile.Throttle = 1f;

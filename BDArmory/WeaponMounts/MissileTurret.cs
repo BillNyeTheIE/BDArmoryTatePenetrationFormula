@@ -35,6 +35,14 @@ namespace BDArmory.WeaponMounts
          UI_Toggle(scene = UI_Scene.Editor)]
         public bool autoReturn = true;
 
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_TurretLoft"),
+         UI_Toggle(scene = UI_Scene.All)]
+        public bool turretLoft = true; // Turret fires at a lofted trajectory
+
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_TurretLoftFac"),
+            UI_FloatRange(minValue = 0, maxValue = 1, stepIncrement = 0.05f, scene = UI_Scene.Editor, affectSymCounterparts = UI_Scene.Editor)]
+        public float turretLoftFac = 0.5f; // Factor for optimumVelocity for lofting, lower means a more lofted trajectory
+
         bool hasReturned = true;
 
         [KSPField] public float railLength = 3;
@@ -357,7 +365,7 @@ namespace BDArmory.WeaponMounts
             {
                 slaved = true;
                 //slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(wm.CurrentMissile, wm.slavedPosition, wm.slavedVelocity);
-                slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(activeMissile, wm.slavedPosition, wm.slavedVelocity);
+                slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(activeMissile, wm.slavedPosition, wm.slavedVelocity, turretLoft, turretLoftFac);
             }
         }
 

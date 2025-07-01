@@ -360,6 +360,30 @@ namespace BDArmory.Utils
         }
 
         /// <summary>
+        /// Get angle between two vectors, with known magnitudes.
+        /// 
+        /// This implementation assumes that the magnitude of the input vectors is known,
+        /// skipping some checks and normalization that Vector3.Angle does. It is not
+        /// truly more efficient, however it is slightly more efficient when both
+        /// magnitudes are already known.
+        /// </summary>
+        /// <param name="from">First vector.</param>
+        /// <param name="to">Second vector.</param>
+        /// <param name="fromMag">First vector magnitude.</param>
+        /// <param name="toMag">Second vector magnitude.</param>
+        /// <returns>The angle between the two vectors.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float AnglePreNormalized(Vector3 from, Vector3 to, float fromMag, float toMag)
+        {
+            float num = fromMag * toMag;
+            if (num < 1E-15f)
+                return 0f;
+
+            float num2 = Mathf.Clamp(Vector3.Dot(from, to) / (fromMag * toMag), -1f, 1f);
+            return Mathf.Acos(num2) * Mathf.Rad2Deg;
+        }
+
+        /// <summary>
         /// Get normalized difference between two vectors, useful for direction vectors.
         /// </summary>
         /// <param name="v1">First vector.</param>

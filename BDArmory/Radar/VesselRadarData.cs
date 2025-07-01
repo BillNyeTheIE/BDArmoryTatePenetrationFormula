@@ -143,7 +143,7 @@ namespace BDArmory.Radar
 
         public List<TargetSignatureData> GetLockedTargets()
         {
-            List<TargetSignatureData> lockedTargets = new List<TargetSignatureData>();
+            List<TargetSignatureData> lockedTargets = new List<TargetSignatureData>(lockedTargetIndexes.Count);
             for (int i = 0; i < lockedTargetIndexes.Count; i++)
             {
                 lockedTargets.Add(displayedTargets[lockedTargetIndexes[i]].targetData);
@@ -807,10 +807,13 @@ namespace BDArmory.Radar
             ModuleRadar lockingRadar = null;
             //first try using the last radar to detect that target
             bool acquiredLock = false;
-            if (CheckRadarForLock(radarTarget.detectedByRadar, radarTarget))
+            if (radarTarget.detectedByRadar)
             {
-                lockingRadar = radarTarget.detectedByRadar;
-                acquiredLock = (lockingRadar.TryLockTarget(radarTarget.targetData.predictedPosition, radarTarget.vessel));
+                if (CheckRadarForLock(radarTarget.detectedByRadar, radarTarget))
+                {
+                    lockingRadar = radarTarget.detectedByRadar;
+                    acquiredLock = lockingRadar.TryLockTarget(radarTarget.targetData.predictedPosition, radarTarget.vessel);
+                }
             }
             if (!acquiredLock) //locks exceeded/target off scope, test if remaining radars have available locks & coveravge
             {
@@ -818,6 +821,7 @@ namespace BDArmory.Radar
                     while (radar.MoveNext())
                     {
                         if (radar.Current == null) continue;
+                        // If the radar is external
                         if (!CheckRadarForLock(radar.Current, radarTarget)) continue;
                         lockingRadar = radar.Current;
                         if (lockingRadar.TryLockTarget(radarTarget.targetData.predictedPosition, radarTarget.vessel))
@@ -883,17 +887,23 @@ namespace BDArmory.Radar
 
         private bool CheckRadarForLock(ModuleRadar radar, RadarDisplayData radarTarget)
         {
-            if (!radar) return false;
+            // Technically all instances of this are now gated by a null check so this is no longer necessary
+            //if (!radar) return false;
+
+            if (!radar.canLock) return false;
+
+            if (!weaponManager.guardMode && (radar.locked && (radar.currentLocks == radar.maxLocks))) return false;
+
+            Vector3 relativePos = radarTarget.targetData.predictedPosition - radar.transform.position;
+            float dist = relativePos.magnitude / 1000f;
 
             return
             (
-                radar.canLock
-                && (!radar.locked || radar.currentLocks < radar.maxLocks)
-                && RadarUtils.RadarCanDetect(radar, radarTarget.targetData.signalStrength, (radarTarget.targetData.predictedPosition - radar.transform.position).magnitude / 1000f)
-                && radarTarget.targetData.signalStrength >= radar.radarLockTrackCurve.Evaluate((radarTarget.targetData.predictedPosition - radar.transform.position).magnitude / 1000f)
+                RadarUtils.RadarCanDetect(radar, radarTarget.targetData.signalStrength, dist)
+                && radarTarget.targetData.signalStrength >= radar.radarLockTrackCurve.Evaluate(dist)
                 &&
                 (radar.omnidirectional ||
-                 Vector3.Angle(radar.transform.up, radarTarget.targetData.predictedPosition - radar.transform.position) <
+                 VectorUtils.AnglePreNormalized(radar.transform.up, relativePos, 1f, dist * 1000f) <
                  radar.directionalFieldOfView / 2)
             );
         }
@@ -1727,6 +1737,7 @@ namespace BDArmory.Radar
             }
             mr.Dispose();
             SaveExternalVRDVessels();
+            StartCoroutine(UpdateLocksAfterFrame());
         }
 
         public void LinkToRadar(ModuleRadar mr)
@@ -1848,7 +1859,7 @@ namespace BDArmory.Radar
             }
             // We have locked target(s)  Lets see if we can select the next one in the list (if it exists)
             displayedTargetIndex = lockedTargetIndexes[activeLockedTargetIndex];
-            // Lets store the displayed target that is ative
+            // Lets store the displayed target that is active
             ModuleRadar rad = displayedTargets[displayedTargetIndex].detectedByRadar;
             if (lockedTargetIndexes.Count > 1)
             {
@@ -1963,12 +1974,14 @@ namespace BDArmory.Radar
             UpdateLockedTargets();
         }
 
-        public void UnlockAllTargets()
+        public void UnlockAllTargets(bool unlockDatalinkedRadars = true)
         {
             List<ModuleRadar>.Enumerator radar = weaponManager.radars.GetEnumerator();
             while (radar.MoveNext())
             {
                 if (radar.Current == null) continue;
+                if (radar.Current.vessel != vessel) continue;
+                if (!unlockDatalinkedRadars && radar.Current.linkedVRDs > 0) continue;
                 radar.Current.UnlockAllTargets();
             }
             radar.Dispose();
@@ -1981,6 +1994,14 @@ namespace BDArmory.Radar
             ModuleRadar rad = displayedTargets[lockedTargetIndexes[activeLockedTargetIndex]].detectedByRadar;
             rad.UnlockTargetAt(rad.currentLockIndex);
         }
+
+        /// <summary>
+        /// Unlocks the target vessel. This variant is less efficient than the index variant, however it is
+        /// generally more useful as it will search through displayedTargets and find the vessel. Useful in
+        /// instances where the index of the target in lockedTargetIndexes is not known, or where the index
+        /// may change due to changes in the locks.
+        /// </summary>
+        /// <param name="vessel">Vessel to unlock.</param>
         public void UnlockSelectedTarget(Vessel vessel)
         {
             if (!locked) return;
@@ -1988,8 +2009,23 @@ namespace BDArmory.Radar
             if (vesselIndex != -1)
             {
                 ModuleRadar rad = displayedTargets[vesselIndex].detectedByRadar;
-                rad.UnlockTargetAt(rad.currentLockIndex);
+                rad.UnlockTargetVessel(vessel);
             }
+        }
+
+        /// <summary>
+        /// Unlocks the target at lockedTargetIndexes[index]. NOTE! Since lockedTargetIndexes WILL change when
+        /// a target is locked/unlocked, this should ONLY be called in instances when you are only unlocking
+        /// a single target. When unlocking multiple target, use the vessel variant instead. Note this function
+        /// is entirely unprotected, it is the user's responsibility to ensure index is valid for
+        /// lockedTargetIndexes.
+        /// </summary>
+        /// <param name="index">Index of target in lockedTargetIndexes.</param>
+        public void UnlockSelectedTarget(int index)
+        {
+            if (!locked) return;
+            ModuleRadar rad = displayedTargets[lockedTargetIndexes[index]].detectedByRadar;
+            rad.UnlockTargetVessel(displayedTargets[lockedTargetIndexes[index]].vessel);
         }
 
         private void CleanDisplayedContacts()

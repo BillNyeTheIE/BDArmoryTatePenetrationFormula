@@ -1404,10 +1404,7 @@ namespace BDArmory.Radar
             if (radarRangeGate.minTime == float.MaxValue || radarVelocityGate.minTime == float.MaxValue)
                 return 1f;
 
-            Vector3 targetDirection = (vesselposition - position);
-            targetDirection.x /= targetRange;
-            targetDirection.y /= targetRange;
-            targetDirection.z /= targetRange;
+            Vector3 targetDirection = (vesselposition - position) / targetRange;
 
             float inLineSpeed = Mathf.Abs(Vector3.Dot(vesselsrfvel, targetDirection));
 
@@ -1932,13 +1929,15 @@ namespace BDArmory.Radar
                                         dataIndex++;
                                     }
 
-                                    if (dataIndex < dataArray.Length)
+                                    if (!(dataIndex < dataArray.Length))
                                     {
-                                        dataArray[dataIndex] = new TargetSignatureData(loadedvessels.Current, signature);
-                                        dataArray[dataIndex].lockedByRadar = radar;
-                                        dataIndex++;
-                                        hasLocked = true;
+                                        Array.Resize(ref dataArray, BDATargetManager.LoadedVessels.Count);
                                     }
+
+                                    dataArray[dataIndex] = new TargetSignatureData(loadedvessels.Current, signature);
+                                    dataArray[dataIndex].lockedByRadar = radar;
+                                    dataIndex++;
+                                    hasLocked = true;
                                 }
                             }
                             if (radar.sonarMode != ModuleRadar.SonarModes.passive)

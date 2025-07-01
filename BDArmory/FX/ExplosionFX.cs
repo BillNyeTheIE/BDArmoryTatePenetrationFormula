@@ -293,9 +293,12 @@ namespace BDArmory.FX
                                                     registered = true;
                                                 break;
                                         }
-                                        if (registered)
+                                        if (damagedVesselName != null)
+                                        {
+                                            if (registered)
                                                 explosionEventsVesselsHit[damagedVesselName] = explosionEventsVesselsHit.GetValueOrDefault(damagedVesselName) + 1;
-                                        totalPartsHit[damagedVesselName] = totalPartsHit.GetValueOrDefault(damagedVesselName) + 1; // Include non-competition craft (like debris).
+                                            totalPartsHit[damagedVesselName] = totalPartsHit.GetValueOrDefault(damagedVesselName) + 1; // Include non-competition craft (like debris).
+                                        }
                                     }
                                 }
                             }
@@ -336,7 +339,7 @@ namespace BDArmory.FX
                                 var partHitExplosivePart = partHit.GetComponent<BDExplosivePart>();
                                 if (partHitExplosivePart != null && SourceVesselTeam == partHitExplosivePart.Team.Name && !string.IsNullOrEmpty(SourceVesselTeam)) continue; //don't fratricide fellow missiles/bombs in a launched salvo when the first detonates
                             }
-                            if (partHit.mass > 0 && !explosionEventsPartsAdded.Contains(partHit)) 
+                            if (partHit.mass > 0 && !explosionEventsPartsAdded.Contains(partHit))
                             {
                                 var damaged = ProcessPartEvent(partHit, Vector3.Distance(hitCollidersEnu.Current.ClosestPoint(Position), Position), SourceVesselName, explosionEventsPreProcessing, explosionEventsPartsAdded);
                                 // If the explosion derives from a missile explosion, count the parts damaged for missile hit scores.
@@ -360,9 +363,12 @@ namespace BDArmory.FX
                                                 registered = true;
                                             break;
                                     }
-                                    if (registered)
+                                    if (damagedVesselName != null)
+                                    {
+                                        if (registered)
                                             explosionEventsVesselsHit[damagedVesselName] = explosionEventsVesselsHit.GetValueOrDefault(damagedVesselName) + 1;
-                                    totalPartsHit[damagedVesselName] = totalPartsHit.GetValueOrDefault(damagedVesselName) + 1; // Include non-competition craft (like debris).
+                                        totalPartsHit[damagedVesselName] = totalPartsHit.GetValueOrDefault(damagedVesselName) + 1; // Include non-competition craft (like debris).
+                                    }
                                 }
                             }
                         }

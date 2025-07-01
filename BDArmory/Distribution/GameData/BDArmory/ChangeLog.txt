@@ -10,15 +10,19 @@
 	- When assigning turret targets, AI now checks if target is within max range of the turret.
 	- Add an option to disable the behaviour of disabling guard mode when vessels are spawned.
 	- Fix pilot AI's standby mode to automatically trigger AG10 and enable engines if necessary when a threat is detected.
+	- Fix behavior of Guard Mode with regards to datalinked radars, Guard Mode should no longer unlock targets when these locks are being used by a datalinked vessel to guide a missile.
+	- Slightly improved Guard Mode radar lock management, locks are only dropped as needed on radars that can lock on to the target.
 	- Tweaks to the auto-tuning loss function to give a more stable roll-relevance. Show an auto-tuning summary to reduce confusion in the SPH about the auto-tuning results.
 	- Disable Battle Damage while auto-tuning to avoid wooden parts catching fire.
 - Countermeasures:
 	- Add 'Ammo' gauges for Countermeasure dispensers for how many CMs they have remaining.
 - Sensors:
 	- Add support for slaving turrets via targeting cameras.
+	- Fix Guard Mode targeting camera issues with moving targets.
 	- Fix 'Slave Turret' button occasionally locking the turret to the vessel's origin point or non-target point in space.
 	- Locking a target will no longer automatically slave active turrets to the target when manually controlling a craft. To slave turrets to a locked radar/camera, use the 'Slave Turret' button.
 	- Fix bug that allowed radars to lock on below the radar horizon when the appropriate settings are toggled.
+	- Fix datalinked radars not conveying lock information to all datalinked vessels.
 - Weapons:
 	- Add a "Yaw Standby Angle" slider to gun turrets.
 	- Multi-barreled guns now no longer swap to the next ammo type in the belt until after all barrels have fired.
@@ -27,11 +31,27 @@
 	- Missiles:
 		- Add improved missile controller.
 			- Missiles will now better respect gLimit as well as guidance-commanded acceleration, note this means some parameters may need to be tweaked to retain previous performance, specifically pronavGain and weave guidance accelerations.
+		- Improve AAMloft and Kappa's ability to hit targets with high closure rates close to the launch point, particularly for VLS and other 0/0 launch conditions.
 		- Fix multi-missile launcher issues when railAmmo > launcher rails on the mode
 		- Fix check for multi-mode engines being ignited and having fuel.
 		- Fix maddog ARH missile launches not turning on seeker.
-		- Add WeaveUseAGMDescentRatio and WeaveRandomRange to weave guidance, when WeaveUseAGMDescentRatio is true it forces the use of agmDescentRatio to allow for sea-skimming weave missiles. WeaveRandomRange is a float that allows for randomization of weave maneuver parameters.
+		- Add WeaveUseAGMDescentRatio and WeaveRandomRange to weave guidance, when WeaveUseAGMDescentRatio is true it forces the use of agmDescentRatio to allow for sea-skimming weave missiles. WeaveRandomRange is a Vector2 (format is WeaveRandomRange = (x,y) ) that allows for randomization of weave maneuver parameters.
+		- Non-modular cruise missiles are now limited to the top speed specified in the configuration file.
 		- Fix certain missiles becoming ghost-like entities that ignored bullets and interceptor missiles when fired from MultiMissileLaunchers with "ignoreLauncherColliders = true".
+		- Fix buggy behavior caused by partial failure of missile warheads to detonate when a custom warhead and a standard warhead were used in conjunction with non-zero fuze failure settings.
+		- Heat seeking missiles now more realistically use angular velocity rather than vector velocity for flare rejection.
+			- Added a new FloatCurve "lockedSensorVelocityMagnitudeBias", weights target score based on the normalized angular velocity magnitude difference, where 1 is when the target's angular velocity magnitude matches the expected angular velocity magnitude and 0 is when the angular velocity magnitude is off by the expected angular velocity magnitude (either 0, or twice the expected).
+			- FloatCurve defaults to all 1s when lockedSensorVelocityBias is not specified and linear when specified.
+			- Added lockedSensorMinAngularVelocity field which sets the minimum detectable angular velocity magnitude for angular velocity magnitude differencing.
+		- Loft guidance parameters are now no longer persistent and inaccessible in the SPH for non-modular missiles. Modders may still tune these parameters in-flight by enabling the "Debug Missiles" option in the BDArmory Settings menu.
+			- For modular missiles, parameters are persistent and editable in the SPH. Turning on "Debug Missiles" will also allow for in-flight adjustment of these parameters.
+		- Added "Lofted Aimpoint" toggle to Missile Turrets, with the accompanying "Loft Velocity Factor". When toggled on, the turret will aim above the target to provide some lofting to the missile trajectory (though this requires the usage of pronav and a gain schedule). "Loft Velocity Factor" is used to scale the missile's "optimimumVelocity" for the ballistic simulation, a lower "Loft Velocity Factor" results in a higher loft angle.
+		- New "maxTorqueAero" field for missiles, provides a dynamic pressure (density times velocity squared) based component to maxTorque. This is intended to simulate aerodynamic control surfaces (as opposed to maxTorque, which now represents things like thrust-vectoring).
+		- Several missile parameters can now be specified for different phases of flight with comma-separated values
+			- "liftArea"/"dragArea" has the format: [boost], [cruise], [deltaDeploy], [deltaCruiseDeploy], separated by commas. The [cruise] value is used when "decoupleBoosters" is true, representing the change in aerodynamics after dropping the booster stage. The deltas represent the change in area when deploy animations trigger. A boolean field "deployedLiftInCruise" (defaults to true) allows you to keep [deltaDeploy] after the booster separates.
+			- "maxTorqueAero" follows the same format as above.
+			- "maxTorque" has the format: [boost], [cruise], [post-thrust], allowing for simulation of thrust-vectoring missiles
+			- "steerMult" has the format: [boost], [cruise], allowing reduced "steerMult"s in cruise if desired.
 - GameModes:
 	- Don't spawn new asteroids in asteroid rain mode while in high time-warp.
 - Competition:

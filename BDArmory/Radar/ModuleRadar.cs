@@ -288,6 +288,10 @@ namespace BDArmory.Radar
 
         //linked vessels
         private List<VesselRadarData> linkedToVessels;
+        public int linkedVRDs
+        {
+            get { return linkedToVessels.Count; }
+        }
         public List<ModuleRadar> availableRadarLinks;
         private bool unlinkOnDestroy = true;
 
@@ -506,7 +510,7 @@ namespace BDArmory.Radar
                 }
                 radarTransform = radarTransformName != string.Empty ? part.FindModelTransform(radarTransformName) : part.transform;
 
-                attemptedLocks = new TargetSignatureData[maxLocks];
+                attemptedLocks = new TargetSignatureData[Math.Max(maxLocks,6)];
                 //lockSuccesses = new bool[maxLocks];
                 TargetSignatureData.ResetTSDArray(ref attemptedLocks);
                 lockedTargets = new List<TargetSignatureData>();
@@ -795,9 +799,12 @@ namespace BDArmory.Radar
 
             if (currentLocks == maxLocks)
             {
-                if (BDArmorySettings.DEBUG_RADAR)
-                    Debug.Log("[BDArmory.ModuleRadar]: - Failed, this radar already has the maximum allowed targets locked.");
-                return false;
+                if (!weaponManager.guardMode || !ClearUnneededLocks())
+                {
+                    if (BDArmorySettings.DEBUG_RADAR)
+                        Debug.Log("[BDArmory.ModuleRadar]: - Failed, this radar already has the maximum allowed targets locked.");
+                    return false;
+                }
             }
 
             Vector3 targetPlanarDirection = (position - referenceTransform.position).ProjectOnPlanePreNormalized(referenceTransform.up);
@@ -811,7 +818,7 @@ namespace BDArmory.Radar
 
             for (int i = 0; i < attemptedLocks.Length; i++)
             {
-                if (attemptedLocks[i].exists && (attemptedLocks[i].predictedPosition - position).sqrMagnitude < 40 * 40) //(lockSuccesses[i] && attemptedLocks[i].exists && (attemptedLocks[i].predictedPosition - position).sqrMagnitude < 40 * 40)
+                if (attemptedLocks[i].exists && (attemptedLocks[i].predictedPosition - position).sqrMagnitude < 40.0 * 40.0) //(lockSuccesses[i] && attemptedLocks[i].exists && (attemptedLocks[i].predictedPosition - position).sqrMagnitude < 40 * 40)
                 {
                     // If locked onto a vessel that was not our target, return false
                     if ((attemptedLocks[i].vessel != null) && (targetVessel != null) && (attemptedLocks[i].vessel != targetVessel))
@@ -830,6 +837,15 @@ namespace BDArmory.Radar
 
                     vesselRadarData.AddRadarContact(this, lockedTarget, true);
                     vesselRadarData.UpdateLockedTargets();
+                    if (linkedToVessels.Count > 0)
+                        foreach (VesselRadarData vrd in linkedToVessels)
+                        {
+                            if (vrd)
+                            {
+                                vrd.AddRadarContact(this, lockedTarget, true, true);
+                                vrd.UpdateLockedTargets();
+                            }
+                        }
                     attemptedLocks[i] = TargetSignatureData.noTarget;
                     return true;
                 }
@@ -946,6 +962,13 @@ namespace BDArmory.Radar
                 vesselRadarData.UnlockAllTargetsOfRadar(this);
             }
 
+            if (linkedToVessels.Count > 0)
+                foreach (VesselRadarData vrd in linkedToVessels)
+                {
+                    if (vrd)
+                        vrd.UnlockAllTargetsOfRadar(this);
+                }
+
             if (BDArmorySettings.DEBUG_RADAR)
                 Debug.Log("[BDArmory.ModuleRadar]: Radar Targets were cleared (" + radarName + ").");
         }
@@ -996,6 +1019,12 @@ namespace BDArmory.Radar
                 //vesselRadarData.UnlockTargetAtPosition(position);
                 vesselRadarData.RemoveVesselFromTargets(rVess);
             }
+            if (linkedToVessels.Count > 0)
+                foreach (VesselRadarData vrd in linkedToVessels)
+                {
+                    if (vrd)
+                        vrd.RemoveVesselFromTargets(rVess);
+                }
         }
 
         IEnumerator RetryLockRoutine(Vessel v)
@@ -1015,6 +1044,26 @@ namespace BDArmory.Radar
                     return;
                 }
             }
+        }
+
+        public bool ClearUnneededLocks(bool unlockAll = false)
+        {
+            if (!unlockAll && (currentLocks < maxLocks))
+                return true;
+
+            bool cleared = false;
+            for (int i = 0; i < lockedTargets.Count; i++)
+            {
+                if (weaponManager.GetMissilesAway(lockedTargets[i].targetInfo)[1] == 0)
+                {
+                    UnlockTargetAt(i);
+                    i--;
+                    cleared = true;
+                    if (!unlockAll) break;
+                }
+            }
+
+            return cleared;
         }
 
         public void RefreshLockArray()
