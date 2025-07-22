@@ -4873,7 +4873,7 @@ namespace BDArmory.Weapons
                     targetAcquisitionTime = Time.time;
                     float size = malusSightingAccuracy * (targetPosition - transform.position).magnitude * ((smoothedPartVelocity - targetVelocity).OneNorm() + 1f) + (smoothedPartAcceleration - targetAcceleration).OneNorm();
                     kinematicAimMalusDelta = 0.1f * size * UnityEngine.Random.insideUnitSphere;
-                    kinematicAimMalus = 0.1f * size * UnityEngine.Random.insideUnitSphere;
+                    kinematicAimMalus = 0.1f * size * UnityEngine.Random.insideUnitSphere; // This is about the typical size that the malus peaks at during the bounded slow random walk.
                     // rangeAimMalus = UnityEngine.Random.Range(-0.01f, 0.01f);
                 }
             }
