@@ -1019,6 +1019,9 @@ namespace BDArmory.Weapons
         private float delayTime = -1;
 
         [KSPField]
+        public float sightingAccuracy = 1f; // In milliradians (for the visual aiming malus).
+        float malusSightingAccuracy = 0.01f; // 10 * tan(sightingAccuracy / 1000). The bounded slow random walk that the malus performs reaches approx 0.1 this size.
+        [KSPField]
         public float malusReductionPerShot = 0.1f; // Scale the per shot reduction in the visual aiming malus.
         public float malusReduction = 1f;
 
@@ -1589,6 +1592,7 @@ namespace BDArmory.Weapons
                     }
                 }
             }
+            malusSightingAccuracy = 10f * Mathf.Tan(sightingAccuracy / 1000f);
             //turret setup
             using (List<ModuleTurret>.Enumerator turr = part.FindModulesImplementing<ModuleTurret>().GetEnumerator())
                 while (turr.MoveNext())
@@ -2163,7 +2167,7 @@ namespace BDArmory.Weapons
                             GUIUtils.DrawLineBetweenWorldPositions(pointingAtPosition, reticlePosition, 2, new Color(0, 1, 0, 0.6f));
                         }
 
-                        GUIUtils.DrawTextureOnWorldPos(pointingAtPosition, BDArmorySetup.Instance.greenDotTexture, new Vector2(6, 6), 0); 
+                        GUIUtils.DrawTextureOnWorldPos(pointingAtPosition, BDArmorySetup.Instance.greenDotTexture, new Vector2(6, 6), 0);
 
                         if (atprAcquired)
                         {
@@ -3959,7 +3963,7 @@ namespace BDArmory.Weapons
                     // float size = BDArmorySettings.AIMING_VISUAL_MALUS * ((smoothedPartVelocity - targetVelocity).OneNorm() / (1 + shotsFiredSinceAcquiringTarget) + BDArmorySettings.AIMING_VISUAL_MALUS * (smoothedPartAcceleration - targetAcceleration).OneNorm());
                     // kinematicAimMalus = factor * kinematicAimMalus + (1f - factor) * size * UnityEngine.Random.insideUnitSphere;
                     malusReduction = (1f + Mathf.Min(malusReductionPerShot * shotsFiredSinceAcquiringTarget, 99f)) * (1f + Mathf.Min(Time.time - targetAcquisitionTime, 9f));
-                    float size = 0.001f * targetDistance * (smoothedPartVelocity - targetVelocity).OneNorm() / malusReduction + (smoothedPartAcceleration - targetAcceleration).OneNorm();
+                    float size = malusSightingAccuracy * targetDistance * ((smoothedPartVelocity - targetVelocity).OneNorm() + 1f) / malusReduction + (smoothedPartAcceleration - targetAcceleration).OneNorm();
                     kinematicAimMalusDelta = 0.99f * kinematicAimMalusDelta + 0.01f * size * UnityEngine.Random.insideUnitSphere;
                     kinematicAimMalus = 0.9f * kinematicAimMalus + 0.1f / malusReduction * kinematicAimMalusDelta;
                     // rangeAimMalus = factor * rangeAimMalus + (1f - factor) / (1 + shotsFiredSinceAcquiringTarget) * UnityEngine.Random.Range(-0.01f, 0.01f);
@@ -4867,7 +4871,7 @@ namespace BDArmory.Weapons
                 {
                     shotsFiredSinceAcquiringTarget = (targetAcquisitionType == TargetAcquisitionType.Radar || targetAcquisitionType == TargetAcquisitionType.Slaved) ? 4 : 0; // Radar/slaved gives an initial starting bonus
                     targetAcquisitionTime = Time.time;
-                    float size = 0.001f * (targetPosition - transform.position).OneNorm() * (smoothedPartVelocity - targetVelocity).OneNorm() + (smoothedPartAcceleration - targetAcceleration).OneNorm();
+                    float size = malusSightingAccuracy * (targetPosition - transform.position).magnitude * ((smoothedPartVelocity - targetVelocity).OneNorm() + 1f) + (smoothedPartAcceleration - targetAcceleration).OneNorm();
                     kinematicAimMalusDelta = 0.1f * size * UnityEngine.Random.insideUnitSphere;
                     kinematicAimMalus = 0.1f * kinematicAimMalusDelta;
                     // rangeAimMalus = UnityEngine.Random.Range(-0.01f, 0.01f);
@@ -5227,7 +5231,7 @@ namespace BDArmory.Weapons
                     }
                     else //no lock for our secondary target/fixed gun/no multitargeting? slave weapon to primary lock
                     {
-                        bool isVessel = weaponManager.slavedTarget.vessel != null; 
+                        bool isVessel = weaponManager.slavedTarget.vessel != null;
                         if (!isVessel || !(targetInVisualRange && RadarUtils.GetVesselChaffFactor(weaponManager.slavedTarget.vessel) < 1f))
                         {
                             if (weaponManager.slavingTurrets) slaved = true;
@@ -5259,7 +5263,7 @@ namespace BDArmory.Weapons
                     targetAcquisitionType = TargetAcquisitionType.Slaved;
                     if (BDArmorySettings.DEBUG_WEAPONS)
                         Debug.Log($"[BDArmory.ModuleWeapon - {shortName} is tracking target {(isVessel ? weaponManager.mainTGP.lockedVessel.vesselName : "null target")} via tgtCamera");
-                    return;                    
+                    return;
                 }
                 // within visual range and no radar aiming/need precision visual targeting of specific subsystems
                 if (aiControlled && visualTargetVessel && targetInVisualRange)
