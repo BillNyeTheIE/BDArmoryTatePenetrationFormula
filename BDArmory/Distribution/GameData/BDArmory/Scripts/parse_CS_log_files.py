@@ -6,7 +6,7 @@ import re
 import sys
 from pathlib import Path
 
-VERSION = "5.0"
+VERSION = "5.1"
 
 parser = argparse.ArgumentParser(description="Log file parser for continuous spawning logs.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("logs", nargs='*', help="Log files to parse. If none are given, the latest log file is parsed.")
@@ -21,7 +21,7 @@ if args.version:
     print(f"Version: {VERSION}")
     sys.exit()
 
-log_dir = Path(__file__).parent / "Logs" if len(args.logs) == 0 else Path('.')
+log_dir = Path(__file__).parent.parent / "Logs" if len(args.logs) == 0 else Path('.')
 
 fields = ["kills", "assists", "deaths", "hits", "bullet damage", "bullet damage taken", "rocket strikes", "rocket parts hit", "rocket damage",
     "rocket damage taken", "missile strikes", "missile parts hit", "missile damage", "missile damage taken", "rammed parts", "parts lost to asteroids", "accuracy", "rocket accuracy"]

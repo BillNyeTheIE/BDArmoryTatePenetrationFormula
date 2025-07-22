@@ -1073,6 +1073,10 @@ namespace BDArmory.VesselSpawning
                                 }
                             }
                         }
+                        if (BDArmorySettings.RUNWAY_PROJECT_ROUND == 78)
+                        {
+                            part.Current.sameVesselCollision = true;
+                        }
                     }
                 if (BDArmorySettings.RUNWAY_PROJECT_ROUND == 60)
                 {

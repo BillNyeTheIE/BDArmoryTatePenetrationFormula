@@ -137,7 +137,7 @@ namespace BDArmory.CounterMeasure
                 gauge = (BDStagingAreaGauge)part.AddModule("BDStagingAreaGauge");
                 gauge.AmmoName = countermeasureType;
                 PartResource cmResource = GetCMResource();
-                if (cmResource != null && cmResource.amount >= 1)
+                if (cmResource != null)
                 {
                     cmCount = (int)cmResource.amount;
                     maxCMCount = (int)cmResource.maxAmount;

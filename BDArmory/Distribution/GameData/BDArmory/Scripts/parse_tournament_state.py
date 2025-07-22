@@ -6,7 +6,7 @@ import gzip
 import json
 from pathlib import Path
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 parser = argparse.ArgumentParser(
     description="Tournament state parser",
@@ -19,7 +19,7 @@ parser.add_argument("-r", "--re-encode", action="store_true", help="Re-encode th
 args = parser.parse_args()
 
 if args.state is None:
-    args.state = Path(__file__).parent / "PluginData" / "tournament.state"
+    args.state = Path(__file__).parent.parent / "PluginData" / "tournament.state"
 state_file: Path = args.state
 json_file: Path = state_file.with_suffix(".json")
 

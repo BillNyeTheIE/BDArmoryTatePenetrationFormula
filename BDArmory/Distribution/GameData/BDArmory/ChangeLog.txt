@@ -3,11 +3,13 @@
 	- Fix the g-limit overrides from needing to save the persistent savegame, which was leaving spawned craft in play when reverting to the SPH.
 - UI:
 	-	Fix spelling of "ordnance" in localisation files (settings and modules retain the misspelling).
+  - Add competition marquee messages for fuel/ammo detonations from battle damage.
 - AI / WM:
 	- Add missing unclamped limits for 3-axis static damping.
 	- Adjust the release of the "Attack" command so that craft don't go dead-stick when under attack but not threatened enough to trigger evasion.
 	- Fix AttackVIP targeting priority impacting target priority weighting if no enemy VIP is present.
 	- When assigning turret targets, AI now checks if target is within max range of the turret.
+  - Pilot AI using divebombing will now break off the dive when bombs have been released.
 	- Add an option to disable the behaviour of disabling guard mode when vessels are spawned.
 	- Fix pilot AI's standby mode to automatically trigger AG10 and enable engines if necessary when a threat is detected.
 	- Fix behavior of Guard Mode with regards to datalinked radars, Guard Mode should no longer unlock targets when these locks are being used by a datalinked vessel to guide a missile.
@@ -26,6 +28,7 @@
 - Weapons:
 	- Add a "Yaw Standby Angle" slider to gun turrets.
 	- Multi-barreled guns now no longer swap to the next ammo type in the belt until after all barrels have fired.
+	- Multi-barreled guns now fire tracers every tracerInterval rounds of each barrel, and will fire tracers simultaneously from all barrels.
 	- Remove maxEngagementRange (default 5000m) check from bombs when AI is selecting what weapon to use.
 	- Fix aim lead offset for weapons with deploy animations.
 	- Missiles:
@@ -52,16 +55,28 @@
 			- "maxTorqueAero" follows the same format as above.
 			- "maxTorque" has the format: [boost], [cruise], [post-thrust], allowing for simulation of thrust-vectoring missiles
 			- "steerMult" has the format: [boost], [cruise], allowing reduced "steerMult"s in cruise if desired.
+		- Implement various command-to-line of sight guidance types, these all use the "beamCorrectionFactor" field and the "pronavGain" fields (with support for pronav gain scheduling).
+			- "CLOS" performs basic command-to-line of sight guidance with no beam-velocity compensation
+			- "CLOSThree" performs command-to-line of sight guidance with beam-velocity compensation
+			- "CLOSLead" performs command-to-line of sight guidance with selectable lead (using the "beamLeadFactor" field, 1.0 representing full lead and 0.0 representing three point guidance. Defaults to 0.5 or half-rectification guidance.)
+			- "beamCorrectionFactor" is multiplied with the lateral error from the specified line of sight to provide a lateral velocity command, higher values result in a faster snap to the line of sight line, but also more oscillation
+			- "pronavGain" is used, in a similar manner as it use used in pronav guidance, to multiply the velocity error and provide an acceleration command. Higher values result in a faster snap to the commanded velocity vector, but also more oscillation.
+		- Add the gLimit, maxAoA and chaff/flare effectivity fields to the info box.
 - GameModes:
 	- Don't spawn new asteroids in asteroid rain mode while in high time-warp.
 - Competition:
 	- Add a "defaults" button to the scoring window to reset score weights to their default values.
 	- Updated parsing and plotting scripts.
+		- Scripts moved to the folder "Scripts".
 		- Using 'python parse_tournament_log_files.py -w cfg' reads the score weights from the score_weights.cfg file.
 		- Using 'python plot_summary.py -i regex' creates the plot ignoring any craft matching the regex string.
 	- Add a "Daylight" position on the "TimeWarp Between Rounds" tournament slider to warp to dawn whenever a round would start in darkness.
 - Spawning:
 	- Automatically adjust the PRE range if the spawn distance would put craft outside the physics range.
+- Scripts:
+	- Added the new "BDArmoryMissileManeuverEnvelopePlotter.py" and "KSPFloatCurveCalc.py" scripts.
+		- "KSPFloatCurveCalc.py" is a general utility, implementing KSP FloatCurves in python as a class, using numpy and some not-so-efficient-but-faster-than-opening-KSP code.
+		- "BDArmoryMissileManeuverEnvelopePlotter.py" is a new tool, using "KSPFloatCurveCalc.py", numpy and matplotlib, designed to allow modders to make the most of the new missile changes. It is a command-line utility that allows the user to plot the performance of a missile, allowing the modder to better tune the performance of their missile.
 
 v1.10.0.0
 IMPROVEMENTS / FIXES

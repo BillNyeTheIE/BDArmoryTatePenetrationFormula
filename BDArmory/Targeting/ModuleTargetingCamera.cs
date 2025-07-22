@@ -1157,7 +1157,7 @@ namespace BDArmory.Targeting
             if (weaponManager.slavingTurrets) return; //turrets already slaved to active radar lock
             weaponManager.slavedPosition = groundStabilized ? groundTargetPosition : targetPointPosition;
             weaponManager.slavedVelocity = Vector3.zero;
-            weaponManager.slavedAcceleration = Vector3.zero;
+            weaponManager.slavedAcceleration = Vector3.zero; 
         }
 
         internal static void ResizeTargetWindow()

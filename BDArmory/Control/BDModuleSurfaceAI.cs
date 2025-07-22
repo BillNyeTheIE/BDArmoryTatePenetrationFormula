@@ -380,7 +380,7 @@ namespace BDArmory.Control
             else if (status.StartsWith("Extending")) currentStatusMode = StatusMode.Extending;
             else if (status.StartsWith("Avoiding Collision")) currentStatusMode = StatusMode.CollisionAvoidance;
             else if (status.StartsWith("Ramming")) currentStatusMode = StatusMode.RammingSpeed;
-            else if (status.StartsWith("Airtime!") || status.StartsWith("Stranded") || status.StartsWith("Floating") || status.StartsWith("Sunk")) currentStatusMode = StatusMode.Panic;
+            else if (status.StartsWith("Airtime!") || status.StartsWith("Stranded") || status.StartsWith("Floating") || status.StartsWith("Sunk") || status.StartsWith("Disabled")) currentStatusMode = StatusMode.Panic;
             else currentStatusMode = StatusMode.Custom;
         }
         #endregion
@@ -844,7 +844,7 @@ namespace BDArmory.Control
                     else if (pathingWaypoints.Count > 1)
                         targetVelocity = (command == PilotCommands.Attack || command == PilotCommands.Waypoints) ? MaxSpeed : CruiseSpeed;
                     else
-                        targetVelocity = Mathf.Clamp((targetDirection.magnitude - targetRadius / 2) / 5f,
+                        targetVelocity = command == PilotCommands.Waypoints ? MaxSpeed : Mathf.Clamp((targetDirection.magnitude - targetRadius / 2) / 5f,
                         0, command == PilotCommands.Attack ? MaxSpeed : CruiseSpeed);
 
                     if (Vector3.Dot(targetDirection, vesselTransform.up) < 0 && !PoweredSteering) targetVelocity = 0;
@@ -912,6 +912,20 @@ namespace BDArmory.Control
                 SetStatus("Stranded");
                 return true;
             }
+            else if (
+                (SurfaceType & AIUtils.VehicleMovementType.Land) != 0 && vessel.Landed //land Vee on land
+                && (weaponManager.guardMode && targetVessel != null) //and under AI control 
+                && (
+                    currentStatusMode == StatusMode.RammingSpeed || !weaponManager.HasWeaponsAndAmmo() //and have been told to ram or doesn't have weapons
+                    || !weaponCanEngage(weaponManager.currentGun) //or have no guns, or only fixed guns/turrets unable to traverse to target, or out of range
+                )
+                && (Mathf.Abs(targetVelocity) > 0 && vessel.horizontalSrfSpeed < 1 && vessel.angularVelocity.sqrMagnitude < 4) //and engaging but immobilized and can't rotate to bring guns to bear. TODO: angularVel threshold value? Or is 2 ?deg/s? sufficient cutoff?
+            )
+            {
+                //not setting targetVel to 0, since a craft at rest will take a few moments to accel to > 1m/s
+                SetStatus("Disabled");
+                return true;
+            }
             else if (vessel.Splashed && !vessel.Landed && (SurfaceType & AIUtils.VehicleMovementType.Water) == 0)
             {
                 targetVelocity = 0;
@@ -929,6 +943,24 @@ namespace BDArmory.Control
             }
             return false;
         }
+
+        bool WeaponCanEngage(ModuleWeapon weapon)
+        {
+            if (!weapon) return false;
+            if (weapon.turret)
+            {
+                return weapon.turret.TargetInRange(targetVessel.CoM - weapon.GetLeadOffset(), weapon.engageRangeMax);
+            }
+            else
+            {
+                Transform weaponTransform = weapon.fireTransforms[0];
+                Vector3 vectorToTarget = (targetVessel.CoM - weapon.GetLeadOffset()) - weaponTransform.position;
+                bool withinView = Vector3.Dot(weaponTransform.forward, vectorToTarget) >= weapon.targetAdjustedMaxCosAngle; // Fixed weapon within firing angle
+                bool withinDistance = vectorToTarget.sqrMagnitude < weapon.engageRangeMax * weapon.engageRangeMax;
+                return withinView && withinDistance;
+            }
+        }
+
 
         void AdjustThrottle(float targetSpeed)
         {

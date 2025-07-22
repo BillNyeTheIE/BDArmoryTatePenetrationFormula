@@ -2172,6 +2172,11 @@ namespace BDArmory.Weapons.Missiles
                             case GuidanceModes.BeamRiding:
                                 BeamRideGuidance();
                                 break;
+                            case GuidanceModes.CLOS:
+                            case GuidanceModes.CLOSThreePoint:
+                            case GuidanceModes.CLOSLead:
+                                CLOSGuidance();
+                                break;
                             case GuidanceModes.Orbital: //nee GuidanceModes.RCS
                                 OrbitalGuidance(turnRateDPS);
                                 break;
@@ -3025,6 +3030,9 @@ namespace BDArmory.Weapons.Missiles
         [KSPField]
         public float beamCorrectionDamping;
 
+        [KSPField]
+        public float beamLeadFactor = 0.5f;
+
         Ray previousBeam;
 
         void BeamRideGuidance()
@@ -3045,6 +3053,102 @@ namespace BDArmory.Weapons.Missiles
             previousBeam = laserBeam;
             DrawDebugLine(vessel.CoM, target);
             DoAero(target);
+        }
+
+        void CLOSGuidance()
+        {
+            Vector3 target;
+            float currgLimit = -1f;
+
+            if (TargetAcquired)
+            {
+                Vector3 sensorPos;
+                Vector3 sensorVel;
+                Vector3 targetPos;
+                Vector3 targetVel;
+
+                if (TargetingMode == TargetingModes.Laser)
+                {
+                    if (!targetingPod)
+                    {
+                        guidanceActive = false;
+                        return;
+                    }
+                    sensorVel = targetingPod.vessel.Velocity();
+                    sensorPos = targetingPod.cameraParentTransform.position + (sensorVel * Time.fixedDeltaTime);
+                    targetPos = targetingPod.targetPointPosition;
+                    if (targetingPod.lockedVessel)
+                        targetVel = targetingPod.lockedVessel.Velocity();
+                    else
+                        targetVel = Vector3.zero;
+                }
+                else if (TargetingMode == TargetingModes.Radar)
+                {
+                    if (!radarTarget.exists || !radarTarget.lockedByRadar)
+                    {
+                        guidanceActive = false;
+                        return;
+                    }
+                    sensorVel = radarTarget.lockedByRadar.vessel.Velocity();
+                    sensorPos = radarTarget.lockedByRadar.transform.position + (sensorVel * Time.fixedDeltaTime);
+                    targetPos = radarTarget.predictedPositionWithChaffFactor(chaffEffectivity);
+                    targetVel = radarTarget.velocity;
+                }
+                else
+                {
+                    guidanceActive = false;
+                    return;
+                }
+
+
+                if (RadarUtils.TerrainCheck(sensorPos, vessel.CoM, vessel.mainBody))
+                {
+                    guidanceActive = false;
+                    return;
+                }
+
+                //proxy detonation
+                var distThreshold = 0.5f * GetBlastRadius();
+                if (proxyDetonate && !DetonateAtMinimumDistance && ((TargetPosition + (TargetVelocity * Time.fixedDeltaTime)) - (vessel.CoM)).sqrMagnitude < distThreshold * distThreshold)
+                {
+                    //part.Destroy(); //^look into how this interacts with MissileBase.DetonationState
+                    // - if the missile is still within the notSafe status, the missile will delete itself, else, the checkProximity state of DetonationState would trigger before the missile reaches the 1/2 blastradius.
+                    // would only trigger if someone set the detonation distance override to something smallerthan 1/2 blst radius, for some reason
+                    if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileLauncher] ProxiDetonate triggered");
+                    Detonate();
+                }
+
+                float tempPronavGain = pronavGain > 0 ? pronavGain : pronavGainCurve.Evaluate(Vector3.Distance(TargetPosition, vessel.CoM));
+
+                switch (GuidanceMode)
+                {
+                    case GuidanceModes.CLOS:
+                        target = MissileGuidance.GetCLOSTarget(sensorPos, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
+                        break;
+                    case GuidanceModes.CLOSThreePoint:
+                        target = MissileGuidance.GetThreePointTarget(sensorPos, sensorVel, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
+                        break;
+                    case GuidanceModes.CLOSLead:
+                        target = MissileGuidance.GetCLOSLeadTarget(sensorPos, sensorVel, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, beamLeadFactor, out currgLimit);
+                        break;
+
+                    default:
+                        target = MissileGuidance.GetCLOSTarget(sensorPos, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
+                        break;
+                }
+                
+                DrawDebugLine(sensorPos, targetPos);
+            }
+            else
+            {
+                target = vessel.CoM + (2000f * vessel.Velocity().normalized);
+            }
+
+            if (TimeIndex > dropTime + 0.25f)
+            {
+                DoAero(target, currgLimit);
+                CheckMiss();
+            }
         }
 
         void CruiseGuidance()
@@ -3753,217 +3857,64 @@ namespace BDArmory.Weapons.Missiles
             //Debug.Log($"[BDArmory.MissileLauncher] antiradTargets: {string.Join(", ", antiradTargets)}");
         }
 
+        GuidanceModes ParseHomingType(in string homingType)
+        {
+            return homingType switch
+            {
+                "aam" => GuidanceModes.AAMLead,
+                "aamlead" => GuidanceModes.AAMLead,
+                "aampure" => GuidanceModes.AAMPure,
+                "aamloft" => GuidanceModes.AAMLoft,
+                //"aamhybrid" => GuidanceModes.AAMHybrid, // keeping this in case we want to bring it back, it technically is a bit better at handling the handoff than the current method
+                "agm" => GuidanceModes.AGM,
+                "agmballistic" => GuidanceModes.AGMBallistic,
+                "cruise" => GuidanceModes.Cruise,
+                "weave" => GuidanceModes.Weave,
+                "sts" => GuidanceModes.STS, // What was this for? it seems to be unused
+                "rcs" => GuidanceModes.Orbital,
+                "orbital" => GuidanceModes.Orbital,
+                "beamriding" => GuidanceModes.BeamRiding,
+                "slw" => GuidanceModes.SLW,
+                "pronav" => GuidanceModes.PN,
+                "augpronav" => GuidanceModes.APN,
+                "kappa" => GuidanceModes.Kappa,
+                "clos" => GuidanceModes.CLOS,
+                "closthree" => GuidanceModes.CLOSThreePoint,
+                "closlead" => GuidanceModes.CLOSLead,
+                _ => GuidanceModes.None
+            };
+        }
+
+        TargetingModes ParseTargetingType(in string targetingType)
+        {
+            return targetingType switch
+            {
+                "radar" => TargetingModes.Radar,
+                "heat" => TargetingModes.Heat,
+                "laser" => TargetingModes.Laser,
+                "gps" => TargetingModes.Gps,
+                "antirad" => TargetingModes.AntiRad,
+                "inertial" => TargetingModes.Inertial,
+                _ => TargetingModes.None
+            };
+        }
+
         void ParseModes()
         {
             homingType = homingType.ToLower();
-            switch (homingType)
-            {
-                case "aam":
-                    GuidanceMode = GuidanceModes.AAMLead;
-                    break;
-
-                case "aamlead":
-                    GuidanceMode = GuidanceModes.AAMLead;
-                    break;
-
-                case "aampure":
-                    GuidanceMode = GuidanceModes.AAMPure;
-                    break;
-                case "aamloft":
-                    GuidanceMode = GuidanceModes.AAMLoft;
-                    break;
-                /*case "aamhybrid":
-                    GuidanceMode = GuidanceModes.AAMHybrid;
-                    break;*/
-                case "agm":
-                    GuidanceMode = GuidanceModes.AGM;
-                    break;
-
-                case "agmballistic":
-                    GuidanceMode = GuidanceModes.AGMBallistic;
-                    break;
-
-                case "cruise":
-                    GuidanceMode = GuidanceModes.Cruise;
-                    break;
-
-                case "weave":
-                    GuidanceMode = GuidanceModes.Weave;
-                    break;
-
-                case "sts":
-                    GuidanceMode = GuidanceModes.STS;
-                    break;
-
-                case "rcs":
-                    GuidanceMode = GuidanceModes.Orbital;
-                    break;
-
-                case "orbital":
-                    GuidanceMode = GuidanceModes.Orbital;
-                    break;
-
-                case "beamriding":
-                    GuidanceMode = GuidanceModes.BeamRiding;
-                    break;
-
-                case "slw":
-                    GuidanceMode = GuidanceModes.SLW;
-                    break;
-
-                case "pronav":
-                    GuidanceMode = GuidanceModes.PN;
-                    break;
-
-                case "augpronav":
-                    GuidanceMode = GuidanceModes.APN;
-                    break;
-
-                case "kappa":
-                    GuidanceMode = GuidanceModes.Kappa;
-                    break;
-
-                default:
-                    GuidanceMode = GuidanceModes.None;
-                    break;
-            }
+            GuidanceMode = ParseHomingType(homingType);
 
             targetingType = targetingType.ToLower();
-            switch (targetingType)
-            {
-                case "radar":
-                    TargetingMode = TargetingModes.Radar;
-                    break;
-
-                case "heat":
-                    TargetingMode = TargetingModes.Heat;
-                    break;
-
-                case "laser":
-                    TargetingMode = TargetingModes.Laser;
-                    break;
-
-                case "gps":
-                    TargetingMode = TargetingModes.Gps;
-                    maxOffBoresight = 360;
-                    break;
-
-                case "antirad":
-                    TargetingMode = TargetingModes.AntiRad;
-                    break;
-
-                case "inertial":
-                    TargetingMode = TargetingModes.Inertial;
-                    break;
-
-                default:
-                    TargetingMode = TargetingModes.None;
-                    break;
-            }
+            TargetingMode = ParseTargetingType(targetingType);
 
             terminalGuidanceType = terminalGuidanceType.ToLower();
-            switch (terminalGuidanceType)
-            {
-                case "radar":
-                    TargetingModeTerminal = TargetingModes.Radar;
-                    break;
-
-                case "heat":
-                    TargetingModeTerminal = TargetingModes.Heat;
-                    break;
-
-                case "laser":
-                    TargetingModeTerminal = TargetingModes.Laser;
-                    break;
-
-                case "gps":
-                    TargetingModeTerminal = TargetingModes.Gps;
-                    maxOffBoresight = 360;
-                    break;
-
-                case "antirad":
-                    TargetingModeTerminal = TargetingModes.AntiRad;
-                    break;
-
-                case "inertial":
-                    TargetingMode = TargetingModes.Inertial;
-                    break;
-
-                default:
-                    TargetingModeTerminal = TargetingModes.None;
-                    break;
-            }
+            TargetingModeTerminal = ParseTargetingType(terminalGuidanceType);
 
             terminalHomingType = terminalHomingType.ToLower();
-            switch (terminalHomingType)
-            {
-                case "aam":
-                    homingModeTerminal = GuidanceModes.AAMLead;
-                    break;
+            homingModeTerminal = ParseHomingType(terminalHomingType);
 
-                case "aamlead":
-                    homingModeTerminal = GuidanceModes.AAMLead;
-                    break;
-
-                case "aampure":
-                    homingModeTerminal = GuidanceModes.AAMPure;
-                    break;
-                case "aamloft":
-                    homingModeTerminal = GuidanceModes.AAMLoft;
-                    break;
-                case "agm":
-                    homingModeTerminal = GuidanceModes.AGM;
-                    break;
-
-                case "agmballistic":
-                    homingModeTerminal = GuidanceModes.AGMBallistic;
-                    break;
-
-                case "cruise":
-                    homingModeTerminal = GuidanceModes.Cruise;
-                    break;
-
-                case "weave":
-                    homingModeTerminal = GuidanceModes.Weave;
-                    break;
-
-                case "sts":
-                    homingModeTerminal = GuidanceModes.STS;
-                    break;
-
-                case "rcs":
-                    homingModeTerminal = GuidanceModes.Orbital;
-                    break;
-
-                case "orbital":
-                    homingModeTerminal = GuidanceModes.Orbital;
-                    break;
-
-                case "beamriding":
-                    homingModeTerminal = GuidanceModes.BeamRiding;
-                    break;
-
-                case "slw":
-                    homingModeTerminal = GuidanceModes.SLW;
-                    break;
-
-                case "pronav":
-                    homingModeTerminal = GuidanceModes.PN;
-                    break;
-
-                case "augpronav":
-                    homingModeTerminal = GuidanceModes.APN;
-                    break;
-
-                case "kappa":
-                    homingModeTerminal = GuidanceModes.Kappa;
-                    break;
-
-
-                default:
-                    homingModeTerminal = GuidanceModes.None;
-                    break;
-            }
+            if (TargetingMode == TargetingModes.Gps)
+                maxOffBoresight = 360;
 
             if (!terminalHoming && GuidanceMode == GuidanceModes.AAMLoft)
             {
@@ -4165,6 +4116,11 @@ namespace BDArmory.Weapons.Missiles
                 if (dV > 0) output.AppendLine($"Total DeltaV: {dV} m/s");
             }
 
+            output.AppendLine($"Max AoA: {maxAoA}");
+
+            if (gLimit > 0)
+                output.AppendLine($"G Limit: {gLimit} g");
+
             if (TargetingMode == TargetingModes.Radar)
             {
                 if (activeRadarRange > 0)
@@ -4179,6 +4135,7 @@ namespace BDArmory.Weapons.Missiles
                 }
                 output.AppendLine($"Max Offboresight: {maxOffBoresight}");
                 output.AppendLine($"Locked FOV: {lockedSensorFOV}");
+                output.AppendLine($"Chaff Sensitivity: {chaffEffectivity}");
             }
 
             if (TargetingMode == TargetingModes.Heat)
@@ -4187,6 +4144,7 @@ namespace BDArmory.Weapons.Missiles
                 output.AppendLine($"Min Heat threshold: {heatThreshold}");
                 output.AppendLine($"Max Offboresight: {maxOffBoresight}");
                 output.AppendLine($"Locked FOV: {lockedSensorFOV}");
+                output.AppendLine($"Flare Sensitivity: {flareEffectivity}");
             }
 
             if (TargetingMode == TargetingModes.Gps || TargetingMode == TargetingModes.None || TargetingMode == TargetingModes.Inertial)

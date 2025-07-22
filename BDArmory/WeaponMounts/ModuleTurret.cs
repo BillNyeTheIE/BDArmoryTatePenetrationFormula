@@ -293,15 +293,16 @@ namespace BDArmory.WeaponMounts
             return false;
         }
 
-        public bool TargetInRange(Vector3 targetPosition, float thresholdDegrees, float maxDistance)
+        public bool TargetInRange(Vector3 targetPosition, float maxDistance, float thresholdDegrees = 0)
         {
-            if (!pitchTransform)
-            {
-                return false;
-            }
-            bool withinView = Vector3.Angle(targetPosition - pitchTransform.position, pitchTransform.forward) < thresholdDegrees;
-            bool withinDistance = (targetPosition - pitchTransform.position).sqrMagnitude < maxDistance * maxDistance;
-            return (withinView && withinDistance);
+            if (!referenceTransform) return false;
+            Vector3 vectorToTarget = targetPosition - referenceTransform.position;
+            if (vectorToTarget.sqrMagnitude < maxDistance * maxDistance) return false;
+
+            float angleYaw = Vector3.Angle(vectorToTarget.ProjectOnPlanePreNormalized(referenceTransform.up), referenceTransform.forward);
+            float signedAnglePitch = 90 - Vector3.Angle(referenceTransform.up, vectorToTarget);
+            bool withinView = thresholdDegrees > 0 ? Vector3.Angle(vectorToTarget, referenceTransform.forward) < thresholdDegrees : (signedAnglePitch > minPitch && signedAnglePitch < maxPitch && angleYaw < yawRange / 2);
+            return withinView;
         }
 
         public void SetReferenceTransform(Transform t)
