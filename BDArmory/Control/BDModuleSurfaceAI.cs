@@ -917,7 +917,7 @@ namespace BDArmory.Control
                 && (weaponManager.guardMode && targetVessel != null) //and under AI control 
                 && (
                     currentStatusMode == StatusMode.RammingSpeed || !weaponManager.HasWeaponsAndAmmo() //and have been told to ram or doesn't have weapons
-                    || !weaponCanEngage(weaponManager.currentGun) //or have no guns, or only fixed guns/turrets unable to traverse to target, or out of range
+                    || !WeaponCanEngage(weaponManager.currentGun) //or have no guns, or only fixed guns/turrets unable to traverse to target, or out of range
                 )
                 && (Mathf.Abs(targetVelocity) > 0 && vessel.horizontalSrfSpeed < 1 && vessel.angularVelocity.sqrMagnitude < 4) //and engaging but immobilized and can't rotate to bring guns to bear. TODO: angularVel threshold value? Or is 2 ?deg/s? sufficient cutoff?
             )
