@@ -482,6 +482,7 @@ namespace BDArmory.Targeting
 
         public override void OnFixedUpdate()
         {
+            base.OnFixedUpdate();
             if (HighLogic.LoadedSceneIsFlight)
             {
                 if (cameraEnabled && !vessel.packed && !vessel.IsControllable)

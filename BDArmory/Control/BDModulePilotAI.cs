@@ -3305,7 +3305,11 @@ namespace BDArmory.Control
                     AdjustThrottle(targetSpeed, false, useAB);
                 }
 
-                if (weaponManager.incomingMissileVessel != null && (weaponManager.ThreatClosingTime(weaponManager.incomingMissileVessel) <= weaponManager.evadeThreshold)) // Missile evasion
+                if (
+                    weaponManager.incomingMissileVessel != null
+                    && VesselModuleRegistry.GetMissileBase(weaponManager.incomingMissileVessel) != null // Modular missiles can lose the MMG part.
+                    && (weaponManager.ThreatClosingTime(weaponManager.incomingMissileVessel) <= weaponManager.evadeThreshold)
+                ) // Missile evasion
                 {
                     Vector3 targetDirection;
                     bool overrideThrottle = false;

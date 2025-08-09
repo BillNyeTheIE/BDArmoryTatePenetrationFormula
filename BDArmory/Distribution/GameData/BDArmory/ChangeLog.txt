@@ -4,6 +4,7 @@
 - UI:
 	-	Fix spelling of "ordnance" in localisation files (settings and modules retain the misspelling).
   - Add competition marquee messages for fuel/ammo detonations from battle damage.
+	- Tweak vessel switching weights to try to remain focused on vessels that are about to explode.
 - AI / WM:
 	- Add missing unclamped limits for 3-axis static damping.
 	- Adjust the release of the "Attack" command so that craft don't go dead-stick when under attack but not threatened enough to trigger evasion.

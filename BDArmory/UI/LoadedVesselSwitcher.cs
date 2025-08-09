@@ -1376,6 +1376,7 @@ namespace BDArmory.UI
                                     float crashTime = 30;
                                     string vesselName = wm.Current.vessel.vesselName;
                                     // avoid lingering on dying things
+                                    bool recentlyLostParts = false;
                                     bool recentlyDamaged = false;
                                     bool recentlyLanded = false;
 
@@ -1386,9 +1387,9 @@ namespace BDArmory.UI
                                         var currentParts = wm.Current.vessel.parts.Count;
                                         var vdat = BDACompetitionMode.Instance.Scores.ScoreData[vesselName];
                                         if (now - vdat.lastLostPartTime < 5d) // Lost parts within the last 5s.
-                                        {
+                                            recentlyLostParts = true;
+                                        if (now - vdat.lastDamageTime < 1d) // Took damage within the last 1s.
                                             recentlyDamaged = true;
-                                        }
 
                                         if (vdat.landedState)
                                         {
@@ -1511,28 +1512,28 @@ namespace BDArmory.UI
                                         if (wm.Current.isFlaring || wm.Current.isChaffing)
                                             vesselScore *= 0.8f;
                                     }
+                                    if (recentlyLostParts)
+                                        vesselScore *= 0.3f; // Because losing parts is very interesting.
                                     if (recentlyDamaged)
-                                    {
-                                        vesselScore *= 0.3f; // because taking hits is very interesting;
-                                    }
+                                        vesselScore *= 0.2f; // It's even more interesting if we're currently taking damage because we might explode.
                                     if (wm.Current.vessel.LandedOrSplashed)
-                                    {
-                                        if (wm.Current.vessel.srfSpeed > 2) //margin for physics jitter
                                         {
-                                            vesselScore *= Mathf.Min(((80 / (float)wm.Current.vessel.srfSpeed) / 2), 4); //srf Ai driven stuff thats still mobile
-                                        }
-                                        else
-                                        {
-                                            if (recentlyLanded)
-                                                vesselScore *= 2; // less interesting.
+                                            if (wm.Current.vessel.srfSpeed > 2) //margin for physics jitter
+                                            {
+                                                vesselScore *= Mathf.Min(((80 / (float)wm.Current.vessel.srfSpeed) / 2), 4); //srf Ai driven stuff thats still mobile
+                                            }
                                             else
-                                                vesselScore *= 4; // not interesting.
+                                            {
+                                                if (recentlyLanded)
+                                                    vesselScore *= 2; // less interesting.
+                                                else
+                                                    vesselScore *= 4; // not interesting.
+                                            }
                                         }
-                                    }
-                                    // if we're the active vessel add a penalty over time to force it to switch away eventually
+                                    // if we're the active vessel add a penalty over time to force it to switch away eventually (unless we're currently taking damage)
                                     if (wm.Current.vessel.isActiveVessel)
                                     {
-                                        vesselScore = (float)(vesselScore * timeSinceChange / 8.0);
+                                        vesselScore *= (float)(recentlyDamaged ? Math.Min(timeSinceChange / 8.0, 1.0) : (timeSinceChange / 8.0));
                                         foundActiveVessel = true;
                                     }
                                     if ((BDArmorySettings.TAG_MODE) && (wm.Current.Team.Name == "IT"))
@@ -1552,7 +1553,7 @@ namespace BDArmory.UI
                         }
                     }
                 lastActiveVessel = FlightGlobals.ActiveVessel;
-                if (!foundActiveVessel)
+                if (!foundActiveVessel) // if the active vessel dies it'll use a default score for a few seconds
                 {
                     var score = 100 * timeSinceChange;
                     if (score < bestScore)
@@ -1562,7 +1563,7 @@ namespace BDArmory.UI
                 }
                 if (timeSinceChange > BDArmorySettings.CAMERA_SWITCH_FREQUENCY * timeScaleSqrt)
                 {
-                    if (bestVessel != null && bestVessel.loaded && !bestVessel.packed && !(bestVessel.isActiveVessel)) // if a vessel dies it'll use a default score for a few seconds
+                    if (bestVessel != null && bestVessel.loaded && !bestVessel.packed && !bestVessel.isActiveVessel)
                     {
                         if (BDArmorySettings.DEBUG_OTHER) Debug.Log("[BDArmory.LoadedVesselSwitcher]: Switching vessel to " + bestVessel.GetName());
                         ForceSwitchVessel(bestVessel);

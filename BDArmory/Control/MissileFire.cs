@@ -2061,6 +2061,7 @@ namespace BDArmory.Control
         }
         public override void OnFixedUpdate()
         {
+            base.OnFixedUpdate();
             if (vessel == null || !vessel.gameObject.activeInHierarchy) return;
             if (weaponsListNeedsUpdating) UpdateList();
 
