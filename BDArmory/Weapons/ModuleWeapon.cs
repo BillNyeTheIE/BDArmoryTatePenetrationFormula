@@ -1235,6 +1235,11 @@ namespace BDArmory.Weapons
                     baseRPM = 3000;
                     Debug.LogError($"[BDArmory.ModuleWeapon] {shortName} missing roundsPerMinute field in .cfg! Fix your .cfg!");
                 }
+
+                if (!isChaingun)
+                    roundsPerMinute = baseRPM;
+                else if (roundsPerMinute > baseRPM)
+                    roundsPerMinute = baseRPM;
             }
             else baseRPM = 3000;
 
@@ -2059,7 +2064,7 @@ namespace BDArmory.Weapons
                             if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 41)
                                 gauge.UpdateReloadMeter(timeSinceFired * BDArmorySettings.FIRE_RATE_OVERRIDE / 60);
                             else
-                                gauge.UpdateReloadMeter(timeSinceFired * roundsPerMinute / 60);
+                                gauge.UpdateReloadMeter(timeSinceFired * roundsPerMinute / fireTransforms.Length / 60);
                         }
                     }
                     if (isReloading)
@@ -6322,7 +6327,9 @@ namespace BDArmory.Weapons
                                 _ => "Unknown"
                             }}");
                             if (binfo.eFuzeType == BulletFuzeTypes.Penetrating)
-                                output.AppendLine($"- Min thickness to arm fuze: {tempPenDepth * 0.666f:F2}");
+                                output.AppendLine($"- Min thickness to arm fuze: {(binfo.fuzeSensitivity > 0 ? binfo.fuzeSensitivity : tempPenDepth * 0.666f):F2} mm");
+                            if (binfo.eFuzeType == BulletFuzeTypes.Penetrating || binfo.eFuzeType == BulletFuzeTypes.Delay)
+                                output.AppendLine($"- Fuze delay: {(1000f * (binfo.fuzeDelay > 0 ? binfo.fuzeDelay : 1f/30f)):F2} ms");
                             output.AppendLine($"- radius:  {Math.Round(BlastPhysicsUtils.CalculateBlastRange(binfo.tntMass), 2)} m");
 
                             if (binfo.eFuzeType == BulletFuzeTypes.Timed || binfo.eFuzeType == BulletFuzeTypes.Proximity || binfo.eFuzeType == BulletFuzeTypes.Flak)

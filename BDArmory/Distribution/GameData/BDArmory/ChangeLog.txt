@@ -21,48 +21,60 @@
 	- Add 'Ammo' gauges for Countermeasure dispensers for how many CMs they have remaining.
 - Sensors:
 	- Add support for slaving turrets via targeting cameras.
-	- Fix Guard Mode targeting camera issues with moving targets.
+	- Fix targeting camera issues with moving targets.
 	- Fix 'Slave Turret' button occasionally locking the turret to the vessel's origin point or non-target point in space.
 	- Locking a target will no longer automatically slave active turrets to the target when manually controlling a craft. To slave turrets to a locked radar/camera, use the 'Slave Turret' button.
 	- Fix bug that allowed radars to lock on below the radar horizon when the appropriate settings are toggled.
 	- Fix datalinked radars not conveying lock information to all datalinked vessels.
+	- Fix RCS snapshots being affected by Conformal Decals.
 - Weapons:
 	- Add a "Yaw Standby Angle" slider to gun turrets.
 	- Multi-barreled guns now no longer swap to the next ammo type in the belt until after all barrels have fired.
 	- Multi-barreled guns now fire tracers every tracerInterval rounds of each barrel, and will fire tracers simultaneously from all barrels.
 	- Remove maxEngagementRange (default 5000m) check from bombs when AI is selecting what weapon to use.
 	- Fix aim lead offset for weapons with deploy animations.
+	- Added fuzeDelay and fuzeSensitivity functionality to bullets. Now, for penetrating and delay fuzes you can specify the fuze delay in seconds, and the fuze sensitivity in mm for penetrating fuzes, by listing them with commas, I.E. "fuzeType = Penetrating,0.01,20" for a 0.01 s delay which will be set off by 20 mm of armor (currently material differences are not considered).
+	- Fix bullet behavior when hitting parts with multiple colliders embedded in each other, bullets should now only hit such a part once, unless it exits the part and then hits the part again. Note the system in place cannot catch cases where another part is clipped in such a part.
 	- Missiles:
-		- Add improved missile controller.
-			- Missiles will now better respect gLimit as well as guidance-commanded acceleration, note this means some parameters may need to be tweaked to retain previous performance, specifically pronavGain and weave guidance accelerations.
-		- Improve AAMloft and Kappa's ability to hit targets with high closure rates close to the launch point, particularly for VLS and other 0/0 launch conditions.
-		- Fix multi-missile launcher issues when railAmmo > launcher rails on the mode
-		- Fix check for multi-mode engines being ignited and having fuel.
-		- Fix maddog ARH missile launches not turning on seeker.
-		- Add WeaveUseAGMDescentRatio and WeaveRandomRange to weave guidance, when WeaveUseAGMDescentRatio is true it forces the use of agmDescentRatio to allow for sea-skimming weave missiles. WeaveRandomRange is a Vector2 (format is WeaveRandomRange = (x,y) ) that allows for randomization of weave maneuver parameters.
-		- Non-modular cruise missiles are now limited to the top speed specified in the configuration file.
-		- Fix certain missiles becoming ghost-like entities that ignored bullets and interceptor missiles when fired from MultiMissileLaunchers with "ignoreLauncherColliders = true".
-		- Fix buggy behavior caused by partial failure of missile warheads to detonate when a custom warhead and a standard warhead were used in conjunction with non-zero fuze failure settings.
-		- Heat seeking missiles now more realistically use angular velocity rather than vector velocity for flare rejection.
-			- Added a new FloatCurve "lockedSensorVelocityMagnitudeBias", weights target score based on the normalized angular velocity magnitude difference, where 1 is when the target's angular velocity magnitude matches the expected angular velocity magnitude and 0 is when the angular velocity magnitude is off by the expected angular velocity magnitude (either 0, or twice the expected).
-			- FloatCurve defaults to all 1s when lockedSensorVelocityBias is not specified and linear when specified.
-			- Added lockedSensorMinAngularVelocity field which sets the minimum detectable angular velocity magnitude for angular velocity magnitude differencing.
-		- Loft guidance parameters are now no longer persistent and inaccessible in the SPH for non-modular missiles. Modders may still tune these parameters in-flight by enabling the "Debug Missiles" option in the BDArmory Settings menu.
-			- For modular missiles, parameters are persistent and editable in the SPH. Turning on "Debug Missiles" will also allow for in-flight adjustment of these parameters.
-		- Added "Lofted Aimpoint" toggle to Missile Turrets, with the accompanying "Loft Velocity Factor". When toggled on, the turret will aim above the target to provide some lofting to the missile trajectory (though this requires the usage of pronav and a gain schedule). "Loft Velocity Factor" is used to scale the missile's "optimimumVelocity" for the ballistic simulation, a lower "Loft Velocity Factor" results in a higher loft angle.
-		- New "maxTorqueAero" field for missiles, provides a dynamic pressure (density times velocity squared) based component to maxTorque. This is intended to simulate aerodynamic control surfaces (as opposed to maxTorque, which now represents things like thrust-vectoring).
-		- Several missile parameters can now be specified for different phases of flight with comma-separated values
-			- "liftArea"/"dragArea" has the format: [boost], [cruise], [deltaDeploy], [deltaCruiseDeploy], separated by commas. The [cruise] value is used when "decoupleBoosters" is true, representing the change in aerodynamics after dropping the booster stage. The deltas represent the change in area when deploy animations trigger. A boolean field "deployedLiftInCruise" (defaults to true) allows you to keep [deltaDeploy] after the booster separates.
-			- "maxTorqueAero" follows the same format as above.
-			- "maxTorque" has the format: [boost], [cruise], [post-thrust], allowing for simulation of thrust-vectoring missiles
-			- "steerMult" has the format: [boost], [cruise], allowing reduced "steerMult"s in cruise if desired.
-		- Implement various command-to-line of sight guidance types, these all use the "beamCorrectionFactor" field and the "pronavGain" fields (with support for pronav gain scheduling).
-			- "CLOS" performs basic command-to-line of sight guidance with no beam-velocity compensation
-			- "CLOSThree" performs command-to-line of sight guidance with beam-velocity compensation
-			- "CLOSLead" performs command-to-line of sight guidance with selectable lead (using the "beamLeadFactor" field, 1.0 representing full lead and 0.0 representing three point guidance. Defaults to 0.5 or half-rectification guidance.)
-			- "beamCorrectionFactor" is multiplied with the lateral error from the specified line of sight to provide a lateral velocity command, higher values result in a faster snap to the line of sight line, but also more oscillation
-			- "pronavGain" is used, in a similar manner as it use used in pronav guidance, to multiply the velocity error and provide an acceleration command. Higher values result in a faster snap to the commanded velocity vector, but also more oscillation.
-		- Add the gLimit, maxAoA and chaff/flare effectivity fields to the info box.
+		- General Changes:
+			- Fix maddog ARH missile launches not turning on seeker.
+			- Heat seeking missiles now more realistically use angular velocity rather than vector velocity for flare rejection.
+				- Added a new FloatCurve "lockedSensorVelocityMagnitudeBias", weights target score based on the normalized angular velocity magnitude difference, where 1 is when the target's angular velocity magnitude matches the expected angular velocity magnitude and 0 is when the angular velocity magnitude is off by the expected angular velocity magnitude (either 0, or twice the expected). FloatCurve defaults to all 1s when lockedSensorVelocityBias is not specified and linear when specified.
+				- Added lockedSensorMinAngularVelocity field which sets the minimum detectable angular velocity magnitude for angular velocity magnitude differencing.
+			- Ensure laser-guided weapons have "TargetAcquired" properly set prior to firing.
+		- Guidance:
+			- Add improved missile controller.
+				- Missiles will now better respect gLimit as well as guidance-commanded acceleration, note this means some parameters may need to be tweaked to retain previous performance, specifically pronavGain and weave guidance accelerations.
+			- Improve AAMloft and Kappa's ability to hit targets with high closure rates close to the launch point, particularly for VLS and other 0/0 launch conditions.
+			- Add WeaveUseAGMDescentRatio and WeaveRandomRange to weave guidance, when WeaveUseAGMDescentRatio is true it forces the use of agmDescentRatio to allow for sea-skimming weave missiles. WeaveRandomRange is a Vector2 (format is WeaveRandomRange = (x,y) ) that allows for randomization of weave maneuver parameters.
+			- Loft guidance parameters are now no longer persistent and inaccessible in the SPH for non-modular missiles. Modders may still tune these parameters in-flight by enabling the "Debug Missiles" option in the BDArmory Settings menu.
+				- For modular missiles, parameters are persistent and editable in the SPH. Turning on "Debug Missiles" will also allow for in-flight adjustment of these parameters.
+		- Modular Missiles:
+			- Fix check for multi-mode engines being ignited and having fuel.
+		- MissileLauncher/Standard Missiles:
+			- Sanity checks for maxOffboresight and cruiseSpeed, maxOffboresight and max cruiseSpeed are loaded from the configuration file to ensure consistency with intended values.
+			- Fix buggy behavior caused by partial failure of missile warheads to detonate when a custom warhead and a standard warhead were used in conjunction with non-zero fuze failure settings.
+			- New "maxTorqueAero" field for missiles, provides a dynamic pressure (density times velocity squared) based component to maxTorque. This is intended to simulate aerodynamic control surfaces (as opposed to maxTorque, which now represents things like thrust-vectoring).
+			- New "maneuvergLimit" field for missiles, provides the gLimit for the various maneuvers a missile might conduct (not general guidance maneuvers). Specifically, the pull-up phase of lofted guidance types, like AAMloft and kappa, and the pop-up maneuver of cruise missiles.
+			- Several missile parameters can now be specified for different phases of flight with comma-separated values
+				- "liftArea"/"dragArea" has the format: [boost], [cruise], [deltaDeploy], [deltaCruiseDeploy], separated by commas. The [cruise] value is used when "decoupleBoosters" is true, representing the change in aerodynamics after dropping the booster stage. The deltas represent the change in area when deploy animations trigger. A boolean field "deployedLiftInCruise" (defaults to true) allows you to keep [deltaDeploy] after the booster separates.
+				- "maxTorqueAero" follows the same format as above.
+				- "maxTorque" has the format: [boost], [cruise], [post-thrust], allowing for simulation of thrust-vectoring missiles
+				- "steerMult" has the format: [boost], [cruise], allowing reduced "steerMult"s in cruise if desired.
+			- Add the gLimit, maxAoA and chaff/flare effectivity fields to the info box.
+			- Implement various command-to-line of sight guidance types, these all use the "beamCorrectionFactor" field and the "pronavGain" fields (with support for pronav gain scheduling).
+				- "CLOS" performs basic command-to-line of sight guidance with no beam-velocity compensation
+				- "CLOSThree" performs command-to-line of sight guidance with beam-velocity compensation
+				- "CLOSLead" performs command-to-line of sight guidance with selectable lead (using the "beamLeadFactor" field, 1.0 representing full lead and 0.0 representing three point guidance. Defaults to 0.5 or half-rectification guidance.)
+				- "beamCorrectionFactor" is multiplied with the lateral error from the specified line of sight to provide a lateral velocity command, higher values result in a faster snap to the line of sight line, but also more oscillation
+				- "pronavGain" is used, in a similar manner as it use used in pronav guidance, to multiply the velocity error and provide an acceleration command. Higher values result in a faster snap to the commanded velocity vector, but also more oscillation.
+			- Replaced "radarTimeout" field with general "seekerTimeout", which is now used for heat-seeking, active radar homing, inertial and anti-radiation homing. Added "terminalSeekerTimeout" field so this can be specified separately for the initial and terminal targeting types.
+		- Launchers:
+			- Fix multi-missile launcher issues when railAmmo > launcher rails on the mode
+			- Fix multi-missile launchers not properly calculating "FiringAngle" parameter
+			- Fix certain missiles becoming ghost-like entities that ignored bullets and interceptor missiles when fired from MultiMissileLaunchers with "ignoreLauncherColliders = true".
+			- Added "Lofted Aimpoint" toggle to Missile Turrets, with the accompanying "Loft Velocity Factor". When toggled on, the turret will aim above the target to provide some lofting to the missile trajectory (though this requires the usage of pronav and a gain schedule). "Loft Velocity Factor" is used to scale the missile's "optimimumVelocity" for the ballistic simulation, a lower "Loft Velocity Factor" results in a higher loft angle.
+			- Added new "deployBlocksPitch", "deployBlocksYaw" and "deployBlocksReload" booleans to Missile Turrets, when toggled on, the turret will have to finish it's deploy animation before pitching/yawing, and will have to retract for reloading (respecting the pitch and yaw toggles as well).
 - GameModes:
 	- Don't spawn new asteroids in asteroid rain mode while in high time-warp.
 - Competition:

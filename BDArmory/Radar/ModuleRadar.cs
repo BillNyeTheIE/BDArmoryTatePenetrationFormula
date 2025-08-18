@@ -312,6 +312,9 @@ namespace BDArmory.Radar
         public float lockScanAngle;
         public bool slaveTurrets;
         public ModuleTurret lockingTurret;
+
+        // lockingPitch and lockingYaw are toggles for whether or not the radar should be able to control the lockingTurret's pitch/yaw
+        // this is associated with MissileTurret and ModuleWeapon turrets, if the radar is mounted on a turret.
         public bool lockingPitch = true;
         public bool lockingYaw = true;
 

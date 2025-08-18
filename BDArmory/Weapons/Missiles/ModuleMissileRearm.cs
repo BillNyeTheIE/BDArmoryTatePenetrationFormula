@@ -125,10 +125,10 @@ UI_ProgressBar(affectSymCounterparts = UI_Scene.None, controlEnabled = false, sc
         {
             this.enabled = true;
             this.part.force_activate();
-            var MML = part.FindModuleImplementing<MultiMissileLauncher>();
+            MultiMissileLauncher MML = part.FindModuleImplementing<MultiMissileLauncher>();
             if (MML == null || MML && MML.isClusterMissile) MissileName = part.name;
             if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
-                StartCoroutine(GetMissileValues());
+                StartCoroutine(GetMissileValues(MML));
             //GameEvents.onEditorShipModified.Add(ShipModified);
             if (maxAmmo < 0) maxAmmo = railAmmo;
             if (maxAmmo == 1) Fields["railAmmo"].guiActiveEditor = false;
@@ -157,7 +157,7 @@ UI_ProgressBar(affectSymCounterparts = UI_Scene.None, controlEnabled = false, sc
         {
             StartCoroutine(GetMissileValues());
         }
-        IEnumerator GetMissileValues()
+        IEnumerator GetMissileValues(MultiMissileLauncher MML = null)
         {
             yield return new WaitForFixedUpdate();
             MissileLauncher ml = part.FindModuleImplementing<MissileLauncher>();
@@ -188,6 +188,24 @@ UI_ProgressBar(affectSymCounterparts = UI_Scene.None, controlEnabled = false, sc
             {
                 missileCost = 0;
                 missileMass = 0;
+            }
+
+            if (MML != null && !MML.isClusterMissile)
+            {
+                string maxOffboresightString = ConfigNodeUtils.FindPartModuleConfigNodeValue(missilePart.partPrefab.partInfo.partConfig, "MissileLauncher", "maxOffBoresight");
+                if (!string.IsNullOrEmpty(maxOffboresightString)) // Use the default value from the MM patch.
+                {
+                    try
+                    {
+                        float maxOffboresight = float.Parse(maxOffboresightString);
+                        MML.updateMaxOffBoresight(maxOffboresight);
+                        if (BDArmorySettings.DEBUG_MISSILES) Debug.Log("[BDArmory.ModuleMissileRearm]: setting maxOffBoresight of " + part + " to " + maxOffboresight);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError("[BDArmory.ModuleMissileRearm]: Failed to parse maxOffBoresight configNode: " + e.Message);
+                    }
+                }
             }
         }
 

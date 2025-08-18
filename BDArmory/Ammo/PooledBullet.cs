@@ -89,6 +89,8 @@ namespace BDArmory.Bullets
 
         //public PooledBulletTypes bulletType;
         public BulletFuzeTypes fuzeType;
+        public float fuzeDelay = -1f;
+        public float fuzeSensitivity = -1f;
         public PooledBulletTypes HEType;
         public BulletDragTypes dragType;
 
@@ -179,6 +181,7 @@ namespace BDArmory.Bullets
         public bool hasRicocheted = false;
         public bool fuzeTriggered = false;
         private Part CurrentPart = null;
+        private bool previousWasReverseHit = false;
 
         public bool isAPSprojectile = false;
         public bool isSubProjectile = false;
@@ -389,6 +392,7 @@ namespace BDArmory.Bullets
             sourceVessel = null;
             sourceWeapon = null;
             CurrentPart = null;
+            previousWasReverseHit = false;
             sabot = false;
             partsHit.Clear();
             if (caliber >= BDArmorySettings.APS_THRESHOLD)  //if (caliber > 60)
@@ -535,7 +539,7 @@ namespace BDArmory.Bullets
                             if (fuzeType == BulletFuzeTypes.Delay || fuzeType == BulletFuzeTypes.Penetrating)
                             {
                                 fuzeTriggered = true;
-                                StartCoroutine(DelayedDetonationRoutine());
+                                delayedDetonationRoutine = StartCoroutine(DelayedDetonationRoutine());
                             }
                             else //if (fuzeType != BulletFuzeTypes.None)
                             {
@@ -928,10 +932,19 @@ namespace BDArmory.Bullets
             {
                 if (ProjectileUtils.IsIgnoredPart(hitPart)) return false; // Ignore ignored parts.
                 if (hitPart == sourceWeapon) return false; // Ignore weapon that fired the bullet.
-                if (bulletHit.isReverseHit && ProjectileUtils.IsArmorPart(hitPart)) return false; //only have bullet hit armor panels once - no back armor to hit if penetration
+                if (bulletHit.isReverseHit && ProjectileUtils.IsArmorPart(hitPart))
+                {
+                    CurrentPart = hitPart;
+                    previousWasReverseHit = bulletHit.isReverseHit;
+                    return false; //only have bullet hit armor panels once - no back armor to hit if penetration
+                }
+                if (CurrentPart && CurrentPart.persistentId == hitPart.persistentId && (bulletHit.isReverseHit == previousWasReverseHit))
+                    return false; // If we're dealing with a part that has more than 1 collider, and we're hitting different
+                                  // colliders while still going in the same direction, then ignore the part. Entry wound must
+                                  // match with an exit wound. This doesn't catch cases of this where there's an intervening part
             }
 
-
+            previousWasReverseHit = bulletHit.isReverseHit;
             CurrentPart = hitPart;
             if (hitEVA != null)
             {
@@ -1675,18 +1688,18 @@ namespace BDArmory.Bullets
                         {
                             if (BDArmorySettings.DEBUG_WEAPONS) Debug.Log("[BDArmory.PooledBullet]: Delay Fuze Tripped at t: " + Time.time);
                             fuzeTriggered = true;
-                            StartCoroutine(DelayedDetonationRoutine());
+                            delayedDetonationRoutine = StartCoroutine(DelayedDetonationRoutine());
                         }
                     }
                     else if (fuzeType == BulletFuzeTypes.Penetrating) //should look into having this be a set depth. For now, assume fancy inertial/electrical mechanism for detecting armor thickness based on time spent passing through
                     {
-                        if (penetrationFactor < 1.5f)
+                        if (!fuzeTriggered)
                         {
-                            if (!fuzeTriggered)
+                            if (fuzeSensitivity > 0 ? (thickness > fuzeSensitivity) : penetrationFactor < 1.5f)
                             {
                                 if (BDArmorySettings.DEBUG_WEAPONS) Debug.Log("[BDArmory.PooledBullet]: Penetrating Fuze Tripped at t: " + Time.time);
                                 fuzeTriggered = true;
-                                StartCoroutine(DelayedDetonationRoutine());
+                                delayedDetonationRoutine = StartCoroutine(DelayedDetonationRoutine());
                             }
                         }
                     }
@@ -1736,9 +1749,26 @@ namespace BDArmory.Bullets
         Coroutine delayedDetonationRoutine = null;
         IEnumerator DelayedDetonationRoutine()
         {
-            var wait = new WaitForEndOfFrame();
-            yield return wait;
-            yield return wait;
+            double currDist = distanceTraveled;
+            if (fuzeDelay > 0)
+            {
+                float sqrSpeed = currentVelocity.sqrMagnitude;
+                yield return new WaitForSecondsFixed(fuzeDelay);
+                float elapsedDist = (float)(distanceTraveled - currDist);
+                if (elapsedDist * elapsedDist < sqrSpeed * fuzeDelay * fuzeDelay)
+                {
+                    sqrSpeed = BDAMath.Sqrt(sqrSpeed);
+                    elapsedDist /= sqrSpeed;
+                    distanceTraveled += sqrSpeed * (fuzeDelay - elapsedDist);
+                    currentPosition += currentVelocity * (fuzeDelay - elapsedDist);
+                }
+            }
+            else
+            {
+                var wait = new WaitForEndOfFrame();
+                yield return wait;
+                yield return wait;
+            }
             fuzeTriggered = false;
             if (!hasDetonated)
             {
@@ -1894,6 +1924,8 @@ namespace BDArmory.Bullets
                 pBullet.incendiary = bulletType.incendiary;
                 pBullet.apBulletMod = bulletType.apBulletMod;
                 pBullet.bulletDmgMult = bulletDmgMult;
+                pBullet.fuzeDelay = bulletType.fuzeDelay;
+                pBullet.fuzeSensitivity = bulletType.fuzeSensitivity;
 
                 pBullet.ballisticCoefficient = bulletType.bulletBallisticCoefficient;
 

@@ -5,6 +5,7 @@ using UnityEngine;
 using BDArmory.Control;
 using BDArmory.CounterMeasure;
 using BDArmory.Extensions;
+using BDArmory.ModIntegration;
 using BDArmory.Settings;
 using BDArmory.Shaders;
 using BDArmory.Targeting;
@@ -21,8 +22,6 @@ namespace BDArmory.Radar
         private static bool rcsSetupCompleted = false;
         private static int radarResolution = 128;
 
-        private static bool hasCheckedForConformalDecals = false;
-        private static bool hasConformalDecals = false;
         private static bool hangarHiddenExternally = false;
 
         private static RenderTexture rcsRenderingVariable;
@@ -590,9 +589,9 @@ namespace BDArmory.Radar
                 return ti;
             }
 
-            // If in editor, turn off rendering of conformal decals
-            if (!HighLogic.LoadedSceneIsFlight && CheckForConformalDecals())
-                SetConformalDecalRendering(false);
+            // Disable rendering of conformal decals, which messes with the parent part's RCS render.
+            if (ConformalDecals.hasConformalDecals)
+                SetConformalDecalRendering(v, false);
 
             // If in editor, turn off rendering hangar
             if (!HighLogic.LoadedSceneIsFlight)
@@ -792,9 +791,9 @@ namespace BDArmory.Radar
                     }
                 }
             //}
-            // If in editor, turn back on rendering of conformal decals
-            if (!HighLogic.LoadedSceneIsFlight && CheckForConformalDecals())
-                SetConformalDecalRendering(true);
+            // Re-enable rendering of conformal decals.
+            if (ConformalDecals.hasConformalDecals)
+                SetConformalDecalRendering(v, true);
 
             // If in editor, turn back on rendering of hangar
             if (!HighLogic.LoadedSceneIsFlight)
@@ -814,42 +813,30 @@ namespace BDArmory.Radar
             return ti;
         }
 
-        public static bool CheckForConformalDecals()
+        public static void SetConformalDecalRendering(Vessel v, bool renderEnabled)
         {
-            if (hasCheckedForConformalDecals) return hasConformalDecals;
-            hasCheckedForConformalDecals = true;
-            foreach (var assy in AssemblyLoader.loadedAssemblies)
+            if (!ConformalDecals.hasConformalDecals) return;
+            if (HighLogic.LoadedSceneIsFlight && v == null) return; // Invalid vessel to render.
+
+            using List<Part>.Enumerator parts = HighLogic.LoadedSceneIsEditor ? EditorLogic.fetch.ship.Parts.GetEnumerator() : v.Parts.GetEnumerator();
+            while (parts.MoveNext())
             {
-                if (assy.assembly.FullName.StartsWith("ConformalDecals"))
+                foreach (var module in parts.Current.Modules)
                 {
-                    hasConformalDecals = true;
-                    if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Found Conformal Decals Assembly: {assy.assembly.FullName}");
-                }
-            }
-            return hasConformalDecals;
-        }
-
-        public static void SetConformalDecalRendering(bool renderEnabled)
-        {
-            if (!hasConformalDecals) return;
-
-            using (List<Part>.Enumerator parts = EditorLogic.fetch.ship.Parts.GetEnumerator())
-                while (parts.MoveNext())
-                {
-                    foreach (var module in parts.Current.Modules)
+                    if ((module.moduleName == "ModuleConformalDecal") || (module.moduleName == "ModuleConformalFlag") || (module.moduleName == "ModuleConformalText"))
                     {
-                        if ((module.moduleName == "ModuleConformalDecal") || (module.moduleName == "ModuleConformalFlag") || (module.moduleName == "ModuleConformalText"))
+                        if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Found {module.moduleName} for {parts.Current.name}.");
+                        foreach (var r in parts.Current.GetComponentsInChildren<Renderer>())
                         {
-                            if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Found {module.moduleName} for {parts.Current.name}.");
-                            foreach (var r in parts.Current.GetComponentsInChildren<Renderer>())
-                            {
-                                if (r.GetComponentInParent<Part>() != parts.Current) continue; // Don't recurse to child parts.
-                                r.enabled = renderEnabled;
-                                if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Set rendering for {parts.Current.name} to {renderEnabled}.");
-                            }
+                            if (r.GetComponentInParent<Part>() != parts.Current) continue; // Don't recurse to child parts.
+                            r.enabled = renderEnabled;
+                            if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils]: Set rendering for {r.name} on {parts.Current.name} to {renderEnabled}.");
                         }
+                        var cdComponent = ConformalDecals.Instance.GetMCDComponent(parts.Current);
+                        if (cdComponent != null) ConformalDecals.Instance.SetMCDIsAttached(cdComponent, renderEnabled);
                     }
                 }
+            }
         }
 
         // Code to hide/show SPH/VAB during RCS render to prevent the hangar itself from affecting RCS calculation, code modified from HangarExtender

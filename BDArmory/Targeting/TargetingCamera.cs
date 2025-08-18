@@ -13,6 +13,7 @@ namespace BDArmory.Targeting
         TGPCameraEffects camEffects;
         Light nvLight;
         public bool nvMode = false;
+        public bool color = false;
 
         private Texture2D reticleTex;
 

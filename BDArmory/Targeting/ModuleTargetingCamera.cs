@@ -42,6 +42,9 @@ namespace BDArmory.Targeting
         [KSPField(isPersistant = true)]
         public bool cameraEnabled;
 
+        [KSPField]
+        public bool colorCamera = false;
+
         float fov
         {
             get
@@ -202,6 +205,7 @@ namespace BDArmory.Targeting
                 activeCam = this;
                 windowIsOpen = true;
                 TargetingCamera.Instance.EnableCamera(cameraParentTransform);
+                TargetingCamera.Instance.color = colorCamera;
                 TargetingCamera.Instance.nvMode = nvMode;
                 TargetingCamera.Instance.SetFOV(fov);
                 ResizeTargetWindow();
@@ -313,6 +317,7 @@ namespace BDArmory.Targeting
                     Debug.Log("[BDArmory.ModuleTargetingCamera]: saved gtp: " + bodyRelativeGTP);
                     DelayedEnable();
                 }
+                TimingManager.FixedUpdateAdd(TimingManager.TimingStage.BetterLateThanNever, CameraTracking);
             }
         }
 
@@ -403,10 +408,15 @@ namespace BDArmory.Targeting
                 Vector3 camUp = cameraParentTransform.up;
                 if (eyeHolderTransform) camUp = Vector3.Cross(cameraParentTransform.forward, eyeHolderTransform.right);
                 cameraParentTransform.rotation = Quaternion.LookRotation(lookVector, camUp);
-                if (vessel.isActiveVessel && activeCam == this && TargetingCamera.cameraTransform)
-                {
-                    TargetingCamera.cameraTransform.rotation = Quaternion.LookRotation(cameraParentTransform.forward, worldUp);
-                }
+            }
+        }
+
+        void UpdateCameraDirection()
+        {
+            Vector3 worldUp = VectorUtils.GetUpDirection(cameraParentTransform.position);
+            if (vessel.isActiveVessel && activeCam == this && TargetingCamera.cameraTransform)
+            {
+                TargetingCamera.cameraTransform.rotation = Quaternion.LookRotation(cameraParentTransform.forward, worldUp);
             }
         }
 
@@ -429,53 +439,11 @@ namespace BDArmory.Targeting
                         {
                             TargetingCamera.Instance.SetFOV(fov);
                         }
+
+                        UpdateCameraDirection();
                     }
 
-                    if (radarLock)
-                    {
-                        UpdateRadarLock();
-                    }
-
-                    if (groundStabilized)
-                    {
-                        if (lockedVessel != null)
-                            groundTargetPosition = lockedVessel.CoM;
-                        else
-                            groundTargetPosition = VectorUtils.GetWorldSurfacePostion(bodyRelativeGTP, vessel.mainBody);//vessel.mainBody.GetWorldSurfacePosition(bodyRelativeGTP.x, bodyRelativeGTP.y, bodyRelativeGTP.z);
-
-                        Vector3 lookVector = groundTargetPosition - cameraParentTransform.position;
-                        //cameraParentTransform.rotation = Quaternion.LookRotation(lookVector);
-                        PointCameraModel(lookVector);
-                    }
-
-                    Vector3 lookDirection = cameraParentTransform.forward;
-                    if (Vector3.Angle(lookDirection, cameraParentTransform.parent.forward) > gimbalLimit)
-                    {
-                        lookDirection = Vector3.RotateTowards(cameraParentTransform.transform.parent.forward, lookDirection, gimbalLimit * Mathf.Deg2Rad, 0);
-                        gimbalLimitReached = true;
-                        lockedVessel = null;
-                    }
-                    else
-                    {
-                        gimbalLimitReached = false;
-                    }
-
-                    if (!groundStabilized || gimbalLimitReached)
-                    {
-                        PointCameraModel(lookDirection);
-                    }
-
-                    if (eyeHolderTransform)
-                    {
-                        Vector3 projectedForward = cameraParentTransform.forward.ProjectOnPlanePreNormalized(eyeHolderTransform.parent.up);
-                        if (projectedForward != Vector3.zero)
-                        {
-                            eyeHolderTransform.rotation = Quaternion.LookRotation(projectedForward, eyeHolderTransform.parent.up);
-                        }
-                    }
-
-                    UpdateControls();
-                    UpdateSlaveData();
+                    CameraTracking();
                 }
             }
         }
@@ -503,12 +471,63 @@ namespace BDArmory.Targeting
                         DisableCamera();
                     }
                     if (delayedEnabling) return;
+                }
+            }
+        }
 
-                    if (cameraEnabled)
+        void CameraTracking()
+        {
+            if (cameraEnabled && TargetingCamera.ReadyForUse && vessel.IsControllable)
+            {
+                if (delayedEnabling) return;
+                if (!TargetingCamera.Instance || FlightGlobals.currentMainBody == null) return;
+
+                if (radarLock)
+                {
+                    UpdateRadarLock();
+                }
+
+                if (groundStabilized && !slewingToPosition)
+                {
+                    if (lockedVessel != null)
+                        groundTargetPosition = lockedVessel.CoM;
+                    else
+                        groundTargetPosition = VectorUtils.GetWorldSurfacePostion(bodyRelativeGTP, vessel.mainBody);//vessel.mainBody.GetWorldSurfacePosition(bodyRelativeGTP.x, bodyRelativeGTP.y, bodyRelativeGTP.z);
+
+                    Vector3 lookVector = groundTargetPosition - cameraParentTransform.position;
+                    //cameraParentTransform.rotation = Quaternion.LookRotation(lookVector);
+                    PointCameraModel(lookVector);
+                }
+
+                Vector3 lookDirection = cameraParentTransform.forward;
+                if (Vector3.Angle(lookDirection, cameraParentTransform.parent.forward) > gimbalLimit)
+                {
+                    lookDirection = Vector3.RotateTowards(cameraParentTransform.transform.parent.forward, lookDirection, gimbalLimit * Mathf.Deg2Rad, 0);
+                    gimbalLimitReached = true;
+                    lockedVessel = null;
+                }
+                else
+                {
+                    gimbalLimitReached = false;
+                }
+
+                if (!groundStabilized || gimbalLimitReached)
+                {
+                    PointCameraModel(lookDirection);
+                }
+
+                if (eyeHolderTransform)
+                {
+                    Vector3 projectedForward = cameraParentTransform.forward.ProjectOnPlanePreNormalized(eyeHolderTransform.parent.up);
+                    if (projectedForward != Vector3.zero)
                     {
-                        GetHitPoint();
+                        eyeHolderTransform.rotation = Quaternion.LookRotation(projectedForward, eyeHolderTransform.parent.up);
                     }
                 }
+
+                UpdateControls();
+                UpdateSlaveData();
+                GetHitPoint();
             }
         }
 
@@ -658,7 +677,7 @@ namespace BDArmory.Targeting
                         ClearTarget();
                     }
                     //lookRotation = Quaternion.RotateTowards(cameraParentTransform.rotation, lookRotation, 120*Time.fixedDeltaTime);
-                    Vector3 rotateTwdDirection = Vector3.RotateTowards(cameraParentTransform.forward, targetDirection, 1200 * Time.fixedDeltaTime * Mathf.Deg2Rad, 0);
+                    Vector3 rotateTwdDirection = Vector3.RotateTowards(cameraParentTransform.forward, targetDirection, traverseRate * Time.fixedDeltaTime * Mathf.Deg2Rad, 0);
                     PointCameraModel(rotateTwdDirection);
                 }
             }
@@ -963,8 +982,9 @@ namespace BDArmory.Targeting
                     if (weaponManager.selectedWeapon.GetWeaponClass() == WeaponClasses.Missile)
                     {
                         MissileBase currMissile = weaponManager.CurrentMissile;
-                        if (currMissile.TargetingMode == MissileBase.TargetingModes.Gps ||
-                            currMissile.TargetingMode == MissileBase.TargetingModes.Laser)
+                        if (currMissile && 
+                            (currMissile.TargetingMode == MissileBase.TargetingModes.Gps ||
+                            currMissile.TargetingMode == MissileBase.TargetingModes.Laser))
                         {
                             MissileLaunchParams dlz =
                                 MissileLaunchParams.GetDynamicLaunchParams(currMissile, Vector3.zero, groundTargetPosition);
@@ -1307,6 +1327,10 @@ namespace BDArmory.Targeting
                             lockedVessel = p.vessel;
                             //StartCoroutine(PointToPositionRoutine(p.vessel.CoM, p.vessel, false));
                         }
+                        else
+                        {
+                            lockedVessel = null;
+                        }
                     }
                     Vector3d newGTP = VectorUtils.WorldPositionToGeoCoords(groundTargetPosition, vessel.mainBody);
                     if (newGTP != Vector3d.zero)
@@ -1374,6 +1398,10 @@ namespace BDArmory.Targeting
                         {
                             groundTargetPosition = p.vessel.CoM;
                             lockedVessel = p.vessel;
+                        }
+                        else
+                        {
+                            lockedVessel = null;
                         }
                     }
                     Vector3d newGTP = VectorUtils.WorldPositionToGeoCoords(groundTargetPosition, vessel.mainBody);
@@ -1529,6 +1557,7 @@ namespace BDArmory.Targeting
             }
             GameEvents.onVesselCreate.Remove(Disconnect);
             SlewingMouseCam = false;
+            TimingManager.FixedUpdateRemove(TimingManager.TimingStage.FashionablyLate, CameraTracking);
         }
 
         Vector2 TargetAzimuthElevationScreenPos(Rect screenRect, Vector3 targetPosition, float textureSize)
