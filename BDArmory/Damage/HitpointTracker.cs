@@ -1260,6 +1260,10 @@ namespace BDArmory.Damage
                     maxSupportedArmor = ArmorThickness;
                 }
             }
+			if (BDArmorySettings.MAX_ARMOR_LIMIT >= 0)
+            {
+                maxSupportedArmor = Mathf.Min(BDArmorySettings.MAX_ARMOR_LIMIT, maxSupportedArmor);
+            }
             if (BDArmorySettings.DEBUG_ARMOR)
             {
                 Debug.Log("[ARMOR] max supported armor for " + part.name + " is " + maxSupportedArmor);
@@ -1467,6 +1471,10 @@ namespace BDArmory.Damage
                 UI_FloatRange armorFieldEditor = (UI_FloatRange)Fields["Armor"].uiControlEditor;
                 if (isProcWing)
                     maxSupportedArmor = ProceduralWing.getPwingThickness(part);
+				if (BDArmorySettings.MAX_ARMOR_LIMIT >= 0)
+                {
+                    maxSupportedArmor = Mathf.Min(BDArmorySettings.MAX_ARMOR_LIMIT, maxSupportedArmor);
+                }
                 if (armorFieldEditor.maxValue != maxSupportedArmor)
                 {
                     armorReset = false;

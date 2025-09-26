@@ -2283,13 +2283,15 @@ namespace BDArmory.Radar
             var orbitalAI = VesselModuleRegistry.GetModule<BDModuleOrbitalAI>(myWpnManager.vessel, true);
             var ignoreMyTargetTargetingMe = (pilotAI != null && pilotAI.evasionIgnoreMyTargetTargetingMe) ||
                 (orbitalAI != null && orbitalAI.evasionIgnoreMyTargetTargetingMe);
-            float maxRWRDistance = RWR != null ? RWR.rwrDisplayRange : maxViewDistance;
+            float maxRWRDistance = maxViewDistance;
             using (var loadedvessels = BDATargetManager.LoadedVessels.GetEnumerator())
                 while (loadedvessels.MoveNext())
                 {
                     if (loadedvessels.Current == null || !loadedvessels.Current.loaded || VesselModuleRegistry.ignoredVesselTypes.Contains(loadedvessels.Current.vesselType)) continue;
                     if (loadedvessels.Current == myWpnManager.vessel) continue; //ignore self
-
+                    var tgtMF = VesselModuleRegistry.GetModule<MissileFire>(loadedvessels.Current, true);
+                    if (tgtMF && tgtMF.vesselRadarData) maxRWRDistance = tgtMF.vesselRadarData.MaxRadarRange();
+                    maxRWRDistance = Mathf.Max(maxRWRDistance, maxViewDistance);
                     Vector3 vesselProjectedDirection = (loadedvessels.Current.CoM - position).ProjectOnPlanePreNormalized(upVector);
                     Vector3 vesselDirection = loadedvessels.Current.CoM - position;
                     float vesselDistanceSqr = (loadedvessels.Current.CoM - position).sqrMagnitude;

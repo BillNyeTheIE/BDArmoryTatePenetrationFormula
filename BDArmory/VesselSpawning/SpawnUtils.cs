@@ -1042,7 +1042,7 @@ namespace BDArmory.VesselSpawning
                         }
                         if (part.Current.GetComponent<ModuleCommand>() != null)
                         {
-                            if (!vessel.GetName().Contains(BDArmorySettings.PINATA_NAME))
+                            if (!vessel.GetName().Contains(BDArmorySettings.PINATA_NAME) && BDArmorySettings.RUNWAY_PROJECT_ROUND != 80)
                             {
                                 ModuleCommand MC;
                                 MC = part.Current.GetComponent<ModuleCommand>();

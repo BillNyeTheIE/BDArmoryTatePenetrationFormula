@@ -93,7 +93,7 @@ namespace BDArmory.VesselSpawning
                     yield break;
                 }
 
-                AddToActiveCompetition(vessel, airborne);
+                AddToActiveCompetition(vessel, airborne, true);
             }
 
             vesselSpawnSuccess = true;

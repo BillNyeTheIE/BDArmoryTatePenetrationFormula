@@ -945,7 +945,7 @@ namespace BDArmory.VesselSpawning
         /// </summary>
         /// <param name="vessel"></param>
         /// <param name="airborne"></param>
-        public void AddToActiveCompetition(Vessel vessel, bool airborne)
+        public void AddToActiveCompetition(Vessel vessel, bool airborne, bool resetTeam)
         {
             var vesselName = vessel.vesselName;
             // If a competition is active, update the scoring structure.
@@ -963,9 +963,14 @@ namespace BDArmory.VesselSpawning
             }
 
             var weaponManager = VesselModuleRegistry.GetModule<MissileFire>(vessel);
+            if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 80)
+            {
+                if (!string.IsNullOrEmpty(BDArmorySettings.REMOTE_ORC_NPCS_TEAM) && vessel.GetName().Contains(BDArmorySettings.REMOTE_ORCHESTRATION_NPC_SWAPPER)) weaponManager.SetTeam(BDTeam.Get(BDArmorySettings.REMOTE_ORC_NPCS_TEAM));
+            }
+
             if (BDArmorySettings.TAG_MODE && !string.IsNullOrEmpty(BDACompetitionMode.Instance.Scores.currentlyIT))
             { weaponManager.SetTeam(BDTeam.Get("NO")); }
-            else
+            else if (resetTeam)
             {
                 // Assign the vessel to an unassigned team.
                 var weaponManagers = LoadedVesselSwitcher.Instance.WeaponManagers.SelectMany(tm => tm.Value).ToList();

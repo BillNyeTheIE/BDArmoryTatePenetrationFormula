@@ -3215,12 +3215,15 @@ namespace BDArmory.Competition
 
             if (BDArmorySettings.COMPETITION_DURATION > 0 && now - competitionStartTime >= BDArmorySettings.COMPETITION_DURATION * 60d)
             {
-                var message = "Ending competition due to out-of-time.";
-                competitionStatus.Add(message);
-                Debug.Log($"[BDArmory.BDACompetitionMode:{CompetitionID.ToString()}]: " + message);
-                LogResults(message: "due to out-of-time", tag: competitionTag);
-                StopCompetition();
-                return;
+                if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND != 80)
+                {
+                    var message = "Ending competition due to out-of-time.";
+                    competitionStatus.Add(message);
+                    Debug.Log($"[BDArmory.BDACompetitionMode:{CompetitionID.ToString()}]: " + message);
+                    LogResults(message: "due to out-of-time", tag: competitionTag);
+                    StopCompetition();
+                    return;
+                }
             }
 
             if ((BDArmorySettings.MUTATOR_MODE && BDArmorySettings.MUTATOR_APPLY_TIMER) && BDArmorySettings.MUTATOR_DURATION > 0 && now - MutatorResetTime >= BDArmorySettings.MUTATOR_DURATION * 60d && BDArmorySettings.MUTATOR_LIST.Count > 0)
