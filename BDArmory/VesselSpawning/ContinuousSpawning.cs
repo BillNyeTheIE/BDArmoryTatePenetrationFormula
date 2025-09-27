@@ -328,12 +328,17 @@ namespace BDArmory.VesselSpawning
                     {
                         if (BDArmorySettings.COMPETITION_DURATION > 0 && Planetarium.GetUniversalTime() - BDACompetitionMode.Instance.competitionStartTime >= BDArmorySettings.COMPETITION_DURATION * 60d)
                         {
-                            var message = "Ending competition due to out-of-time.";
+                            var message = "Ending Continuous Spawn due to out-of-time.";
                             BDACompetitionMode.Instance.competitionStatus.Add(message);
                             Debug.Log($"[BDArmory.BDACompetitionMode:{BDACompetitionMode.Instance.CompetitionID.ToString()}]: " + message);
                             BDACompetitionMode.Instance.LogResults(message: "due to out-of-time", tag: BDACompetitionMode.Instance.competitionTag);
                             BDACompetitionMode.Instance.StopCompetition();
-                            if (npcFiles.Count >= BDArmorySettings.CS_NPCS_PER_HEAT) resetRound = true;
+                            if (npcFiles.Count >= BDArmorySettings.CS_NPCS_PER_HEAT)
+                            {
+                                resetRound = true;
+                                vesselsSpawningContinuously = false;
+                                break;
+                            }
                         }
                     }
                 }
