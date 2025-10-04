@@ -7,7 +7,7 @@ namespace BDArmory.Settings
 {
     public class BDArmorySettings
     {
-        public static string oldSettingsConfigURL = Path.Combine(KSPUtil.ApplicationRootPath, "GameData/BDArmory/settings.cfg"); // Migrate from the old settings file to the new one in PluginData so that we don't invalidate the ModuleManager cache.
+        public static string oldSettingsConfigURL = Path.GetFullPath(Path.Combine(KSPUtil.ApplicationRootPath, "GameData/BDArmory/settings.cfg")); // Migrate from the old settings file to the new one in PluginData so that we don't invalidate the ModuleManager cache.
         public static string settingsConfigURL = Path.GetFullPath(Path.Combine(KSPUtil.ApplicationRootPath, "GameData/BDArmory/PluginData/settings.cfg"));
         public static bool ready = false;
 
@@ -251,6 +251,7 @@ namespace BDArmory.Settings
         [BDAPersistentSettingsField] public static float ASTEROID_RAIN_RADIUS = 3f; // Km.
         [BDAPersistentSettingsField] public static bool ASTEROID_RAIN_FOLLOWS_CENTROID = true;
         [BDAPersistentSettingsField] public static bool ASTEROID_RAIN_FOLLOWS_SPREAD = true;
+        [BDAPersistentSettingsField] public static float GUARD_MODE_TRIGGER_ALT = 3000; // m.
         [BDAPersistentSettingsField] public static bool MUTATOR_MODE = false;
         [BDAPersistentSettingsField] public static bool ZOMBIE_MODE = false;
         [BDAPersistentSettingsField] public static bool DISCO_MODE = false;
@@ -271,6 +272,7 @@ namespace BDArmory.Settings
         #region Battle Damage settings
         [BDAPersistentSettingsField] public static bool BATTLEDAMAGE_TOGGLE = false;    // Main battle damage toggle.
         [BDAPersistentSettingsField] public static float BD_DAMAGE_CHANCE = 5;          // Base chance per-hit to proc damage
+        [BDAPersistentSettingsField] public static float BD_DAMAGE_PENETRATION = 0.2f;  // Penetration factor required to proc damage
         [BDAPersistentSettingsField] public static bool BD_SUBSYSTEMS = true;           // Non-critical module damage?
         [BDAPersistentSettingsField] public static bool BD_TANKS = true;                // Fuel tanks, batteries can leak/burn
         [BDAPersistentSettingsField] public static float BD_TANK_LEAK_TIME = 20;        // Leak duration

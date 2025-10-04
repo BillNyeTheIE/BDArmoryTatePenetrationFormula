@@ -10,6 +10,7 @@ using BDArmory.GameModes.Waypoints;
 using BDArmory.Settings;
 using BDArmory.Utils;
 using BDArmory.VesselSpawning;
+using BDArmory.Extensions;
 
 namespace BDArmory.Competition
 {
@@ -45,7 +46,7 @@ namespace BDArmory.Competition
             foreach (var vessel in vessels)
             {
                 ScoreData[vessel.vesselName].competitionID = BDACompetitionMode.Instance.CompetitionID;
-                ScoreData[vessel.vesselName].team = VesselModuleRegistry.GetMissileFire(vessel, true).Team.Name;
+                ScoreData[vessel.vesselName].team = vessel.ActiveController().WM.Team.Name;
             }
             deathCount = 0;
             deathOrder.Clear();
@@ -64,7 +65,7 @@ namespace BDArmory.Competition
             if (BDACompetitionMode.Instance.IsValidVessel(vessel) != BDACompetitionMode.InvalidVesselReason.None) return false; // Invalid vessel.
             ScoreData[vessel.vesselName] = new ScoringData();
             ScoreData[vessel.vesselName].competitionID = BDACompetitionMode.Instance.CompetitionID;
-            ScoreData[vessel.vesselName].team = VesselModuleRegistry.GetMissileFire(vessel, true).Team.Name;
+            ScoreData[vessel.vesselName].team = vessel.ActiveController().WM.Team.Name;
             ScoreData[vessel.vesselName].lastFiredTime = Planetarium.GetUniversalTime();
             ScoreData[vessel.vesselName].previousPartCount = vessel.parts.Count();
             BDACompetitionMode.Instance.AddPlayerToRammingInformation(vessel);
@@ -320,8 +321,9 @@ namespace BDArmory.Competition
             var victim = victimVessel.vesselName;
             if (damage <= 0 || attacker == null || victim == null || !ScoreData.ContainsKey(attacker) || !ScoreData.ContainsKey(victim)) return false; // Note: we allow attacker=victim here to track self damage.
             if (ScoreData[victim].aliveState != AliveState.Alive) return false; // Ignore damage after the victim is dead.
-            if (VesselModuleRegistry.GetModuleCount<MissileFire>(victimVessel) == 0) return false; // The victim is dead, but hasn't been registered as such yet. We want to check this here as it's common for BD to occur as the vessel is killed.
+            if (victimVessel.ActiveController().WM == null) return false; // The victim is dead, but hasn't been registered as such yet. We want to check this here as it's common for BD to occur as the vessel is killed.
             if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 74 && victim.Contains(BDArmorySettings.REMOTE_ORCHESTRATION_NPC_SWAPPER)) damage *= BDArmorySettings.VS_NPC_SCORE_MOD;
+
             if (ScoreData[victim].battleDamageFrom.ContainsKey(attacker)) { ScoreData[victim].battleDamageFrom[attacker] += damage; }
             else { ScoreData[victim].battleDamageFrom[attacker] = damage; }
 
@@ -593,7 +595,7 @@ namespace BDArmory.Competition
                 ScoreData[vesselName].tagIsIt = true;
                 ScoreData[vesselName].tagTimesIt++;
                 ScoreData[vesselName].tagLastUpdated = now;
-                var mf = VesselModuleRegistry.GetMissileFire(vessels[vesselName]);
+                var mf = vessels[vesselName].ActiveController().WM;
                 mf.SetTeam(BDTeam.Get("IT"));
                 mf.ForceScan();
                 BDACompetitionMode.Instance.competitionStatus.Add(vesselName + " is IT!");
@@ -607,7 +609,7 @@ namespace BDArmory.Competition
                     if (ScoreData[player].team != "NO")
                     {
                         ScoreData[player].tagIsIt = false;
-                        var mf = VesselModuleRegistry.GetMissileFire(vessels[player]);
+                        var mf = vessels[player].ActiveController().WM;
                         mf.SetTeam(BDTeam.Get("NO"));
                         mf.ForceScan();
                         vessels[player].ActionGroups.ToggleGroup(BDACompetitionMode.KM_dictAG[9]); // Trigger AG9 on becoming "NOT IT"
@@ -657,10 +659,10 @@ namespace BDArmory.Competition
             var survivingTeamNames = new HashSet<string>();
             foreach (var vessel in FlightGlobals.Vessels)
             {
-                if (vessel == null || !vessel.loaded || vessel.packed || VesselModuleRegistry.ignoredVesselTypes.Contains(vessel.vesselType))
+                if (vessel == null || !vessel.loaded || vessel.packed || VesselModuleRegistry.IgnoredVesselTypes.Contains(vessel.vesselType))
                     continue;
-                var mf = VesselModuleRegistry.GetModule<MissileFire>(vessel);
-                var ai = VesselModuleRegistry.GetIBDAIControl(vessel);
+                var mf = vessel.ActiveController().WM;
+                var ai = vessel.ActiveController().AI;
                 double HP = 0;
                 double WreckFactor = 0;
                 if (mf != null)

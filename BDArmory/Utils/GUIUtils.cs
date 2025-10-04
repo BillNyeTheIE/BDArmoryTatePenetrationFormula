@@ -336,10 +336,9 @@ namespace BDArmory.Utils
                 return true;
             if (ModuleTargetingCamera.windowIsOpen && MouseIsInRect(BDArmorySetup.WindowRectTargetingCam, inverseMousePos))
                 return true;
-            if (BDArmorySetup.Instance.ActiveWeaponManager)
+            MissileFire wm = BDArmorySetup.Instance.OnGUIWM;
+            if (wm != null)
             {
-                MissileFire wm = BDArmorySetup.Instance.ActiveWeaponManager;
-
                 if (wm.vesselRadarData && wm.vesselRadarData.guiEnabled)
                 {
                     if (MouseIsInRect(BDArmorySetup.WindowRectRadar, inverseMousePos)) return true;
@@ -546,7 +545,43 @@ namespace BDArmory.Utils
                 return UI_FloatSemiLogRange.FromSliderValue(sliderValue, minValue, sigFig, withZero, reducedPrecisionAtMin);
             }
             else return value;
-            // return UI_FloatSemiLogRange.FromSliderValue(GUI.HorizontalSlider(rect, UI_FloatSemiLogRange.ToSliderValue(value, minValue, sigFig, withZero, reducedPrecisionAtMin), withZero ? UI_FloatSemiLogRange.ToSliderValue(0, minValue, sigFig, withZero, reducedPrecisionAtMin) : 1, UI_FloatSemiLogRange.ToSliderValue(maxValue, minValue, sigFig, withZero, reducedPrecisionAtMin)), minValue, sigFig, withZero, reducedPrecisionAtMin);
+        }
+
+        /// <summary>
+        /// Wrapper for HorizontalSlider for UI_FloatLogRange fields.
+        /// </summary>
+        /// <param name="rect"></param>
+        /// <param name="value"></param>
+        /// <param name="minValue"></param>
+        /// <param name="maxValue"></param>
+        /// <param name="sigFig"></param>
+        /// <param name="withZero"></param>
+        /// <param name="reducedPrecisionAtMin"></param>
+        /// <param name="cache">A cache of tuples to avoid needlessly recalculating log values. Can initially be null.</param>
+        /// <returns></returns>
+        public static float HorizontalFloatLogSlider(Rect rect, float value, float minValue, float maxValue, int steps, ref (float, float)[] cache)
+        {
+            if (cache == null || cache.Length != 3)
+            {
+                cache = [
+                    (value, UI_FloatLogRange.ToSliderValue(value, minValue, maxValue, steps)),
+                    (minValue, UI_FloatLogRange.ToSliderValue(0, minValue, maxValue, steps)),
+                    (maxValue, UI_FloatLogRange.ToSliderValue(maxValue, minValue, maxValue, steps))
+                ];
+            }
+            else
+            {
+                if (value != cache[0].Item1) cache[0] = (value, UI_FloatLogRange.ToSliderValue(value, minValue, maxValue, steps));
+                if (minValue != cache[1].Item1) cache[1] = (minValue, UI_FloatLogRange.ToSliderValue(0, minValue, maxValue, steps));
+                if (maxValue != cache[2].Item1) cache[2] = (maxValue, UI_FloatLogRange.ToSliderValue(maxValue, minValue, maxValue, steps));
+            }
+            float sliderValue = cache[0].Item2;
+            if (sliderValue != (sliderValue = GUI.HorizontalSlider(rect, sliderValue, cache[1].Item2, cache[2].Item2)))
+            {
+                cache[0] = (value, sliderValue);
+                return UI_FloatLogRange.FromSliderValue(sliderValue, minValue, maxValue, steps);
+            }
+            else return value;
         }
 
         /// <summary>
@@ -558,7 +593,7 @@ namespace BDArmory.Utils
         /// <param name="maxValue"></param>
         /// <param name="power"></param>
         /// <param name="sigFig"></param>
-        /// <param name="cache">A cache of tuples to avoid needlessly recalculating semi-log values. Can initially be null.</param>
+        /// <param name="cache">A cache of tuples to avoid needlessly recalculating power values. Can initially be null.</param>
         /// <returns></returns>
         public static float HorizontalPowerSlider(Rect rect, float value, float minValue, float maxValue, float power, int sigFig, ref (float, float)[] cache)
         {
@@ -583,7 +618,6 @@ namespace BDArmory.Utils
                 return UI_FloatPowerRange.FromSliderValue(sliderValue, power, sigFig, maxValue);
             }
             else return value;
-            // return UI_FloatPowerRange.FromSliderValue(GUI.HorizontalSlider(rect, UI_FloatPowerRange.ToSliderValue(value, power), UI_FloatPowerRange.ToSliderValue(minValue, power), UI_FloatPowerRange.ToSliderValue(maxValue, power)), power, sigFig, maxValue);
         }
 
         [KSPAddon(KSPAddon.Startup.EveryScene, false)]

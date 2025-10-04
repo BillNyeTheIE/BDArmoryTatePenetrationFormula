@@ -28,14 +28,15 @@ namespace BDArmory.FX
             return ObjectPool.CreateObjectPool(template, BDArmorySettings.MAX_NUM_BULLET_DECALS, false, true, 0, true);
         }
 
-        public void AttachAt(Part hitPart, RaycastHit hit, Vector3 offset)
+        public void AttachAt(Part hitPart, RaycastHit hit, Vector3 offset, Vector3 colliderLocalHitPoint = default)
         {
             if (hitPart is null) return;
             parentPart = hitPart;
             // parentPartName = parentPart.name;
             // parentVesselName = parentPart.vessel.vesselName;
-            transform.SetParent(hitPart.transform);
-            transform.position = hit.point + offset;
+            // Set the parent transform to the collider instead of the part in order to account for things like turrets and other moving parts
+            transform.SetParent(hit.collider.transform);
+            transform.position = (colliderLocalHitPoint == default ? hit.point : transform.parent.TransformPoint(colliderLocalHitPoint)) + offset;
             transform.rotation = Quaternion.FromToRotation(Vector3.forward, hit.normal);
             parentPart.OnJustAboutToDie += OnParentDestroy;
             parentPart.OnJustAboutToBeDestroyed += OnParentDestroy;
@@ -94,14 +95,16 @@ namespace BDArmory.FX
 
         void Deactivate()
         {
+            transform.parent = null;
+            gameObject.SetActive(false);
+        }
+
+        void OnDisable()
+        {
+            parentPart = null;
+            transform.localScale = Vector3.one; // Reset localScale so that Unity doesn't mess with the size.
             if (hasOnVesselUnloaded) // onVesselUnloaded event introduced in 1.11
                 OnVesselUnloaded_1_11(false);
-            if (gameObject is not null && gameObject.activeSelf) // Deactivate even if a parent is already inactive.
-            {
-                parentPart = null;
-                transform.parent = null;
-                gameObject.SetActive(false);
-            }
         }
 
         public void OnDestroy() // This shouldn't be happening except on exiting KSP, but sometimes they get destroyed instead of disabled!
@@ -215,7 +218,7 @@ namespace BDArmory.FX
             }
         }
 
-        public static void SpawnDecal(RaycastHit hit, Part hitPart, float caliber, float penetrationfactor, string team)
+        public static void SpawnDecal(RaycastHit hit, Part hitPart, float caliber, float penetrationfactor, string team, Vector3 colliderLocalHitPoint = default)
         {
             if (!BDArmorySettings.BULLET_DECALS) return;
             ObjectPool decalPool_;
@@ -253,7 +256,7 @@ namespace BDArmory.FX
             if (decalFront != null && hitPart != null)
             {
                 var decal = decalFront.GetComponentInChildren<Decal>();
-                decal.AttachAt(hitPart, hit, new Vector3(0.25f, 0f, 0f));
+                decal.AttachAt(hitPart, hit, new Vector3(0.05f, 0f, 0f), colliderLocalHitPoint);
 
                 if (BDArmorySettings.PAINTBALL_MODE)
                 {
@@ -270,7 +273,7 @@ namespace BDArmory.FX
                 if (decalBack != null && hitPart != null)
                 {
                     var decal = decalBack.GetComponentInChildren<Decal>();
-                    decal.AttachAt(hitPart, hit, new Vector3(-0.25f, 0f, 0f));
+                    decal.AttachAt(hitPart, hit, new Vector3(-0.05f, 0f, 0f), colliderLocalHitPoint);
                 }
             }
         }
@@ -424,7 +427,7 @@ namespace BDArmory.FX
             }
         }
 
-        public static void CreateBulletHit(Part hitPart, Vector3 position, RaycastHit hit, Vector3 normalDirection, bool ricochet, float caliber, float penetrationfactor, string team)
+        public static void CreateBulletHit(Part hitPart, Vector3 position, RaycastHit hit, Vector3 normalDirection, bool ricochet, float caliber, float penetrationfactor, string team, Vector3 colliderLocalHitPoint = default)
         {
             if (decalPool_large == null || decalPool_small == null)
                 SetupShellPool();
@@ -435,7 +438,7 @@ namespace BDArmory.FX
 
             if ((hitPart != null) && caliber != 0 && !hitPart.IgnoreDecal())
             {
-                SpawnDecal(hit, hitPart, caliber, penetrationfactor, team); //No bullet decals for laser or ricochet                
+                SpawnDecal(hit, hitPart, caliber, penetrationfactor, team, colliderLocalHitPoint); //No bullet decals for laser or ricochet
             }
 
             GameObject newExplosion = (caliber <= 30 || BDArmorySettings.PAINTBALL_MODE) ? bulletHitFXPool.GetPooledObject() : penetrationFXPool.GetPooledObject();
@@ -461,7 +464,7 @@ namespace BDArmory.FX
             }
         }
 
-        public static void AttachLeak(RaycastHit hit, Part hitPart, float caliber, bool explosive, bool incendiary, string sourcevessel, bool inertTank)
+        public static void AttachLeak(RaycastHit hit, Part hitPart, float caliber, bool explosive, bool incendiary, string sourcevessel, bool inertTank, Vector3 colliderLocalHitPoint = default)
         {
             if (BDArmorySettings.BATTLEDAMAGE && BDArmorySettings.BD_TANKS && hitPart.Modules.GetModule<HitpointTracker>().Hitpoints > 0)
             {
@@ -475,10 +478,11 @@ namespace BDArmory.FX
                 {
                     if (!hitPart.isEngine())
                     {
-                        leakFX.AttachAt(hitPart, hit, new Vector3(0.25f, 0f, 0f));
-                        leakFX.transform.localScale = Vector3.one * (caliber * caliber / 200f);
-                        leakFX.drainRate = ((caliber * caliber / 200f) * BDArmorySettings.BD_TANK_LEAK_RATE);
-                        leakFX.lifeTime = (BDArmorySettings.BD_TANK_LEAK_TIME);
+                        var scale = caliber * caliber / 200f;
+                        leakFX.transform.localScale = scale * Vector3.one;
+                        leakFX.AttachAt(hitPart, hit, new Vector3(0.25f, 0f, 0f), colliderLocalHitPoint);
+                        leakFX.drainRate = scale * BDArmorySettings.BD_TANK_LEAK_RATE;
+                        leakFX.lifeTime = BDArmorySettings.BD_TANK_LEAK_TIME;
                         if (BDArmorySettings.BD_FIRES_ENABLED && !inertTank)
                         {
                             float ammoMod = BDArmorySettings.BD_FIRE_CHANCE_TRACER; //10% chance of AP rounds starting fires from sparks/tracers/etc
@@ -501,17 +505,18 @@ namespace BDArmory.FX
                                     leakcount++;
                                 }
                                 //if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log("[BDArmory.BullethitFX]: Adding fire. HE? " + explosive + "; Inc? " + incendiary + "; inerttank? " + inertTank);
-                                AttachFire(hit.point, hitPart, caliber, sourcevessel, -1, leakcount);
+                                AttachFire(colliderLocalHitPoint == default ? hit.point : hit.collider.transform.TransformPoint(colliderLocalHitPoint), hitPart, caliber, sourcevessel, -1, leakcount);
                             }
                         }
                     }
                 }
                 else
                 {
-                    leakFX.AttachAt(hitPart, hit, new Vector3(0.25f, 0f, 0f));
-                    leakFX.transform.localScale = Vector3.one * (caliber * caliber / 200f);
-                    leakFX.drainRate = ((caliber * caliber / 200f) * BDArmorySettings.BD_TANK_LEAK_RATE);
-                    leakFX.lifeTime = (BDArmorySettings.BD_TANK_LEAK_TIME);
+                    var scale = caliber * caliber / 200f;
+                    leakFX.transform.localScale = scale * Vector3.one;
+                    leakFX.AttachAt(hitPart, hit, new Vector3(0.25f, 0f, 0f), colliderLocalHitPoint);
+                    leakFX.drainRate = scale * BDArmorySettings.BD_TANK_LEAK_RATE;
+                    leakFX.lifeTime = BDArmorySettings.BD_TANK_LEAK_TIME;
 
                     if (hitPart.isEngine())
                     {

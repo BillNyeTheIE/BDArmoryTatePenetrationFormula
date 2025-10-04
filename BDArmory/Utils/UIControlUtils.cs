@@ -37,6 +37,22 @@ namespace BDArmory.Utils
             var partActionFieldItem = ((UIPartActionFloatLogRange)this.partActionItem);
             if (partActionFieldItem != null) partActionFieldItem.UpdateLimits();
         }
+        public (float, float, float, int) GetLimits() => (minValue, maxValue, 0, steps);
+
+        public static float ToSliderValue(float value, float minValue, float maxValue, int steps)
+        {
+            float logMinValue = Mathf.Log10(minValue);
+            float logMaxValue = Mathf.Log10(maxValue);
+            float sliderStepSize = (logMaxValue - logMinValue) / steps;
+            return Mathf.Clamp(BDAMath.RoundToUnit(Mathf.Log10(value) - logMinValue, sliderStepSize) + logMinValue, logMinValue, logMaxValue);
+        }
+        public static float FromSliderValue(float value, float minValue, float maxValue, int steps)
+        {
+            float logMinValue = Mathf.Log10(minValue);
+            float logMaxValue = Mathf.Log10(maxValue);
+            float sliderStepSize = (logMaxValue - logMinValue) / steps;
+            return Mathf.Pow(10f, Mathf.Clamp(BDAMath.RoundToUnit(value - logMinValue, sliderStepSize) + logMinValue, logMinValue, logMaxValue));
+        }
     }
 
     [UI_FloatLogRange]

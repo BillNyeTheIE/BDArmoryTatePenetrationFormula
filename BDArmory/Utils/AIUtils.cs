@@ -240,9 +240,9 @@ namespace BDArmory.Utils
                 while (v.MoveNext())
                 {
                     if (v.Current == null || !v.Current.loaded || v.Current.packed) continue;
-                    if (VesselModuleRegistry.ignoredVesselTypes.Contains(v.Current.vesselType)) continue;
-                    var wms = VesselModuleRegistry.GetMissileFire(v.Current);
-                    if (wms != null)
+                    if (VesselModuleRegistry.IgnoredVesselTypes.Contains(v.Current.vesselType)) continue;
+                    var wm = v.Current.ActiveController().WM;
+                    if (wm != null)
                     {
                         if (Vector3.SqrMagnitude(v.Current.vesselTransform.position - position) < closestSqrDist)
                         {

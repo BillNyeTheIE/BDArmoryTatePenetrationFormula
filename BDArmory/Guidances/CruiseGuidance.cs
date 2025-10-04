@@ -73,8 +73,9 @@ namespace BDArmory.Guidances
         public Vector3 GetDirection(MissileBase missile, Vector3 targetPosition, Vector3 targetVelocity)
         {
             //set up
-            if (_missile.TimeIndex < 1)
-                return _missile.vessel.CoM + _missile.vessel.Velocity() * 10;
+            // Not really necessary, especially with the new controller, if desired it can be implemented via guidance delay
+            //if (_missile.TimeIndex < 1)
+            //    return _missile.vessel.CoM + _missile.vessel.Velocity() * 10;
 
             upDirection = _missile.vessel.up;
 

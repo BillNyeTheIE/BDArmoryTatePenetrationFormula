@@ -35,7 +35,7 @@ namespace BDArmory.UI
         private string newTeamName = string.Empty;
 
         public void Open(MissileFire weaponManager, Vector2 position)
-        {            
+        {
             targetWeaponManager = weaponManager;
             newTeamName = string.Empty;
             windowLocation = position;
@@ -113,7 +113,7 @@ namespace BDArmory.UI
                                 break;
                             default:
                                 targetWeaponManager.SetTeam(teams.Current);
-                                if (targetWeaponManager.Team.Allies.Contains(teams.Current.Name)) 
+                                if (targetWeaponManager.Team.Allies.Contains(teams.Current.Name))
                                     targetWeaponManager.Team.Allies.Remove(teams.Current.Name);
                                 break;
                         }

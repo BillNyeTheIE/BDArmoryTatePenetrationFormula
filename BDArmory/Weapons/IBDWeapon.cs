@@ -16,6 +16,8 @@ namespace BDArmory.Weapons
 
         string GetPartName();
 
+        float GetWeaponChannel();
+
         Part GetPart();
 
         ModuleWeapon GetWeaponModule();

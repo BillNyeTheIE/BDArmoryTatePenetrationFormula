@@ -36,17 +36,6 @@
 - Logged exceptions and errors should then give a stack trace with line numbers.
 - Profiling can be achieved by creating a project in UnityHub, launching the profiling window and connecting it to a running instance of KSP.
 
-### Branches
-Current un-merged branches (`git branch --no-merged`) are:
-- AoA — respecting maxAoA and max G-load AI settings
-- bias-testing — testing bias due to spawn position or camera focus
-- motherships — which AI/WM is in control when parasite fighters get detached and automatically adding them to competitions
-
-Outdated, probably to be deleted:
-- spawn-strategy — partially implemented, then abandoned spawn strategy implementation by aubranium
-- sph-inertia — Simple flight dynamics analysis draft impl by aubranium, better as a separate mod since it doesn't use anything BDA specific.
-
-
 ### Optimisation
 - https://learn.unity.com/tutorial/fixing-performance-problems-2019-3-1#
 - Various setters/accessors in Unity perform extra operations that may cause GC allocations or have other overheads:

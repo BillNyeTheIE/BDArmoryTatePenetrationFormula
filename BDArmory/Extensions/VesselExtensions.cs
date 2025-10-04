@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Runtime.CompilerServices;
 
 using BDArmory.Settings;
 using BDArmory.Utils;
@@ -239,6 +240,23 @@ namespace BDArmory.Extensions
         static T FindVesselModuleImplementing_1_11<T>(this Vessel vessel) where T : class
         {
             return vessel.FindVesselModuleImplementing<T>();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ActiveController ActiveController(this Vessel vessel) => Utils.ActiveController.GetActiveController(vessel);
+
+        /// <summary>
+        /// Strip the vessel type from the end of a vessel's name (as long as it's not an ignored type).
+        /// KSP automatically adds this whenever a new vessel is made.
+        /// </summary>
+        /// <param name="vessel"></param>
+        public static void StripTypeFromName(this Vessel vessel)
+        {
+            if (vessel == null || string.IsNullOrEmpty(vessel.vesselName)) return;
+            if (!VesselModuleRegistry.IgnoredVesselTypes.Contains(vessel.vesselType) && vessel.vesselName.EndsWith($" {vessel.vesselType}"))
+            {
+                vessel.vesselName = vessel.vesselName.Remove(vessel.vesselName.Length - $" {vessel.vesselType}".Length);
+            }
         }
     }
 }

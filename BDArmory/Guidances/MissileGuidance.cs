@@ -277,7 +277,7 @@ namespace BDArmory.Guidances
             return targetPosition + (targetVelocity * leadTime);
         }
 
-        public static Vector3 GetWeaveTarget(Vector3 targetPosition, Vector3 targetVelocity, Vessel missileVessel, ref float gVert, ref float gHorz, Vector2 gRand, float omega, float terminalAngle, float weaveFactor, bool useAGMDescentRatio, float agmDescentRatio, ref float weaveOffset, ref Vector3 weaveStart, ref float WeaveAlt, out float ttgo, out float gLimit)
+        public static Vector3 GetWeaveTarget(Vector3 targetPosition, Vector3 targetVelocity, Vessel missileVessel, ref float gVert, ref float gHorz, Vector3 gRand, ref float omega, float terminalAngle, float weaveFactor, bool useAGMDescentRatio, float agmDescentRatio, float maneuvergLimit, ref float weaveOffset, ref Vector3 weaveStart, ref float WeaveAlt, out float ttgo, out float gLimit)
         {
             // Based on https://www.sciencedirect.com/science/article/pii/S1474667015333437
 
@@ -312,9 +312,16 @@ namespace BDArmory.Guidances
 
             float pullUpCos = Vector3.Dot(missileVel.normalized, upDirection);
 
-            float verticalAngle = (Mathf.Deg2Rad * Mathf.Sign(pullUpCos)) * Vector3.Angle(missileVel.ProjectOnPlanePreNormalized(right), planarDirToTarget);
+            float horizontalAngle = VectorUtils.GetAngleOnPlane(missileVel, planarDirToTarget, right);
+            const float halfPi = Mathf.PI * 0.5f;
+            float verticalAngle = halfPi - Mathf.Acos(pullUpCos);
 
-            float horizontalAngle = (Mathf.Deg2Rad * Mathf.Sign(Vector3.Dot(missileVel, right))) * Vector3.Angle(missileVel.ProjectOnPlanePreNormalized(upDirection), planarDirToTarget);
+            //verticalAngle *= Mathf.Deg2Rad;
+            horizontalAngle *= Mathf.Deg2Rad;
+
+            /*float verticalAngle = (Mathf.Deg2Rad * Mathf.Sign(pullUpCos)) * VectorUtils.Angle(missileVel.ProjectOnPlanePreNormalized(right), planarDirToTarget);
+
+            float horizontalAngle = (Mathf.Deg2Rad * Mathf.Sign(Vector3.Dot(missileVel, right))) * VectorUtils.Angle(missileVel.ProjectOnPlanePreNormalized(upDirection), planarDirToTarget);*/
 
             const float PI2 = 2f * Mathf.PI;
 
@@ -330,10 +337,12 @@ namespace BDArmory.Guidances
                 if (UnityEngine.Random.value < 0.5)
                     gHorz = -gHorz;
 
-                if (gVert != 0.0f)
-                    gVert += gRand.y * (2f * UnityEngine.Random.value - 1f);
                 if (gHorz != 0.0f)
                     gHorz += gRand.x * (2f * UnityEngine.Random.value - 1f);
+                if (gVert != 0.0f)
+                    gVert += gRand.y * (2f * UnityEngine.Random.value - 1f);
+                if (gRand.z != 0.0f)
+                    omega += gRand.z * (2f * UnityEngine.Random.value - 1f);
             }
             else
             {
@@ -413,7 +422,7 @@ namespace BDArmory.Guidances
                     // Get angle relative to vertical
                     float pullUpSin = BDAMath.Sqrt(1f - pullUpCos * pullUpCos);
                     // Turn radius is mv^2/r = ma -> v^2/r = a -> v^2/a = r, a = 6 g -> v^2 * 1/6 g = r
-                    float invG = invg / (gVertTemp > 0.0f ? gVertTemp * 0.8f : (gHorz > 0.0f ? Mathf.Min(gHorz * 0.8f, 6f) : 6f));
+                    float invG = invg / maneuvergLimit;
                     float pullUpDist = (speed * speed * invG) * (1f - pullUpSin);
 
                     if (altDiff < 0)
@@ -775,7 +784,7 @@ namespace BDArmory.Guidances
                     missileDropOffset = -0.5f * missileAcceleration * timeToCPA * timeToCPA;
                     ballisticTarget = targetPredictedPosition + missileDropOffset;
                     velDirection = (ballisticTarget - firePosition).normalized;
-                } while (++count < 10 && Vector3.Angle(lastVelDirection, velDirection) > 1f); // 1° margin of error is sufficient to prevent premature firing (usually)
+                } while (++count < 10 && VectorUtils.Angle(lastVelDirection, velDirection) > 1f); // 1° margin of error is sufficient to prevent premature firing (usually)
 
 
                 // Determine horizontal and up components of velocity, calculate the elevation angle
@@ -1240,7 +1249,7 @@ namespace BDArmory.Guidances
                     theta = Mathf.Atan(missileVelOpt / (BDAMath.Sqrt(missileVelOptSqr - 2f * g * vertDist)));
                 theta *= Mathf.Rad2Deg;
 
-                float angle = 90f - Vector3.Angle(relPos, missile.vessel.upAxis);
+                float angle = 90f - VectorUtils.Angle(relPos, missile.vessel.upAxis);
                 if (theta > angle)
                     leadPosition = missile.vessel.CoM + Vector3.RotateTowards(relPos, missile.vessel.upAxis, (theta - angle) * Mathf.Deg2Rad, vertDist);
             }
@@ -1930,7 +1939,7 @@ namespace BDArmory.Guidances
                 if (AoA < maxAoA)
                 {
                     targetDirection = (targetPosition - ml.vessel.CoM);
-                    targetAngle = Mathf.Min(maxAoA,Vector3.Angle(velNorm, targetDirection) * 4f);
+                    targetAngle = Mathf.Min(maxAoA,VectorUtils.Angle(velNorm, targetDirection) * 4f);
                 }
                 else
                 {
@@ -1954,8 +1963,6 @@ namespace BDArmory.Guidances
                 if (targetAngle > AoALim)
                     targetDirection = Vector3.Slerp(velNorm, targetDirection, AoALim / targetAngle);
                 float turningAngle = VectorUtils.AnglePreNormalized(forward, targetDirection);
-
-                if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_MISSILES) ml.debugString.AppendLine($"achieved g: {(ml.vessel.acceleration.ProjectOnPlanePreNormalized(velNorm).magnitude) * (1f / 9.81f):F5}, lift: {liftForce / ml.part.mass * (1f / 9.81f):F5}, CL: {liftCurve.Evaluate(AoA):F5}\nAoA: {AoA:F5}, AoALim: {AoALim:F5}, MaxAoA: {maxAoA:F5}\nTargetAngle: {targetAngle:F5}, TurningAngle: {turningAngle:F5}\nmaxTorque: {maxTorque}, maxTorqueAero: {maxTorqueAero * dynamicq}, liftArea: {liftArea}, dragArea: {dragArea}");
 
                 Vector3 finalTorque;
                 if (turningAngle * Mathf.Deg2Rad > 0.005f)
@@ -2064,7 +2071,9 @@ namespace BDArmory.Guidances
 
                     finalTorque = aeroTorque;
                 }
-                
+
+                if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_MISSILES) ml.debugString.AppendLine($"achieved g: {(ml.vessel.acceleration.ProjectOnPlanePreNormalized(velNorm).magnitude) * (1f / 9.81f):F5}, lift: {liftForce / ml.part.mass * (1f / 9.81f):F5}, CL: {liftCurve.Evaluate(AoA):F5}\nAoA: {AoA:F5}, AoALim: {AoALim:F5}, MaxAoA: {maxAoA:F5}\nTargetAngle: {targetAngle:F5}, TurningAngle: {turningAngle:F5}\nmaxTorque: {maxTorque}, maxTorqueAero: {maxTorqueAero * dynamicq}, currTorque: {finalTorque.magnitude}, liftArea: {liftArea}, dragArea: {dragArea}");
+
                 finalTorque = ml.transform.InverseTransformDirection(finalTorque).ProjectOnPlanePreNormalized(Vector3.forward);
 
                 //Debug.Log($"[BDArmory.MissileGuidance]: torque = {torque}, torqueDirection = {torqueDirection}, aeroTorque = {aeroTorque}, finalTorque = {finalTorque}.");

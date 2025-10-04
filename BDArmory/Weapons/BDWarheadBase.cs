@@ -141,7 +141,7 @@ namespace BDArmory.Weapons
                 part.force_activate();
                 sourcevessel = vessel;
                 if (part == null) return;
-                var MF = VesselModuleRegistry.GetModule<MissileFire>(vessel, true);
+                var MF = vessel.ActiveController().WM;
                 if (MF != null)
                 {
                     sourcevessel = MF.vessel;
@@ -259,7 +259,7 @@ namespace BDArmory.Weapons
                 {
                     if (Armed)
                     {
-                        if (VesselModuleRegistry.GetModule<MissileFire>(vessel) == null)
+                        if (vessel.ActiveController().WM == null)
                         {
                             if (sourcevessel != null && sourcevessel != part.vessel)
                             {
@@ -277,7 +277,7 @@ namespace BDArmory.Weapons
 
         private void GetTeamID()
         {
-            var weaponManager = VesselModuleRegistry.GetModule<MissileFire>(sourcevessel);
+            var weaponManager = sourcevessel != null ? sourcevessel.ActiveController().WM : null;
             IFFID = weaponManager != null ? weaponManager.teamString : null;
         }
 
@@ -319,7 +319,7 @@ namespace BDArmory.Weapons
                     if (partHit.vessel == vessel || partHit.vessel == sourcevessel) continue;
                     if (partHit.vessel.vesselType == VesselType.Debris) continue;
                     if (!string.IsNullOrEmpty(SourceVesselName) && partHit.vessel.vesselName.Contains(SourceVesselName)) continue;
-                    var weaponManager = VesselModuleRegistry.GetModule<MissileFire>(partHit.vessel);
+                    var weaponManager = partHit.vessel.ActiveController().WM;
                     if (IFF_On && (weaponManager == null || weaponManager.teamString == IFFID)) continue;
                     if (detonateAtMinimumDistance)
                     {

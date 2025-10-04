@@ -93,7 +93,6 @@ namespace BDArmory.ModIntegration
 		}
 		public void SetMCDIsAttached(object MCDComponent, bool value)
 		{
-			if (MCDComponent == null) return;
 			CDisAttachedFieldSetter(MCDComponent, value);
 		}
 	}

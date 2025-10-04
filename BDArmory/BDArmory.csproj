@@ -169,6 +169,7 @@
     <Compile Include="CounterMeasure\ModuleECMJammer.cs" />
     <Compile Include="CounterMeasure\VesselChaffInfo.cs" />
     <Compile Include="CounterMeasure\VesselCloakInfo.cs" />
+    <Compile Include="CounterMeasure\VesselCMDropperInfo.cs" />
     <Compile Include="CounterMeasure\VesselECMJInfo.cs" />
     <Compile Include="Damage\BuildingDamage.cs" />
     <Compile Include="Damage\DamageService.cs" />

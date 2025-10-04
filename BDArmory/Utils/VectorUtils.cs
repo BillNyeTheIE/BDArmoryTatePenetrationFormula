@@ -10,10 +10,16 @@ namespace BDArmory.Utils
     {
         private static System.Random RandomGen = new System.Random();
 
+        /// <summary>
+        /// A slightly more efficient `Vector3.Sign` function, still requires a sqrt so it is best replaced with
+        /// `VectorUtils.GetAngleOnPlane`, however that requires orthogonality from `fromDirection`. This function
+        /// may be used even if `referenceRight` is not orthogonal to `fromDirection`. This function also does not
+        /// require the magnitudes of any of its inputs to be specified in some way.
+        /// </summary>
         /// <param name="referenceRight">Right compared to fromDirection, make sure it's not orthogonal to toDirection, or you'll get unstable signs</param>
         public static float SignedAngle(Vector3 fromDirection, Vector3 toDirection, Vector3 referenceRight)
         {
-            float angle = Vector3.Angle(fromDirection, toDirection);
+            float angle = Angle(fromDirection, toDirection);
             float sign = Mathf.Sign(Vector3.Dot(toDirection, referenceRight));
             float finalAngle = sign * angle;
             return finalAngle;
@@ -298,6 +304,27 @@ namespace BDArmory.Utils
             return (position - FlightGlobals.currentMainBody.position).normalized;
         }
 
+        /// <summary>
+        /// Get the up direction and altitude at a position.
+        /// Note: If the position is a vessel's position, then this is the same as vessel.up and vessel.altitude, which are precomputed. Use those instead!
+        /// </summary>
+        /// <param name="position"></param>
+        /// <param name="altitude"></param>
+        /// <returns>The normalized up direction at the position.</returns>
+        public static Vector3 GetUpDirection(Vector3 position, out double altitude)
+        {
+            if (FlightGlobals.currentMainBody == null)
+            {
+                altitude = 0;
+                return Vector3.up;
+            }
+            Vector3 upDir;
+            (altitude, upDir) = (position - FlightGlobals.currentMainBody.position).MagNorm();
+            altitude -= FlightGlobals.currentMainBody.Radius;
+
+            return upDir;
+        }
+
         public static bool SphereRayIntersect(Ray ray, Vector3 sphereCenter, double sphereRadius, out double distance)
         {
             Vector3 o = ray.origin;
@@ -344,10 +371,35 @@ namespace BDArmory.Utils
         }
 
         /// <summary>
+        /// A more accurate Angle that is maintains precision down to an angle of 1e-5
+        /// (as compared to (float)Vector3d.Angle) instead of the 1e-2 that Vector3.Angle gives.
+        /// Additionally, it's around 30% faster than Vector3.Angle and 12% faster than (float)Vector3d(from, to).
+        /// </summary>
+        /// <param name="from"></param>
+        /// <param name="to"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Angle(Vector3 from, Vector3 to)
+        {
+            double num = ((Vector3d)from).sqrMagnitude * ((Vector3d)to).sqrMagnitude;
+            if (num < 1e-30)
+            {
+                return 0f;
+            }
+
+            double num2 = BDAMath.Clamp(Vector3d.Dot(from, to) / Math.Sqrt(num), -1.0, 1.0);
+            return (float)(Math.Acos(num2) * 57.295779513082325);
+        }
+
+        /// <summary>
         /// Get angle between two pre-normalized vectors.
         /// 
         /// This implementation assumes that the input vectors are already normalized,
         /// skipping such checks and normalization that Vector3.Angle does.
+        /// IMPORTANT NOTE: Unlike Vector3.Angle(), this returns 90° if one or both
+        /// vectors are zero vectors! Vector3.Angle() returns 0° instead.
+        /// If this behavior is undesireable, the "AnglePreNormalized" function which takes
+        /// in the two original vectors and their magnitudes should be used instead.
         /// </summary>
         /// <param name="from">First vector.</param>
         /// <param name="to">Second vector.</param>
@@ -384,6 +436,102 @@ namespace BDArmory.Utils
         }
 
         /// <summary>
+        /// Get AoA and Sideslip of a vector, relative to axes defined by forward and up.
+        /// Note that forward and up are expected to be unit vectors, however dir does not have
+        /// to be a unit vector!
+        /// 
+        /// </summary>
+        /// <param name="dir">Direction vector.</param>
+        /// <param name="forward">Aircraft aligned forward vector.</param>
+        /// <param name="up">Aircraft aligned up/lift vector.</param>
+        /// <param name="AoA">AoA output.</param>
+        /// <param name="sideslip">Sideslip output.</param>
+        /// <returns>The AoA and Sideslip angle, in degrees, of "dir" relative to the axes defined by forward and up.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void GetAoASideslip(Vector3 dir, Vector3 forward, Vector3 up, out float AoA, out float sideslip)
+        {
+            // Get the left vector to fully define the coordinate system
+            Vector3 left = Vector3.Cross(up, forward);
+
+            // Get the projections
+            float x = Vector3.Dot(dir, forward);
+            float y = Vector3.Dot(dir, left);
+            float z = Vector3.Dot(dir, up);
+
+            // Return the AoA/sideslip
+            AoA = -Mathf.Rad2Deg * Mathf.Atan2(z, x);
+            sideslip = -Mathf.Rad2Deg * Mathf.Atan2(y, x);
+        }
+
+        /// <summary>
+        /// Get angle of a vector, projected on a plane defined by a forward and a left vector.
+        /// Note that forward and left must have equal magnitudes but do not have to be unit
+        /// vectors (though unit vectors are most likely the most convenient for this purpose).
+        /// dir does not have to be a unit vector.
+        /// 
+        /// </summary>
+        /// <param name="dir">Direction vector.</param>
+        /// <param name="forward">Forward vector.</param>
+        /// <param name="left">Left vector.</param>
+        /// <returns>The angle of "dir" relative to "forward", in degrees, projected onto a plane defined by "forward" and "left".</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float GetAngleOnPlane(Vector3 dir, Vector3 forward, Vector3 left)
+        {
+            // Get the projections
+            float x = Vector3.Dot(dir, forward);
+            float y = Vector3.Dot(dir, left);
+
+            // Check for if the desired vector is straight up/down
+            if (Mathf.Abs(x) < 2f * Vector3.kEpsilon && Mathf.Abs(y) < 2f * Vector3.kEpsilon)
+                return 0f;
+
+            // Return the azimuth/elevation
+            return Mathf.Rad2Deg * Mathf.Atan2(y, x);
+        }
+
+        /// <summary>
+        /// Get elevation angle of a vector, relative to an up vector.
+        /// Note that this basically an alternate form of AnglePreNormalized.
+        /// 
+        /// </summary>
+        /// <param name="dir">Direction vector.</param>
+        /// <param name="up">Up vector.</param>
+        /// <param name="dist">Magnitude of the direction vector.</param>
+        /// <param name="upMag">Magnitude of the up vector, defaults to 1.</param>
+        /// <returns>The angle of "dir" relative to "up", in degrees, as an elevation angle, with range -90° to 90°.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float GetElevation(Vector3 dir, Vector3 up, float dist, float upMag = 1.0f)
+        {
+            return 90f - AnglePreNormalized(up, dir, upMag, dist);
+        }
+
+        /// <summary>
+        /// Get elevation angle of a vector, relative to an up vector.
+        /// Note that this basically an alternate form of Vector3.Angle,
+        /// somewhat optimized for the case where the up vector is a
+        /// unit vector (skipping a mere "sqrMagnitude" call). If the
+        /// magnitude of the direction vector is known, the overload
+        /// with this magnitude is preferred:
+        /// GetElevation(dir, up, dist, upMag)
+        /// 
+        /// </summary>
+        /// <param name="dir">Direction vector.</param>
+        /// <param name="up">Up vector.</param>
+        /// <returns>The angle of "dir" relative to "up", in degrees, as an elevation angle, with range -90° to 90°.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float GetElevation(Vector3 dir, Vector3 up)
+        {
+            float dirMag = dir.magnitude;
+            if (dirMag < 1E-15f)
+            {
+                return 0f;
+            }
+
+            float num2 = Mathf.Clamp(Vector3.Dot(up, dir) / dirMag, -1f, 1f);
+            return 90f - (float)Math.Acos(num2) * 57.29578f;
+        }
+
+        /// <summary>
         /// Get normalized difference between two vectors, useful for direction vectors.
         /// </summary>
         /// <param name="v1">First vector.</param>
@@ -395,6 +543,37 @@ namespace BDArmory.Utils
             float x = v1.x - v2.x, y = v1.y - v2.y, z = v1.z - v2.z;
             float normalizationFactor = 1f / BDAMath.Sqrt(x * x + y * y + z * z);
             return new Vector3(x * normalizationFactor, y * normalizationFactor, z * normalizationFactor);
+        }
+
+        /// <summary>
+        /// Rotates a Vector2 in 2D about (0,0).
+        /// </summary>
+        /// <param name="v">Vector.</param>
+        /// <param name="theta">Angle.</param>
+        /// <returns>v rotated by theta degrees (anti-clockwise positive).</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 Rotate2DVec2(Vector2 v, float theta)
+        {
+            float x = v.x, y = v.y;
+            float cos = Mathf.Cos(theta * Mathf.Deg2Rad);
+            float sin = BDAMath.Sqrt(1 - cos * cos);
+            return new Vector2(x * cos - y * sin, x * sin + y * cos);
+        }
+
+        /// <summary>
+        /// Rotates a Vector2 in 2D about a given point.
+        /// </summary>
+        /// <param name="v">Vector to rotate.</param>
+        /// <param name="p">Point to rotate about.</param>
+        /// <param name="theta">Angle.</param>
+        /// <returns>v rotated by theta degrees (anti-clockwise positive) about p.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 Rotate2DVec2(Vector2 v, Vector2 p, float theta)
+        {
+            float x = v.x - p.x, y = v.y - p.y;
+            float cos = Mathf.Cos(theta);
+            float sin = BDAMath.Sqrt(1 - cos * cos);
+            return new Vector2(x * cos - y * sin + p.x, x * sin + y * cos + p.y);
         }
 
         /// <summary>

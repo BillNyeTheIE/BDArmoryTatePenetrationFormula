@@ -5,6 +5,7 @@ using BDArmory.Control;
 using BDArmory.Settings;
 using BDArmory.Utils;
 using System.Collections.Generic;
+using BDArmory.Extensions;
 
 namespace BDArmory.GameModes
 {
@@ -28,7 +29,7 @@ namespace BDArmory.GameModes
         public void ToggleRepulsor()
         {
             repulsorActivated = !repulsorActivated;
-            isLanded = this.part.vessel.LandedOrSplashed;
+            isLanded = part.vessel.LandedOrSplashed;
             targetAlt = 0.1f;
         }
         bool isLanded = true;
@@ -70,75 +71,40 @@ namespace BDArmory.GameModes
         {
             get { return PauseMenu.isOpen || Time.timeScale == 0; }
         }
-        BDModulePilotAI AI;
-        public BDModulePilotAI pilot
-        {
-            get
-            {
-                if (AI) return AI;
-                AI = VesselModuleRegistry.GetBDModulePilotAI(vessel, true); // FIXME should this be IBDAIControl?
-                return AI;
-            }
-        }
-        BDModuleSurfaceAI SAI;
-        public BDModuleSurfaceAI driver
-        {
-            get
-            {
-                if (SAI) return SAI;
-                SAI = VesselModuleRegistry.GetBDModuleSurfaceAI(vessel, true);
-                return SAI;
-            }
-        }
 
-        BDModuleVTOLAI VAI;
-        public BDModuleVTOLAI flier
+        ModuleEngines foundEngine
         {
             get
             {
-                if (VAI) return VAI;
-                VAI = VesselModuleRegistry.GetModule<BDModuleVTOLAI>(vessel);
-
-                return VAI;
+                if (_engine == null || _engine.vessel != vessel)
+                    _engine = VesselModuleRegistry.GetModuleEngines(vessel).FirstOrDefault();
+                return _engine;
             }
         }
-
-        BDModuleOrbitalAI OAI;
-        public BDModuleOrbitalAI orbiter
+        ModuleEngines _engine;
+        MissileFire WeaponManager
         {
             get
             {
-                if (OAI) return OAI;
-                OAI = VesselModuleRegistry.GetModule<BDModuleOrbitalAI>(vessel);
-
-                return OAI;
+                if (_weaponManager == null || !_weaponManager.IsPrimaryWM || _weaponManager.vessel != vessel)
+                    _weaponManager = vessel && vessel.loaded ? vessel.ActiveController().WM : null;
+                return _weaponManager;
             }
         }
-
-        ModuleEngines Engine;
-        public ModuleEngines foundEngine
+        MissileFire _weaponManager;
+        IBDAIControl AI
         {
             get
             {
-                if (Engine) return Engine;
-                Engine = VesselModuleRegistry.GetModuleEngines(vessel).FirstOrDefault();
-                return Engine;
+                if (_AI == null || !_AI.pilotEnabled || _AI.vessel != vessel) _AI = vessel.ActiveController().AI;
+                return _AI;
             }
         }
-        MissileFire MF;
-        public MissileFire weaponManager
-        {
-            get
-            {
-                if (MF) return MF;
-                MF = VesselModuleRegistry.GetMissileFire(vessel, true);
-                return MF;
-            }
-        }
+        IBDAIControl _AI;
 
         void Start()
         {
-            if (vessel.rootPart == this.part) //if we're an external non-root repulsor part, don't check for dupes in root.
+            if (vessel.rootPart == part) //if we're an external non-root repulsor part, don't check for dupes in root.
             {
                 foreach (var repMod in vessel.rootPart.FindModulesImplementing<ModuleSpaceFriction>())
                 {
@@ -181,30 +147,32 @@ namespace BDArmory.GameModes
 
         public void FixedUpdate()
         {
-            if ((!BDArmorySettings.SPACE_HACKS && (!AntiGravOverride && !RepulsorOverride)) || !HighLogic.LoadedSceneIsFlight || !FlightGlobals.ready || this.vessel.packed || GameIsPaused) return;
+            if ((!BDArmorySettings.SPACE_HACKS && (!AntiGravOverride && !RepulsorOverride)) || !HighLogic.LoadedSceneIsFlight || !FlightGlobals.ready || vessel.packed || GameIsPaused) return;
 
-            if (this.part.vessel.situation == Vessel.Situations.FLYING || this.part.vessel.situation == Vessel.Situations.SUB_ORBITAL)
+            IBDAIControl ai = AI;
+            if (part.vessel.situation == Vessel.Situations.FLYING || part.vessel.situation == Vessel.Situations.SUB_ORBITAL)
             {
                 if (BDArmorySettings.SF_FRICTION)
                 {
-                    if (this.part.vessel.speed > 10)
+                    if (part.vessel.speed > 10)
                     {
-                        if (AI != null)
+                        if (ai != null)
                         {
-                            maxVelocity = AI.maxSpeed;
+                            maxVelocity = ai.aiType switch
+                            {
+                                AIType.PilotAI => (ai as BDModulePilotAI).maxSpeed,
+                                AIType.SurfaceAI => (ai as BDModuleSurfaceAI).MaxSpeed,
+                                AIType.VTOLAI => (ai as BDModuleVTOLAI).MaxSpeed,
+                                AIType.OrbitalAI => (ai as BDModuleOrbitalAI).ManeuverSpeed,
+                                _ => 0
+                            };
                         }
-                        else if (SAI != null)
-                        {
-                            maxVelocity = SAI.MaxSpeed;
-                        }
-                        else if (VAI != null)
-                            maxVelocity = VAI.MaxSpeed;
 
                         var speedFraction = (float)part.vessel.speed / maxVelocity;
                         if (speedFraction > 1) speedFraction = Mathf.Max(2, speedFraction);
                         frictionCoeff = speedFraction * speedFraction * speedFraction * frictMult; //at maxSpeed, have friction be 100% of vessel's engines thrust
 
-                        frictionCoeff *= (1 + (Vector3.Angle(this.part.vessel.srf_vel_direction, this.part.vessel.GetTransform().up) / 180) * BDArmorySettings.SF_DRAGMULT * 4); //greater AoA off prograde, greater drag
+                        frictionCoeff *= 1 + VectorUtils.Angle(part.vessel.srf_vel_direction, part.vessel.GetTransform().up) / 180 * BDArmorySettings.SF_DRAGMULT * 4; //greater AoA off prograde, greater drag
                         frictionCoeff /= vessel.Parts.Count;
                         //part.vessel.rootPart.rb.AddForceAtPosition((-part.vessel.srf_vel_direction * frictionCoeff), part.vessel.CoM, ForceMode.Acceleration);
                         using (var p = part.vessel.Parts.GetEnumerator())
@@ -217,7 +185,7 @@ namespace BDArmory.GameModes
                 }
                 if (BDArmorySettings.SF_GRAVITY || AntiGravOverride) //have this disabled if no engines left?
                 {
-                    if (weaponManager != null && foundEngine != null) //have engineless craft fall
+                    if (WeaponManager != null && foundEngine != null) //have engineless craft fall
                     {
                         using (var p = part.vessel.Parts.GetEnumerator())
                             while (p.MoveNext())
@@ -237,22 +205,20 @@ namespace BDArmory.GameModes
                     }
                 }
             }
-            if (this.part.vessel.situation != Vessel.Situations.ORBITING || this.part.vessel.situation != Vessel.Situations.DOCKED || this.part.vessel.situation != Vessel.Situations.ESCAPING || this.part.vessel.situation != Vessel.Situations.PRELAUNCH)
+            if (!(part.vessel.situation == Vessel.Situations.ORBITING || part.vessel.situation == Vessel.Situations.DOCKED || part.vessel.situation == Vessel.Situations.ESCAPING || part.vessel.situation == Vessel.Situations.PRELAUNCH))
             {
                 if ((BDArmorySettings.SF_REPULSOR || RepulsorOverride) && repulsorActivated)
                 {
-                    if ((pilot != null || driver != null || flier != null || RepulsorOverride) && foundEngine != null)
+                    if ((ai != null || RepulsorOverride) && foundEngine != null)
                     {
-                        if (AI != null)
+                        repulsorAlt = ai.aiType switch
                         {
-                            repulsorAlt = AI.defaultAltitude; // Use default alt instead of min alt to keep the vessel away from 'gain alt' behaviour.
-                        }
-                        else if (SAI != null)
-                        {
-                            repulsorAlt = SAI.MaxSlopeAngle * 2;
-                        }
-                        else if (VAI != null)
-                            repulsorAlt = VAI.defaultAltitude;
+                            AIType.PilotAI => (ai as BDModulePilotAI).defaultAltitude, // Use default alt instead of min alt to keep the vessel away from 'gain alt' behaviour.
+                            AIType.SurfaceAI => (ai as BDModuleSurfaceAI).MaxSlopeAngle * 2,
+                            AIType.VTOLAI => (ai as BDModuleVTOLAI).defaultAltitude,
+                            _ => 0
+                        };
+
                         Vector3d grav = FlightGlobals.getGeeForceAtPosition(vessel.CoM);
                         var vesselMass = part.vessel.GetTotalMass();
                         if (RepulsorOverride) //Asking this first, so SPACEHACKS repulsor mode will ignore it
@@ -313,7 +279,7 @@ namespace BDArmory.GameModes
         {
             foreach (var vessel in FlightGlobals.Vessels)
             {
-                if (VesselModuleRegistry.GetMissileFire(vessel, true) != null && vessel.rootPart.FindModuleImplementing<ModuleSpaceFriction>() == null)
+                if (vessel.ActiveController().WM != null && vessel.rootPart.FindModuleImplementing<ModuleSpaceFriction>() == null)
                 {
                     vessel.rootPart.AddModule("ModuleSpaceFriction");
                 }

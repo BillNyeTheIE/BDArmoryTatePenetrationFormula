@@ -203,12 +203,12 @@ namespace BDArmory.Settings
                 }
                 else if (type == typeof(Rect))
                 {
-                    string[] strings = value.Split(',');
-                    int xVal = int.Parse(strings[0].Split(':')[1].Split('.')[0]);
-                    int yVal = int.Parse(strings[1].Split(':')[1].Split('.')[0]);
-                    int wVal = int.Parse(strings[2].Split(':')[1].Split('.')[0]);
-                    int hVal = int.Parse(strings[3].Split(':')[1].Split('.')[0]);
-                    Rect rectVal = new Rect
+                    string[] strings = value.Trim(['(', ')', ' ']).Split(',');
+                    float xVal = float.Parse(strings[0].Split(':')[1]);
+                    float yVal = float.Parse(strings[1].Split(':')[1]);
+                    float wVal = float.Parse(strings[2].Split(':')[1]);
+                    float hVal = float.Parse(strings[3].Split(':')[1]);
+                    Rect rectVal = new()
                     {
                         x = xVal,
                         y = yVal,
@@ -219,7 +219,7 @@ namespace BDArmory.Settings
                 }
                 else if (type == typeof(Vector2))
                 {
-                    char[] charsToTrim = { '(', ')', ' ' };
+                    char[] charsToTrim = ['(', ')', ' '];
                     string[] strings = value.Trim(charsToTrim).Split(',');
                     float x = float.Parse(strings[0]);
                     float y = float.Parse(strings[1]);
@@ -227,7 +227,7 @@ namespace BDArmory.Settings
                 }
                 else if (type == typeof(Vector2d))
                 {
-                    char[] charsToTrim = { '(', ')', ' ' };
+                    char[] charsToTrim = ['(', ')', ' '];
                     string[] strings = value.Trim(charsToTrim).Split(',');
                     double x = double.Parse(strings[0]);
                     double y = double.Parse(strings[1]);
@@ -235,7 +235,7 @@ namespace BDArmory.Settings
                 }
                 else if (type == typeof(Vector3d))
                 {
-                    char[] charsToTrim = { '[', ']', ' ' };
+                    char[] charsToTrim = ['[', ']', ' '];
                     string[] strings = value.Trim(charsToTrim).Split(',');
                     double x = double.Parse(strings[0]);
                     double y = double.Parse(strings[1]);
@@ -244,7 +244,7 @@ namespace BDArmory.Settings
                 }
                 else if (type == typeof(Vector2Int))
                 {
-                    char[] charsToTrim = { '(', ')', ' ' };
+                    char[] charsToTrim = ['(', ')', ' '];
                     string[] strings = value.Trim(charsToTrim).Split(',');
                     int x = int.Parse(strings[0]);
                     int y = int.Parse(strings[1]);
@@ -252,7 +252,7 @@ namespace BDArmory.Settings
                 }
                 else if (type == typeof(List<string>))
                 {
-                    return value.Split(new string[] { "; " }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                    return value.Split(["; "], StringSplitOptions.RemoveEmptyEntries).ToList();
                 }
             }
             catch (Exception e)

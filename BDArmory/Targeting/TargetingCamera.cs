@@ -327,6 +327,7 @@ namespace BDArmory.Targeting
                     { Destroy(camera.gameObject); }
                 }
             }
+            if (targetCamRenderTexture != null) targetCamRenderTexture.Release();
         }
 
         public static bool IsTGPCamera(Camera c)

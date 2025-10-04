@@ -224,7 +224,7 @@ namespace BDArmory.UI
                         if (hp == null || hp.Ready) return null;
                         return hp;
                     }).Where(hp => hp != null).Select(hp => $"{hp.part.name}: {hp.Why}"));
-                Debug.LogWarning($"[BDArmory.BDAEditorArmorWindow]: Ship HP failed to settle within {countLimit} frames.{(string.IsNullOrEmpty(reason) ? "" : $" {reason}")}");
+                if (BDArmorySettings.DEBUG_ARMOR) Debug.LogWarning($"[BDArmory.BDAEditorArmorWindow]: Ship HP failed to settle within {countLimit} frames.{(string.IsNullOrEmpty(reason) ? "" : $" {reason}")}");
             }
             delayedRefreshVisualsInProgress = false;
 
@@ -275,6 +275,10 @@ namespace BDArmory.UI
         private void OnEditorPartPlacedEvent(Part data)
         {
             DoVesselLegalityChecks(true);
+            if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 78)
+            {
+                data.sameVesselCollision = true;
+            }
         }
 
         private void OnDestroy()
