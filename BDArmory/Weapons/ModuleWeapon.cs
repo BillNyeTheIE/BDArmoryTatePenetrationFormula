@@ -1,11 +1,3 @@
-using KSP.UI.Screens;
-using System.Collections.Generic;
-using System.Collections;
-using System.Text;
-using System;
-using UniLinq;
-using UnityEngine;
-
 using BDArmory.Bullets;
 using BDArmory.Competition;
 using BDArmory.Control;
@@ -19,8 +11,15 @@ using BDArmory.Settings;
 using BDArmory.Targeting;
 using BDArmory.UI;
 using BDArmory.Utils;
-using BDArmory.Weapons.Missiles;
 using BDArmory.WeaponMounts;
+using BDArmory.Weapons.Missiles;
+using KSP.UI.Screens;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Text;
+using UniLinq;
+using UnityEngine;
 using static BDArmory.Bullets.PooledBullet;
 
 namespace BDArmory.Weapons
@@ -33,6 +32,7 @@ namespace BDArmory.Weapons
 
         public static Dictionary<string, ObjectPool> rocketPool = new Dictionary<string, ObjectPool>(); //for ammo switching
         public static ObjectPool shellPool;
+        public static ObjectPool beamConeFX;
 
         Coroutine startupRoutine;
         Coroutine shutdownRoutine;
@@ -641,7 +641,10 @@ namespace BDArmory.Weapons
         public bool pulseInConfig = false; //record if pulse laser in config for resetting lasers post mutator
         [KSPField] public bool HEpulses = false; //do the pulses have blast damage
         [KSPField] public bool HeatRay = false; //conic AoE
-        [KSPField] public bool electroLaser = false; //Drains EC from target/induces EMP effects
+        [KSPField] public bool electroLaser = false; //Drains EC from target/induces EMP effects TODO - since this is pressed into service for rockets and bullets as well, rename this to EMPWeapon or similar and add deprecation support for the old field name
+        [KSPField] public bool conicAoE = false; //is a Microwave Emitter or similar that does a conical AoE isntead of a linear beam
+        [KSPField] public float beamFOV = 20; //FoV angle of the beam. Is total width of field, not angle of divergence from muzzle
+        [KSPField] public bool friendlyFire = false; //will this also affect friendly vessels in AoE
         float beamDuration = 0.1f; // duration of pulselaser beamFX
         float beamScoreTime = 0.2f; //frequency of score accumulation for beam lasers, currently 5x/sec
         float BeamTracker = 0; // timer for scoring shots fired for beams
@@ -649,6 +652,13 @@ namespace BDArmory.Weapons
         bool grow = true;
 
         LineRenderer[] laserRenderers;
+        GameObject[] beamCone;
+        Renderer[] r_cone;
+
+        static RaycastHit[] electrolaserHits;
+        static RaycastHit[] reverseELHits;
+        static RaycastHit[] orderedELHits;
+
         LineRenderer trajectoryRenderer;
         List<Vector3> trajectoryPoints;
 
@@ -751,6 +761,9 @@ namespace BDArmory.Weapons
 
         [KSPField]
         public string laserTexturePath = "BDArmory/Textures/laser";
+
+        [KSPField]
+        public string laserModelPath = "BDArmory/Models/laser/laserCone";
 
         public List<string> laserTexList;
 
@@ -1535,6 +1548,11 @@ namespace BDArmory.Weapons
                 }                //laser setup
                 if (eWeaponType == WeaponTypes.Laser)
                 {
+                    if (electrolaserHits == null) { electrolaserHits = new RaycastHit[100]; }
+                    if (reverseELHits == null) { reverseELHits = new RaycastHit[100]; }
+                    if (orderedELHits == null) { orderedELHits = new RaycastHit[100]; }
+                    if (beamCone == null) { beamCone = new GameObject[fireTransforms.Length]; }
+                    if (r_cone == null) { r_cone = new Renderer[fireTransforms.Length]; }
                     SetupLaserSpecifics();
                     if (maxTargetingRange < maxEffectiveDistance)
                     {
@@ -1839,6 +1857,13 @@ namespace BDArmory.Weapons
                     laserRenderers[i].enabled = false;
                 }
             }
+            if (beamCone != null)
+            {
+                for (int c = 0; c < beamCone.Length; c++)
+                {
+                    beamCone[c].SetActive(false);                    
+                }
+            }
             BDArmorySetup.OnVolumeChange -= UpdateVolume;
             WeaponNameWindow.OnActionGroupEditorOpened.Remove(OnActionGroupEditorOpened);
             WeaponNameWindow.OnActionGroupEditorClosed.Remove(OnActionGroupEditorClosed);
@@ -2083,9 +2108,22 @@ namespace BDArmory.Weapons
                 }
                 else if (eWeaponType == WeaponTypes.Laser)
                 {
-                    for (int i = 0; i < laserRenderers.Length; i++)
+                    if (!conicAoE)
                     {
-                        laserRenderers[i].enabled = false;
+                        for (int i = 0; i < laserRenderers.Length; i++)
+                        {
+                            laserRenderers[i].enabled = false;
+                        }
+                    }
+                    else
+                    {
+                        if (beamCone != null)
+                        {
+                            for (int c = 0; c < beamCone.Length; c++)
+                            {
+                                beamCone[c].SetActive(false);
+                            }
+                        }
                     }
                     //audioSource.Stop();
                 }
@@ -2463,7 +2501,10 @@ namespace BDArmory.Weapons
                     }
                     else
                     {
-                        LaserBeam(aName);
+                        if (!conicAoE) 
+                            LaserBeam(aName);
+                        else 
+                            MicrowaveBeam(aName);
                         heat += heatPerShot * TimeWarp.CurrentRate;
                         BeamTracker += 0.02f;
                         if (BeamTracker > beamScoreTime)
@@ -2520,14 +2561,7 @@ namespace BDArmory.Weapons
                         rayDirection = VectorUtils.GaussianDirectionDeviation(tf.forward, maxDeviation / 2);
                         targetDirectionLR = rayDirection.normalized;
                     }
-                    /*else if (((((visualTargetVessel != null && visualTargetVessel.loaded) || slaved) || (isAPS && (tgtShell != null || tgtRocket != null))) && (turret && (turret.yawRange > 0 || turret.maxPitch > turret.minPitch))) // causes laser to snap to target CoM if close enough. changed to only apply to turrets
-						&& Vector3.Angle(rayDirection, targetDirection) < (isAPS ? 1f : 0.25f)) //if turret and within .25 deg (or 1 deg if APS), snap to target
-					{
-						//targetDirection = targetPosition + (relativeVelocity * Time.fixedDeltaTime) * 2 - tf.position;
-						targetDirection = targetPosition - tf.position; //something in here is throwing off the laser aim, causing the beam to be fired wildly off-target. Disabling it for now. FIXME - debug this later
-						rayDirection = targetDirection;
-						targetDirectionLR = targetDirection.normalized;
-					}*/
+
                     Ray ray = new Ray(tf.position, rayDirection);
                     lr.useWorldSpace = false;
                     lr.SetPosition(0, Vector3.zero);
@@ -2578,69 +2612,135 @@ namespace BDArmory.Weapons
                                     {
                                         if (electroLaser)
                                         {
+                                            //Due to Electrolasers/lightning bolts being a point source, and no guarantee that a craft is homogeneous material for armor/hull, calculating 
+                                            //the path electricity would take to get to craft electrics to affect them is going to be a mess one way or another
+                                            /////////////////////////////////////////////////
                                             if (!VesselModuleRegistry.ignoredVesselTypes.Contains(p.vessel.vesselType))
                                             {
-                                                var emp = p.vessel.rootPart.FindModuleImplementing<ModuleDrainEC>();
-                                                if (emp == null)
+                                                float EMPDamage = laserDamage * (pulseLaser ? 1 : TimeWarp.fixedDeltaTime) * BDArmorySettings.DMG_MULTIPLIER;
+                                                Part closestCommand = null;
+                                                float distToCommandSqr = float.PositiveInfinity; //lets find out which command part is closest to the hit
+                                                Vector3 commandDir = Vector3.zero;
+                                                float distToCommand = float.PositiveInfinity;
+                                                foreach (var moduleCommand in VesselModuleRegistry.GetModuleCommands(p.vessel))
                                                 {
-                                                    emp = (ModuleDrainEC)p.vessel.rootPart.AddModule("ModuleDrainEC");
-                                                    //Debug.Log($"[BDArmory.ModuleWeapon]: EMP Module added to {p.vessel.GetName()}: {p.vessel.rootPart.partInfo.title}");
-                                                    var MB = p.vessel.rootPart.FindModuleImplementing<MissileBase>();
-                                                    if (MB != null) emp.isMissile = true;
-                                                }
-                                                float EMPDamage = 0;
-                                                if (!pulseLaser)
-                                                {
-                                                    //EMPDamage = secondaryAmmoPerShot / 500;
-                                                    EMPDamage = laserDamage * TimeWarp.fixedDeltaTime; //have materials come into play? wooden part not going to conduct electricity as well as aluminium?
-                                                    emp.incomingDamage += EMPDamage;
-                                                }
-                                                else
-                                                {
-                                                    //EMPDamage = secondaryAmmoPerShot / 10;
-                                                    EMPDamage = laserDamage * BDArmorySettings.DMG_MULTIPLIER;
-                                                    emp.incomingDamage += EMPDamage;
-                                                }
-                                                emp.softEMP = true;
-                                                damage = EMPDamage;
-                                                if (BDArmorySettings.DEBUG_WEAPONS)
-                                                    Debug.Log($"[BDArmory.ModuleWeapon]: EMP Buildup Applied to {p.vessel.GetName()}: {laserDamage}");
-                                            }
-                                        }
-                                        else
-                                        {
-                                            var dist = Mathf.Sin(maxDeviation) * (tf.position - laserPoint).magnitude;
-                                            var hitCount2 = Physics.OverlapSphereNonAlloc(hit.point, dist, heatRayColliders, layerMask2);
-                                            if (hitCount2 == heatRayColliders.Length)
-                                            {
-                                                heatRayColliders = Physics.OverlapSphere(hit.point, dist, layerMask2);
-                                                hitCount2 = heatRayColliders.Length;
-                                            }
-                                            using (var hitsEnu2 = heatRayColliders.Take(hitCount2).GetEnumerator())
-                                            {
-                                                while (hitsEnu2.MoveNext())
-                                                {
-                                                    KerbalEVA kerb = hitsEnu2.Current.gameObject.GetComponentUpwards<KerbalEVA>();
-                                                    Part hitP = kerb ? kerb.part : hitsEnu2.Current.GetComponentInParent<Part>();
-                                                    if (hitP == null) continue;
-                                                    if (ProjectileUtils.IsIgnoredPart(hitP)) continue;
-                                                    if (hitP && hitP != p && hitP.vessel && hitP.vessel != vessel)
+                                                    float evalDist = (moduleCommand.part.transform.position - p.transform.position).sqrMagnitude;
+                                                    if (evalDist < distToCommandSqr)
                                                     {
-                                                        //p.AddDamage(damage);
-                                                        if (Physics.Raycast(new Ray(tf.position, hitP.CenterOfDisplacement), out RaycastHit h, (tf.position - laserPoint).magnitude, (int)LayerMasks.Parts))
-                                                        {
-                                                            var hitPart = h.collider.gameObject.GetComponentInParent<Part>();
-                                                            var hitEVA = h.collider.gameObject.GetComponentUpwards<KerbalEVA>();
-                                                            if (hitEVA != null) hitPart = hitEVA.part;
-                                                            if (hitPart != null && hitPart == hitP)
-                                                            {
-                                                                p.skinTemperature += (damage * (pulseLaser ? 1 : TimeWarp.fixedDeltaTime)); //add modifier to adjust damage by armor diffusivity value
+                                                        closestCommand = moduleCommand.part;
+                                                        commandDir = closestCommand.transform.position - p.transform.position;
+                                                        distToCommandSqr = evalDist;
+                                                    }
+                                                }
+                                                distToCommand = commandDir.magnitude;
+                                                //then see how many parts are between the root of the hit part and the nearest command part
+                                                var ElecRay = new Ray(p.transform.position, commandDir);
+                                                const int layerMask = (int)(LayerMasks.Parts | LayerMasks.Wheels);
+                                                var partCount = Physics.RaycastNonAlloc(ElecRay, electrolaserHits, distToCommand, layerMask);
+                                                if (partCount == electrolaserHits.Length) // If there's a whole bunch of stuff in the way (unlikely), then we need to increase the size of our hits buffer.
+                                                {
+                                                    electrolaserHits = Physics.RaycastAll(ElecRay, distToCommand, layerMask);
+                                                    partCount = electrolaserHits.Length;
+                                                }
+                                                //not ideal, since it's abstracted and can return erroneous electricity paths if, say, hit on a tip of a stock part wing, since that would likely have an unobstructed LoS to a cockpit, but that's a for later problem
+                                                var reverseRay = new Ray(ElecRay.origin + distToCommand * ElecRay.direction, -ElecRay.direction);
+                                                var reversePartCount = Physics.RaycastNonAlloc(reverseRay, reverseELHits, distToCommand, layerMask);
+                                                if (reversePartCount == reverseELHits.Length)
+                                                {
+                                                    reverseELHits = Physics.RaycastAll(reverseRay, distToCommand, layerMask);
+                                                    reversePartCount = reverseELHits.Length;
+                                                }
+                                                for (int h = 0; h < reversePartCount; ++h)
+                                                {
+                                                    reverseELHits[h].distance = distToCommand - reverseELHits[h].distance;
+                                                    reverseELHits[h].normal = -reverseELHits[h].normal;
+                                                }
+                                                // This is the most expensive part of this method
+                                                var totalPartCount = partCount + reversePartCount;
+                                                if (orderedELHits.Length < totalPartCount)
+                                                {
+                                                    Array.Resize(ref orderedELHits, totalPartCount);
+                                                    for (int oh = 0; oh < orderedELHits.Length; ++oh)
+                                                        orderedELHits[oh] = new RaycastHit();
+                                                }
+                                                Array.Sort(orderedELHits, 0, totalPartCount, RaycastHitComparer.raycastHitComparer); // This generates garbage, but less than other methods using Linq or Lists.
 
-                                                                if (BDArmorySettings.DEBUG_WEAPONS) Debug.Log($"[BDArmory.ModuleWeapon]: Heatray Applying {damage} heat to {p.name}");
+                                                bool hullConduction = false;
+                                                for (int tpc = 0; tpc < orderedELHits.Length; ++tpc)
+                                                {
+                                                    Part partHit = orderedELHits[tpc].collider.GetComponentInParent<Part>();
+                                                    if (partHit == null) continue;
+                                                    if (ProjectileUtils.IsIgnoredPart(partHit)) continue; // Ignore ignored parts.
+                                                    if (partHit.vessel != p.vessel) continue;
+                                                    var Armor = partHit.FindModuleImplementing<HitpointTracker>();
+                                                    //now that we have a path for the electricity to take to a cockpit, what sort of armor/hull modifiers are present?
+                                                    //Regarding 'None' armor type s something akin to pre-stressed commerical-grade aluminium sheeting over an internal frame, and is regarded as conductive
+                                                    //using Diffusivity as a hack conductivity value; diff >= 15 assumed to be a metal of some sort, and
+                                                    //conductive (not worrying about Ohms and resistance), and below that non-conductive/insulated.
+                                                    //Similarly, assuming that Hull massMod of >= 1 to be metal of some sort, and < to be some sort of wood/composite/etc
+                                                    if (Armor != null && partHit.Rigidbody != null)
+                                                    {
+                                                        if (Armor.Diffusivity > 15)
+                                                        {
+                                                            if (Armor.HullMassAdjust < 0)
+                                                            {
+                                                                hullConduction = false;
+                                                                continue; //conductive armor and non-Con hull, charge moves through armor to next part
                                                             }
+                                                            else
+                                                            {
+                                                                hullConduction = true;
+                                                                continue; //conductive armor and Con hull, charge moves through armor and hull to next part
+                                                            }
+                                                        }
+                                                        else //non-conductive armor
+                                                        {
+                                                            if (Armor.HullMassAdjust >= 0) //and conductive hull
+                                                            {
+                                                                if (hullConduction) continue;//charge already flowing through hull to next part
+                                                                else
+                                                                {
+                                                                    EMPDamage -= 2 * Armor.Armour; //-2 EMP damage per mm of insulating armor charge has to pass through to get to conductive amterials on other side
+                                                                    hullConduction = true;
+                                                                    continue;
+                                                                }
+                                                            }
+                                                            else //and non-con hull
+                                                            {
+                                                                if (!hullConduction)
+                                                                    EMPDamage -= 2 * Armor.Armour;
+                                                                if (EMPDamage > 100)
+                                                                {
+                                                                    EMPDamage /= 4;
+                                                                    hullConduction = true; //assumes even a full wood hull,e.g. would still have fuel lines/wiring busses/cable runs/ammo feeds/etc that could be used as an electricity path
+                                                                    continue;
+                                                                }
+                                                                else break; //insufficient charge to pass through non-conductive material
+                                                            }
+
                                                         }
                                                     }
                                                 }
+                                                if (EMPDamage > 0)
+                                                {
+                                                    var emp = p.vessel.rootPart.FindModuleImplementing<ModuleDrainEC>();
+                                                    if (emp == null)
+                                                    {
+                                                        emp = (ModuleDrainEC)p.vessel.rootPart.AddModule("ModuleDrainEC");
+                                                        //Debug.Log($"[BDArmory.ModuleWeapon]: EMP Module added to {p.vessel.GetName()}: {p.vessel.rootPart.partInfo.title}");
+                                                    }
+                                                    emp.softEMP = true;
+                                                    emp.incomingDamage = EMPDamage;
+                                                    damage = EMPDamage;
+                                                    if (BDArmorySettings.DEBUG_WEAPONS)
+                                                        Debug.Log($"[BDArmory.ModuleWeapon]: {p.vessel.GetName()} receiving {initialDamage * (pulseLaser ? 1 : TimeWarp.fixedDeltaTime) * BDArmorySettings.DMG_MULTIPLIER} EMP damage; EMP buildup applied: {EMPDamage}");
+                                                }
+                                            }
+                                            else
+                                            {
+                                                p.skinTemperature += (damage * (pulseLaser ? 1 : TimeWarp.fixedDeltaTime)); //add modifier to adjust damage by armor diffusivity value?
+
+                                                if (BDArmorySettings.DEBUG_WEAPONS) Debug.Log($"[BDArmory.ModuleWeapon]: Heatray Applying {damage} heat to {p.name}");
                                             }
                                         }
                                     }
@@ -2792,6 +2892,202 @@ namespace BDArmory.Weapons
                 }
             }
         }
+
+        //Conic AoE 'beam' for AoE beam weapons - tractor beams, microwave EMP, heatrays, etc.
+        private void MicrowaveBeam(string vesselname)
+        {
+            if (BDArmorySetup.GameIsPaused)
+            {
+                if (audioSource.isPlaying)
+                {
+                    audioSource.Stop();
+                }
+                return;
+            }
+            WeaponFX();
+            float damage = laserDamage;
+            float initialDamage = damage * 0.425f;
+            var beamLength = engageRangeMax / 1000;
+            var beamAngle = Mathf.Tan(beamFOV * Mathf.Deg2Rad) * beamLength; //assumes a default 1km long, 45deg angle cone model
+                                                                 //Also, TOD - add conic AoE ingo to the GetInfo weapon infocard
+            Vector3 beamScale = new Vector3(beamAngle, beamAngle, beamLength); //this need a 1/localscale for oddly scaled parts?
+            for (int i = 0; i < fireTransforms.Length; i++)
+            {
+                if (!useRippleFire || !pulseLaser || fireState.Length == 1 || (useRippleFire && i == barrelIndex))
+                {
+                    beamCone[i].SetActive(true);
+                    beamCone[i].transform.position = fireTransforms[i].position;
+                    beamCone[i].transform.localScale = beamScale;
+                    beamCone[i].transform.rotation = fireTransforms[i].rotation;
+                }
+            }
+            // technically, since we are loading in a Model for the beam cone FX, we could attach a IsTrigger collider to it and then just do a onTriggerEnter call instead
+            //but since we'd still need vessel filtering for stuff behind terrain/?underwater? + LoS/occulsion raycasts for non-EMP damage types (and EMP damage only needs a single Vessel hit, not many per part hits)
+            //this ends up for now being the simpler implementation
+            using (var loadedvessels = BDATargetManager.LoadedVessels.GetEnumerator())
+                while (loadedvessels.MoveNext())
+                {
+                    if (loadedvessels.Current == null || !loadedvessels.Current.loaded) continue;
+                    if (VesselModuleRegistry.ignoredVesselTypes.Contains(loadedvessels.Current.vesselType)) continue;
+                    if (Vector3.Angle(loadedvessels.Current.CoM - fireTransforms[0].transform.position, fireTransforms[0].forward) > beamFOV / 2f) continue;
+                    if (loadedvessels.Current.IsUnderwater()) continue; //would microwaves work underwater...?
+                    if (!friendlyFire) //don't affect friendly targets. Something something phased array dynamic beam shaping
+                    {
+                        var wms = VesselModuleRegistry.GetModule<MissileFire>(loadedvessels.Current);
+                        if (wms == null || wms.Team == weaponManager.Team) continue;
+                    }
+                    if (!loadedvessels.Current.Splashed && vessel.IsUnderwater()) //not sure if a water transition should serve as a barrier, but easily commented out
+                            continue;
+                    if (loadedvessels.Current == vessel) continue;
+                    float distance = (loadedvessels.Current.CoM - fireTransforms[0].transform.position).magnitude;
+                    if (distance > maxTargetingRange) continue;
+
+                    var angularSpread = tanAngle * distance; //Scales down the damage based on the increased surface area of the area being hit by the laser. Think flashlight on a wall.
+                    initialDamage = damage / (1 + Mathf.PI * angularSpread * angularSpread);
+
+                    if (electroLaser)
+                    {
+                        float EMPDamage = initialDamage * (pulseLaser ? 1 : TimeWarp.fixedDeltaTime) * BDArmorySettings.DMG_MULTIPLIER;
+
+                        Vector3 commandDir = Vector3.zero;
+                        float shieldvalue = float.PositiveInfinity;
+                        foreach (var moduleCommand in VesselModuleRegistry.GetModuleCommands(loadedvessels.Current))
+                        {
+                            //see how many parts are between emitter and the nearest command part to see which one is least shielded
+                            var distToCommand = commandDir.magnitude;
+                            var ElecRay = new Ray(fireTransforms[barrelIndex].position, commandDir);
+                            const int layerMask = (int)(LayerMasks.Parts | LayerMasks.Wheels);
+                            var partCount = Physics.RaycastNonAlloc(ElecRay, electrolaserHits, distToCommand, layerMask);
+                            if (partCount == electrolaserHits.Length) // If there's a whole bunch of stuff in the way (unlikely), then we need to increase the size of our hits buffer.
+                            {
+                                electrolaserHits = Physics.RaycastAll(ElecRay, distToCommand, layerMask);
+                                partCount = electrolaserHits.Length;
+                            }
+                            for (int mwh = 0; mwh < partCount; ++mwh)
+                            {
+                                Part partHit = electrolaserHits[mwh].collider.GetComponentInParent<Part>();
+                                if (partHit == null) continue;
+                                if (ProjectileUtils.IsIgnoredPart(partHit)) continue;
+                                float testShieldValue = 0;
+                                //AoE EMP field EMP damage mitigation - -1 EMP damage per mm of conductive armor/5t of conductive hull mass per part occluding command part from emission source         
+                                var Armor = partHit.FindModuleImplementing<HitpointTracker>();
+                                if (Armor != null && partHit.Rigidbody != null)
+                                {
+                                    if (Armor.Diffusivity > 15) testShieldValue += Armor.Armour;
+                                    if (Armor.HullMassAdjust > 0) testShieldValue += (partHit.mass * 4);
+                                }
+                                if (testShieldValue < shieldvalue) shieldvalue = testShieldValue;
+                            }
+                        }
+                        EMPDamage -= shieldvalue;
+                        if (EMPDamage > 0)
+                        {
+                            var emp = loadedvessels.Current.rootPart.FindModuleImplementing<ModuleDrainEC>();
+                            if (emp == null)
+                            {
+                                emp = (ModuleDrainEC)loadedvessels.Current.rootPart.AddModule("ModuleDrainEC");
+                                //Debug.Log($"[BDArmory.ModuleWeapon]: EMP Module added to {p.vessel.GetName()}: {p.vessel.rootPart.partInfo.title}");
+                            }
+                            emp.softEMP = true;
+                            emp.incomingDamage = EMPDamage;
+                            damage = EMPDamage;
+                            if (BDArmorySettings.DEBUG_WEAPONS)
+                                Debug.Log($"[BDArmory.ModuleWeapon]: {loadedvessels.Current.GetName()} receiving {initialDamage * (pulseLaser ? 1 : TimeWarp.fixedDeltaTime) * BDArmorySettings.DMG_MULTIPLIER} EMP damage; EMP buildup applied: {laserDamage}; reduction from armor: {shieldvalue}");
+                        }
+                    }
+                    if (Impulse > 0 || graviticWeapon || HeatRay || instagib)
+                    {
+                        using (var parts = loadedvessels.Current.Parts.GetEnumerator())
+                            while (parts.MoveNext())
+                            {
+                                if (parts.Current == null) continue;
+                                if (ProjectileUtils.IsIgnoredPart(parts.Current)) continue;
+                                Ray ray = new Ray(fireTransforms[barrelIndex].position, parts.Current.CenterOfDisplacement - fireTransforms[barrelIndex].position);
+                                if (Physics.Raycast(ray, out RaycastHit h, maxTargetingRange, (int)(LayerMasks.Parts | LayerMasks.Scenery | LayerMasks.Unknown19 | LayerMasks.Wheels)))
+                                {
+                                    var hitPart = h.collider.gameObject.GetComponentInParent<Part>();
+                                    var hitEVA = h.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+                                    if (hitEVA != null) hitPart = hitEVA.part;
+                                    if (hitPart != null)
+                                    {
+                                        if (instagib)
+                                        {
+                                            hitPart.AddInstagibDamage();
+                                            ExplosionFx.CreateExplosion(hitPart.transform.position, 1, "BDArmory/Models/explosion/explosion", explSoundPath, ExplosionSourceType.Bullet, 0, null, vessel.vesselName, null, Hitpart: hitPart);
+                                            continue;
+                                        }
+                                        if (hitPart == parts.Current)
+                                        {
+                                            if (HeatRay)
+                                                hitPart.skinTemperature += (damage * (pulseLaser ? 1 : TimeWarp.fixedDeltaTime)); //add modifier to adjust damage by armor diffusivity value
+                                            if (Impulse != 0)
+                                            {
+                                                if (!pulseLaser)
+                                                {
+                                                    Impulse *= TimeWarp.fixedDeltaTime;
+                                                }
+                                                if (hitPart.rb != null && hitPart.rb.mass > 0)
+                                                {
+                                                    hitPart.rb.AddForceAtPosition((hitPart.transform.position - fireTransforms[barrelIndex].position).normalized * (float)Impulse, hitPart.CenterOfDisplacement, ForceMode.Impulse);
+                                                    if (BDArmorySettings.DEBUG_WEAPONS) Debug.Log($"[BDArmory.ModuleWeapon]: Impulse of {Impulse} Applied to {hitPart.vessel.GetName()}");
+                                                    damage += Impulse / 100;
+                                                }
+                                            }
+                                            if (graviticWeapon)
+                                            {
+                                                if (hitPart.rb != null && hitPart.rb.mass > 0)
+                                                {
+                                                    float duration = BDArmorySettings.WEAPON_FX_DURATION;
+                                                    if (!pulseLaser)
+                                                    {
+                                                        duration = BDArmorySettings.WEAPON_FX_DURATION * TimeWarp.fixedDeltaTime;
+                                                    }
+                                                    var ME = hitPart.FindModuleImplementing<ModuleMassAdjust>();
+                                                    if (ME == null)
+                                                    {
+                                                        ME = (ModuleMassAdjust)hitPart.AddModule("ModuleMassAdjust");
+                                                    }
+                                                    ME.massMod += (massAdjustment * TimeWarp.fixedDeltaTime);
+                                                    ME.duration += duration;
+                                                    if (BDArmorySettings.DEBUG_WEAPONS) Debug.Log($"[BDArmory.ModuleWeapon]: Gravitic Buildup Applied to {hitPart.vessel.GetName()}: {massAdjustment}t added");
+                                                    //if (laserDamage == 0) 
+                                                    damage += massAdjustment * 100;
+                                                }
+                                            }
+                                            if (BDArmorySettings.DEBUG_WEAPONS) Debug.Log($"[BDArmory.ModuleWeapon]: Heatray Applying {damage} heat to {hitPart.name}");
+                                        }
+                                    }
+                                }
+                            }
+                    }
+
+                    var aName = vesselname;
+                    var tName = loadedvessels.Current.GetName();
+                    if (BDACompetitionMode.Instance.Scores.RegisterBulletDamage(aName, tName, Mathf.Abs(damage)))
+                    {
+                        if (pulseLaser || (!pulseLaser && ScoreAccumulator > beamScoreTime)) // Score hits with pulse lasers or when the score accumulator is sufficient.
+                        {
+                            ScoreAccumulator = 0;
+                            BDACompetitionMode.Instance.Scores.RegisterBulletHit(aName, tName, WeaponName, distance);
+                            if (ProjectileUtils.isReportingWeapon(part) && BDACompetitionMode.Instance.competitionIsActive)
+                            {
+                                string message = $"{tName} hit by {aName}'s {OriginalShortName} at {distance:F3}m!";
+                                BDACompetitionMode.Instance.competitionStatus.Add(message);
+                            }
+                        }
+                        else
+                        {
+                            ScoreAccumulator += TimeWarp.fixedDeltaTime;
+                        }
+                    }
+                }
+        }    
+        
+        void EMPBeam(Ray ElecRay,float distToCommand)
+        {
+
+        }
+
         public void SetupLaserSpecifics()
         {
             //chargeSound = SoundUtils.GetAudioClip(chargeSoundPath);
@@ -2799,58 +3095,98 @@ namespace BDArmory.Weapons
             {
                 audioSource.clip = fireSound;
             }
-            if (laserRenderers == null)
+            Color laserColor = GUIUtils.ParseColor255(projectileColor);
+            laserColor.a = laserColor.a / 2;
+            if (conicAoE)
             {
-                laserRenderers = new LineRenderer[fireTransforms.Length];
+                var cone = GameDatabase.Instance.GetModel(laserModelPath);            
+                cone.SetActive(false);
+                beamConeFX = ObjectPool.CreateObjectPool(cone, 10, true, true);
+                if (beamConeFX != null)
+                {
+                    for (int i = 0; i < fireTransforms.Length; i++)
+                    {
+                        Transform tf = fireTransforms[i];
+                        beamCone[i] = beamConeFX.GetPooledObject();
+                        beamCone[i].transform.SetPositionAndRotation(tf.position, tf.rotation);
+                        beamCone[i].transform.localScale = Vector3.zero;
+                        r_cone[i] = beamCone[i].GetComponentInChildren<Renderer>();
+                        r_cone[i].material = new Material(Shader.Find("KSP/Particles/Additive"));
+                        r_cone[i].material.SetColor("_TintColor", laserColor);
+                        r_cone[i].material.mainTexture = GameDatabase.Instance.GetTexture("BDArmory/Models/laser/laserTex", false);
+                    }
+                }
+                var Tan = Mathf.Tan(beamFOV / 2);
+                var aTan = Mathf.Atan(beamFOV / 2);
             }
-            for (int i = 0; i < fireTransforms.Length; i++)
+            else
             {
-                Transform tf = fireTransforms[i];
-                laserRenderers[i] = tf.gameObject.AddOrGetComponent<LineRenderer>();
-                Color laserColor = GUIUtils.ParseColor255(projectileColor);
-                laserColor.a = laserColor.a / 2;
-                laserRenderers[i].material = new Material(Shader.Find("KSP/Particles/Alpha Blended"));
-                laserRenderers[i].material.SetColor("_TintColor", laserColor);
-                laserRenderers[i].material.mainTexture = GameDatabase.Instance.GetTexture(laserTexList[0], false);
-                laserRenderers[i].material.SetTextureScale("_MainTex", new Vector2(0.01f, 1));
-                laserRenderers[i].textureMode = LineTextureMode.Tile;
-                laserRenderers[i].shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; //= false;
-                laserRenderers[i].receiveShadows = false;
-                laserRenderers[i].startWidth = tracerStartWidth;
-                laserRenderers[i].endWidth = tracerEndWidth;
-                laserRenderers[i].positionCount = 2;
-                laserRenderers[i].SetPosition(0, Vector3.zero);
-                laserRenderers[i].SetPosition(1, Vector3.zero);
-                laserRenderers[i].useWorldSpace = false;
-                laserRenderers[i].enabled = false;
+                if (laserRenderers == null)
+                {
+                    laserRenderers = new LineRenderer[fireTransforms.Length];
+                }
+                for (int i = 0; i < fireTransforms.Length; i++)
+                {
+                    Transform tf = fireTransforms[i];
+                    laserRenderers[i] = tf.gameObject.AddOrGetComponent<LineRenderer>();                    
+                    laserRenderers[i].material = new Material(Shader.Find("KSP/Particles/Alpha Blended"));
+                    laserRenderers[i].material.SetColor("_TintColor", laserColor);
+                    laserRenderers[i].material.mainTexture = GameDatabase.Instance.GetTexture(laserTexList[0], false);
+                    laserRenderers[i].material.SetTextureScale("_MainTex", new Vector2(0.01f, 1));
+                    laserRenderers[i].textureMode = LineTextureMode.Tile;
+                    laserRenderers[i].shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; //= false;
+                    laserRenderers[i].receiveShadows = false;
+                    laserRenderers[i].startWidth = tracerStartWidth;
+                    laserRenderers[i].endWidth = tracerEndWidth;
+                    laserRenderers[i].positionCount = 2;
+                    laserRenderers[i].SetPosition(0, Vector3.zero);
+                    laserRenderers[i].SetPosition(1, Vector3.zero);
+                    laserRenderers[i].useWorldSpace = false;
+                    laserRenderers[i].enabled = false;
+                }
             }
         }
         public void UpdateLaserSpecifics(bool newColor, bool newTex, bool newWidth, bool newOffset)
         {
-            if (laserRenderers == null)
+            if (conicAoE)
             {
-                return;
+                if (r_cone == null) return;
+
+                for (int i = 0; i < fireTransforms.Length; i++)
+                {
+                    if (newColor)
+                    {
+                        r_cone[i].material.SetColor("_TintColor", projectileColorC); //change beam to new color
+                    }
+                }
             }
-            for (int i = 0; i < fireTransforms.Length; i++)
+            else
             {
-                if (newColor)
+                if (laserRenderers == null)
                 {
-                    laserRenderers[i].material.SetColor("_TintColor", projectileColorC); //change beam to new color
+                    return;
                 }
-                if (newTex)
+                for (int i = 0; i < fireTransforms.Length; i++)
                 {
-                    laserRenderers[i].material.mainTexture = GameDatabase.Instance.GetTexture(laserTexList[UnityEngine.Random.Range(0, laserTexList.Count - 1)], false); //add support for multiple tex patchs, randomly cycle through
-                    laserRenderers[i].material.SetTextureScale("_MainTex", new Vector2(beamScalar, 1));
-                }
-                if (newWidth)
-                {
-                    laserRenderers[i].startWidth = tracerStartWidth;
-                    laserRenderers[i].endWidth = tracerEndWidth;
-                }
-                if (newOffset)
-                {
-                    Offset += beamScrollRate;
-                    laserRenderers[i].material.SetTextureOffset("_MainTex", new Vector2(Offset, 0));
+                    if (newColor)
+                    {
+                        laserRenderers[i].material.SetColor("_TintColor", projectileColorC); //change beam to new color
+                    }
+                    if (newTex)
+                    {
+                        laserRenderers[i].material.mainTexture = GameDatabase.Instance.GetTexture(laserTexList[UnityEngine.Random.Range(0, laserTexList.Count - 1)], false); //add support for multiple tex patchs, randomly cycle through
+                        laserRenderers[i].material.SetTextureScale("_MainTex", new Vector2(beamScalar, 1));
+                    }
+                    if (newWidth)
+                    {
+                        laserRenderers[i].startWidth = tracerStartWidth;
+                        laserRenderers[i].endWidth = tracerEndWidth;
+                    }
+                    if (newOffset)
+                    {
+                        Offset += beamScrollRate;
+                        laserRenderers[i].material.SetTextureOffset("_MainTex", new Vector2(Offset, 0));
+                    }
                 }
             }
         }
@@ -4696,9 +5032,22 @@ namespace BDArmory.Weapons
                     {
                         if ((!pulseLaser && !BurstFire) || (!pulseLaser && BurstFire && (RoundsRemaining >= RoundsPerMag)) || (pulseLaser && timeSinceFired > beamDuration))
                         {
-                            for (int i = 0; i < laserRenderers.Length; i++)
+                            if (!conicAoE)
                             {
-                                laserRenderers[i].enabled = false;
+                                for (int i = 0; i < laserRenderers.Length; i++)
+                                {
+                                    laserRenderers[i].enabled = false;
+                                }
+                            }
+                            else
+                            {
+                                if (beamCone != null)
+                                {
+                                    for (int c = 0; c < beamCone.Length; c++)
+                                    {
+                                        beamCone[c].SetActive(false);
+                                    }
+                                }
                             }
                         }
                     }
@@ -4765,9 +5114,22 @@ namespace BDArmory.Weapons
                     }
                     if ((!pulseLaser && !BurstFire) || (!pulseLaser && BurstFire && (RoundsRemaining >= RoundsPerMag)) || (pulseLaser && timeSinceFired > beamDuration))
                     {
-                        for (int i = 0; i < laserRenderers.Length; i++)
+                        if (!conicAoE)
                         {
-                            laserRenderers[i].enabled = false;
+                            for (int i = 0; i < laserRenderers.Length; i++)
+                            {
+                                laserRenderers[i].enabled = false;
+                            }
+                        }
+                        else
+                        {
+                            if (beamCone != null)
+                            {
+                                for (int c = 0; c < beamCone.Length; c++)
+                                {
+                                    beamCone[c].SetActive(false);
+                                }
+                            }
                         }
                     }
                     //if (!pulseLaser || !oneShotSound)
@@ -4865,9 +5227,22 @@ namespace BDArmory.Weapons
                             case WeaponTypes.Laser:
                                 if (FireLaser())
                                 {
-                                    for (int i = 0; i < laserRenderers.Length; i++)
+                                    if (!conicAoE)
                                     {
-                                        laserRenderers[i].enabled = true;
+                                        for (int i = 0; i < laserRenderers.Length; i++)
+                                        {
+                                            laserRenderers[i].enabled = true;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (beamCone != null)
+                                        {
+                                            for (int c = 0; c < beamCone.Length; c++)
+                                            {
+                                                beamCone[c].SetActive(true);
+                                            }
+                                        }
                                     }
                                     if (isAPS && (tgtShell != null || tgtRocket != null))
                                     {
@@ -4878,9 +5253,22 @@ namespace BDArmory.Weapons
                                 {
                                     if ((!pulseLaser && !BurstFire) || (!pulseLaser && BurstFire && (RoundsRemaining >= RoundsPerMag)) || (pulseLaser && timeSinceFired > beamDuration))
                                     {
-                                        for (int i = 0; i < laserRenderers.Length; i++)
+                                        if (!conicAoE)
                                         {
-                                            laserRenderers[i].enabled = false;
+                                            for (int i = 0; i < laserRenderers.Length; i++)
+                                            {
+                                                laserRenderers[i].enabled = false;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (beamCone != null)
+                                            {
+                                                for (int c = 0; c < beamCone.Length; c++)
+                                                {
+                                                    beamCone[c].SetActive(false);
+                                                }
+                                            }
                                         }
                                     }
                                     //if (!pulseLaser || !oneShotSound)
@@ -5046,9 +5434,22 @@ namespace BDArmory.Weapons
                 autoFireFailReason = "Reloading";
                 if (eWeaponType == WeaponTypes.Laser)
                 {
-                    for (int i = 0; i < laserRenderers.Length; i++)
+                    if (!conicAoE)
                     {
-                        laserRenderers[i].enabled = false;
+                        for (int i = 0; i < laserRenderers.Length; i++)
+                        {
+                            laserRenderers[i].enabled = false;
+                        }
+                    }
+                    else
+                    {
+                        if (beamCone != null)
+                        {
+                            for (int c = 0; c < beamCone.Length; c++)
+                            {
+                                beamCone[c].SetActive(false);
+                            }
+                        }
                     }
                 }
                 wasFiring = false;
@@ -5782,18 +6183,44 @@ namespace BDArmory.Weapons
                     case WeaponTypes.Laser:
                         if (FireLaser())
                         {
-                            for (int i = 0; i < laserRenderers.Length; i++)
+                            if (!conicAoE)
                             {
-                                laserRenderers[i].enabled = true;
+                                for (int i = 0; i < laserRenderers.Length; i++)
+                                {
+                                    laserRenderers[i].enabled = true;
+                                }
+                            }
+                            else
+                            {
+                                if (beamCone != null)
+                                {
+                                    for (int c = 0; c < beamCone.Length; c++)
+                                    {
+                                        beamCone[c].SetActive(true);
+                                    }
+                                }
                             }
                         }
                         else
                         {
                             if ((!pulseLaser && !BurstFire) || (!pulseLaser && BurstFire && (RoundsRemaining >= RoundsPerMag)) || (pulseLaser && timeSinceFired > beamDuration))
                             {
-                                for (int i = 0; i < laserRenderers.Length; i++)
+                                if (!conicAoE)
                                 {
-                                    laserRenderers[i].enabled = false;
+                                    for (int i = 0; i < laserRenderers.Length; i++)
+                                    {
+                                        laserRenderers[i].enabled = false;
+                                    }
+                                }
+                                else
+                                {
+                                    if (beamCone != null)
+                                    {
+                                        for (int c = 0; c < beamCone.Length; c++)
+                                        {
+                                            beamCone[c].SetActive(false);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -6206,6 +6633,12 @@ namespace BDArmory.Weapons
                             output.AppendLine($"{ammoName}: {requestResourceAmount}/s");
                         }
                     }
+                }
+                if (conicAoE)
+                {
+                    output.AppendLine($"Conic beam weapon");
+                    output.AppendLine($"- Beam FOV: {beamFOV} deg.");
+                    output.AppendLine($"- Will not hit friendlies in AoE: {!friendlyFire}");
                 }
                 if (pulseLaser)
                 {
@@ -6756,6 +7189,13 @@ namespace BDArmory.Weapons
             }
         }
     }
-
     #endregion UI //borrowing code from ModularMissile GUI
+    internal class RaycastHitComparer : IComparer<RaycastHit>
+    {
+        int IComparer<RaycastHit>.Compare(RaycastHit left, RaycastHit right)
+        {
+            return left.distance.CompareTo(right.distance);
+        }
+        public static RaycastHitComparer raycastHitComparer = new RaycastHitComparer();
+    }
 }

@@ -375,6 +375,9 @@ UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_fals
             // check for belowMinAlt
             belowMinAltitude = (float)vessel.radarAltitude < minAltitude;
 
+            // VTOL ram capability? have it match alt with target flier and engines ahead full?
+            // ramming gorund targets would be iffy, though. 
+
             // check for collisions, but not every frame
             if (collisionDetectionTicker == 0)
             {
