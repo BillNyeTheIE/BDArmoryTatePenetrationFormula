@@ -129,15 +129,18 @@ namespace BDArmory.Damage
             if (!bricked && !disabled && EMPDamage > 0) //does the damage exceed the soft cap, but not the hard cap?
             {
                 currentEMPBuildup = Mathf.FloorToInt(EMPDamage / EMPTierThreshold);
+                //Debug.Log($"[BDArmory.ModuleDrainEC]: currentEMPBuildup Tier on {vessel.GetName()}: {currentEMPBuildup}. last Tier Triggered: {lastTierTriggered}");
                 if (currentEMPBuildup > lastTierTriggered)
-                {
-                    lastTierTriggered = currentEMPBuildup;                    
+                {                    
+                    //Debug.Log($"[BDArmory.ModuleDrainEC]: Applying EMP Threshold {currentEMPBuildup} to {vessel.GetName()}");
                     DisableVessel(currentEMPBuildup);
+                    lastTierTriggered = currentEMPBuildup;
                 }
                 if (currentEMPBuildup < lastTierTriggered)
-                {
-                    lastTierTriggered = currentEMPBuildup;
+                {                    
+                    //Debug.Log($"[BDArmory.ModuleDrainEC]: Removing EMP Threshold {currentEMPBuildup} from {vessel.GetName()}");
                     EnableVessel(currentEMPBuildup);
+                    lastTierTriggered = currentEMPBuildup;
                 }
             }
 
