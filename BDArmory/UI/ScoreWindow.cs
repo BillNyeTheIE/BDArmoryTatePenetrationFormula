@@ -192,7 +192,8 @@ namespace BDArmory.UI
                         // Show rank, vessel name, lives, score
                         GUILayout.BeginHorizontal();
                         GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_Settings_ContinuousSpawning"), leftLabel, GUILayout.ExpandWidth(true));
-                        GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_BDAScores_Lives"), rightLabel, GUILayout.Width(50));
+                        if (BDArmorySettings.VESSEL_SPAWN_LIVES_PER_VESSEL > 0)
+                            GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_BDAScores_Lives"), rightLabel, GUILayout.Width(50));
                         GUILayout.Label(StringUtils.Localize("#LOC_BDArmory_BDAScores_Score"), rightLabel, GUILayout.Width(70));
                         GUILayout.EndHorizontal();
                         if (!autoResizingWindow) scoreScrollPos = GUILayout.BeginScrollView(scoreScrollPos);
@@ -204,7 +205,8 @@ namespace BDArmory.UI
                             GUILayout.BeginHorizontal();
                             GUILayout.Label($"{++rank,3:D}", leftLabel, GUILayout.Width(BDArmorySettings.SCORES_FONT_SIZE * 2));
                             GUILayout.Label(name, leftLabel, GUILayout.ExpandWidth(true));
-                            GUILayout.Label(BDArmorySettings.VESSEL_SPAWN_LIVES_PER_VESSEL == 0 ? StringUtils.Localize("#LOC_BDArmory_BDAScores_Unlimited") : $"{BDArmorySettings.VESSEL_SPAWN_LIVES_PER_VESSEL - deaths}", rightLabel, GUILayout.Width(50));
+                            if (BDArmorySettings.VESSEL_SPAWN_LIVES_PER_VESSEL > 0)
+                                GUILayout.Label($"{BDArmorySettings.VESSEL_SPAWN_LIVES_PER_VESSEL - deaths}", rightLabel, GUILayout.Width(50));
                             GUILayout.Label($"{score,7:F2}", rightLabel, GUILayout.Width(70));
                             GUILayout.EndHorizontal();
                         }

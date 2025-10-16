@@ -73,7 +73,7 @@ namespace BDArmory.Damage
         [KSPField(advancedTweakable = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_ArmorMass")]//armor mass
         public float armorMass = 0f;
 
-        private float totalArmorQty = 0f;
+        public float totalArmorQty = 0f;
 
         [KSPField(advancedTweakable = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_ArmorCost")]//armor cost
         public float armorCost = 0f;
@@ -574,11 +574,9 @@ namespace BDArmory.Damage
                 {
                     if (r[i].GetComponentInParent<Part>() != part) continue; // Don't recurse to child parts.
                     int key = r[i].material.GetInstanceID(); // The instance ID is unique for each object (not just component or gameObject).
-                    if (!defaultShader.ContainsKey(key))
-                    {
-                        defaultShader.Add(key, r[i].material.shader); //This doesn't grab part variants - parts with variants that are switched to will not register in defaultShader, and render as black in the RCS window
-                        if (BDArmorySettings.DEBUG_ARMOR) Debug.Log($"[BDArmory.HitpointTracker]: ARMOR: part shader on {r[i].GetComponentInParent<Part>().partInfo.name} is {r[i].material.shader.name}");
-                    }
+                    if (defaultShader.ContainsKey(key)) continue;
+                    defaultShader.Add(key, r[i].material.shader); //This doesn't grab part variants - parts with variants that are switched to will not register in defaultShader, and render as black in the RCS window
+                    if (BDArmorySettings.DEBUG_ARMOR) Debug.Log($"[BDArmory.HitpointTracker]: ARMOR: part shader on {r[i].GetComponentInParent<Part>().partInfo.name} is {r[i].material.shader.name}");
                     if (r[i].material.HasProperty("_Color"))
                     {
                         if (!defaultColor.ContainsKey(key)) defaultColor.Add(key, r[i].material.color);
@@ -1191,7 +1189,7 @@ namespace BDArmory.Damage
                 Debug.Log("[HPTracker] armor mass: " + armorMass * 1000 + "kg; mass to reduce: " + (massToReduce * Math.Round((Density / 1000000), 3)) * BDArmorySettings.ARMOR_MASS_MOD + "kg"); //g/m3
             }
             float reduceMass = (massToReduce * (Density / 1000000000)); //g/cm3 conversion to yield tons
-            if (armorMass < reduceMass) reduceMass = armorMass; //shouldn't be happening, but just in case
+            if (totalArmorQty < reduceMass) reduceMass = totalArmorQty; //shouldn't be happening, but just in case
             if (totalArmorQty > 0)
             {
                 //Armor -= ((reduceMass * 2) / armorMass) * Armor; //armor that's 50% air isn't going to stop anything and could be considered 'destroyed' so lets reflect that by doubling armor loss (this will also nerf armor panels from 'god-tier' to merely 'very very good'

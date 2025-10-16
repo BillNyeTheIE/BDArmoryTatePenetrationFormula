@@ -33,8 +33,8 @@ namespace BDArmory.VesselSpawning
 
     public class SpawnLocation
     {
-        public static string oldSpawnLocationsCfg = Path.Combine(KSPUtil.ApplicationRootPath, "GameData/BDArmory/spawn_locations.cfg");
-        public static string spawnLocationsCfg = Path.Combine(KSPUtil.ApplicationRootPath, "GameData/BDArmory/PluginData/spawn_locations.cfg");
+        public static string oldSpawnLocationsCfg = Path.GetFullPath(Path.Combine(KSPUtil.ApplicationRootPath, "GameData/BDArmory/spawn_locations.cfg"));
+        public static string spawnLocationsCfg = Path.GetFullPath(Path.Combine(KSPUtil.ApplicationRootPath, "GameData/BDArmory/PluginData/spawn_locations.cfg"));
 
         public string name;
         public Vector2d location;

@@ -158,7 +158,7 @@ namespace BDArmory.Bullets
             transform.rotation = transform.parent.rotation;
             startTime = Time.time;
             armingTime = isSubProjectile ? 0 : BDAMath.Sqrt(4 * blastRadius * rocketMass / thrust); // d = a/2 * t^2 for initial 0 relative velocity
-            if (FlightGlobals.getAltitudeAtPos(currentPosition) < 0)
+            if (FlightGlobals.currentMainBody.ocean && FlightGlobals.getAltitudeAtPos(currentPosition) < 0)
             {
                 startUnderwater = true;
             }
@@ -314,12 +314,12 @@ namespace BDArmory.Bullets
 
             if (BDArmorySettings.BULLET_WATER_DRAG)
             {
-                if (FlightGlobals.getAltitudeAtPos(currentPosition) > 0 && startUnderwater)
+                if (FlightGlobals.currentMainBody.ocean && FlightGlobals.getAltitudeAtPos(currentPosition) > 0 && startUnderwater)
                 {
                     startUnderwater = false;
                     if (BDArmorySettings.waterHitEffect) FXMonger.Splash(currentPosition, caliber);
                 }
-                if (FlightGlobals.getAltitudeAtPos(currentPosition) <= 0 && !startUnderwater)
+                if (FlightGlobals.currentMainBody.ocean && FlightGlobals.getAltitudeAtPos(currentPosition) <= 0 && !startUnderwater)
                 {
                     if (tntMass > 0) //look into fuze options similar to bullets?
                     {
@@ -612,7 +612,7 @@ namespace BDArmory.Bullets
                 // since KSP vessels can easily be moving faster than rockets
                 impactVector = currentVelocity - (hitPart.rb.velocity + BDKrakensbane.FrameVelocityV3f);
 
-            float hitAngle = Vector3.Angle(impactVector, -hit.normal);
+            float hitAngle = VectorUtils.Angle(impactVector, -hit.normal);
 
             if (ProjectileUtils.CheckGroundHit(hitPart, hit, caliber))
             {
@@ -1035,7 +1035,7 @@ namespace BDArmory.Bullets
                                         {
                                             partHit.rb.AddForceAtPosition((partHit.transform.position - currentPosition).normalized * impulse, partHit.transform.position, ForceMode.Acceleration);
                                         }
-                                        if (EMP && !VesselModuleRegistry.ignoredVesselTypes.Contains(partHit.vesselType))
+                                        if (EMP && !VesselModuleRegistry.IgnoredVesselTypes.Contains(partHit.vesselType))
                                         {
                                             var MDEC = partHit.vessel.rootPart.FindModuleImplementing<ModuleDrainEC>();
                                             if (MDEC == null)

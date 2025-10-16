@@ -95,17 +95,16 @@ namespace BDArmory.WeaponMounts
         //special
         [KSPField] public bool activeMissileOnly = false;
 
-        MissileFire wm;
-
-        public MissileFire weaponManager
+        MissileFire WeaponManager
         {
             get
             {
-                if (wm && wm.vessel == vessel) return wm;
-                wm = VesselModuleRegistry.GetMissileFire(vessel, true);
-                return wm;
+                if (_weaponManager == null || !_weaponManager.IsPrimaryWM || _weaponManager.vessel != vessel)
+                    _weaponManager = vessel && vessel.loaded ? vessel.ActiveController().WM : null;
+                return _weaponManager;
             }
         }
+        MissileFire _weaponManager;
 
         IEnumerator DeployAnimation(bool forward)
         {
@@ -394,7 +393,8 @@ namespace BDArmory.WeaponMounts
             }
             else
             {
-                if (weaponManager && wm.guardMode)
+                var wm = WeaponManager;
+                if (wm && wm.guardMode)
                 {
                     return;
                 }
@@ -410,7 +410,8 @@ namespace BDArmory.WeaponMounts
         {
             slaved = false;
 
-            if (weaponManager && wm.CurrentMissile)
+            var wm = WeaponManager;
+            if (wm && wm.CurrentMissile)
             {
                 if (wm.slavingTurrets)
                 {
@@ -418,7 +419,7 @@ namespace BDArmory.WeaponMounts
                     //slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(wm.CurrentMissile, wm.slavedPosition, wm.slavedVelocity);
                     slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(activeMissile, wm.slavedPosition, wm.slavedVelocity, turretLoft, turretLoftFac);
                 }
-                else if (weaponManager.mainTGP != null && ModuleTargetingCamera.windowIsOpen && weaponManager.mainTGP.slaveTurrets)
+                else if (wm.mainTGP != null && ModuleTargetingCamera.windowIsOpen && wm.mainTGP.slaveTurrets)
                 {
                     slaved = true;
                     //slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(wm.CurrentMissile, wm.slavedPosition, wm.slavedVelocity);
@@ -602,14 +603,15 @@ namespace BDArmory.WeaponMounts
             {
                 PrepMissileForFire(index);
 
-                if (weaponManager)
+                var wm = WeaponManager;
+                if (wm)
                 {
                     wm.SendTargetDataToMissile(missileChildren[index], targetVessel, true, targetData, true);
                     wm.PreviousMissile = missileChildren[index];
                 }
                 missileChildren[index].FireMissile();
                 StartCoroutine(MissileRailRoutine(missileChildren[index])); //turret is stil getting thrusted away despite this being behind a !relaodableRail conditional. investigate
-                if (wm)
+                if (wm) // If the primary WM changes, the list will automatically update.
                 {
                     wm.UpdateList();
                 }

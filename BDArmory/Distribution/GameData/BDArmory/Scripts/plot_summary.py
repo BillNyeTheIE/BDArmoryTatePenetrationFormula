@@ -14,7 +14,7 @@ from typing import Union
 import matplotlib.pyplot as plt
 import numpy
 
-VERSION = "6.1"
+VERSION = "6.2"
 
 parser = argparse.ArgumentParser(description="Plot the scores of a tournament as they accumulated per round", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("tournament", nargs="?", type=str, help="The tournament to plot (optional).")
@@ -46,7 +46,7 @@ if args.tournament is None:
 else:
     tournamentDir = Path(args.tournament)
 
-with open(tournamentDir / "summary.csv", 'r') as f:
+with open(tournamentDir / "summary.csv", 'r', encoding='utf-8') as f:
     data = list(csv.reader(f))
 vessel_count = data.index([]) - 1
 names = [data[row][0] for row in range(len(data) - vessel_count, len(data))]

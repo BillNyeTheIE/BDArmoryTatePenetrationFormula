@@ -292,7 +292,7 @@ namespace BDArmory.Bullets
             dragVelocityFactor = 1;
             relaxationTime = 0.001f * 30f * (0.5f * caliber) / (sabot ? 3850f : 4500f);
 
-            startsUnderwater = FlightGlobals.getAltitudeAtPos(currentPosition) < 0;
+            startsUnderwater = FlightGlobals.currentMainBody.ocean && FlightGlobals.getAltitudeAtPos(currentPosition) < 0;
             underwater = startsUnderwater;
 
             projectileColor.a = Mathf.Clamp(projectileColor.a, 0.25f, 1f);
@@ -549,7 +549,7 @@ namespace BDArmory.Bullets
                                 if (nuclear)
                                     NukeFX.CreateExplosion(currentPosition, ExplosionSourceType.Bullet, sourceVesselName, bullet.DisplayName, 0, tntMass * 200, tntMass, tntMass, EMP, blastSoundPath, flashModelPath, shockModelPath, blastModelPath, plumeModelPath, debrisModelPath, "", "");
                                 hasDetonated = true;
-                                if (BDArmorySettings.waterHitEffect) FXMonger.Splash(currentPosition, caliber / 2);
+                                if (BDArmorySettings.waterHitEffect && FlightGlobals.currentMainBody.ocean) FXMonger.Splash(currentPosition, caliber / 2);
                                 KillBullet();
                                 return;
                             }
@@ -595,7 +595,7 @@ namespace BDArmory.Bullets
                 if (penTicker == 0 && Vector3.Dot(targetVec, currentVelocity) > 0 && (guidanceRange < 0 || targetVec.sqrMagnitude < guidanceRange * guidanceRange)) //don't circle around if it misses, or after it hits something
                 {
                     Vector3 leadTargetOffset = targetVessel.CoM + Vector3.Distance(targetVessel.CoM, currentPosition) / bulletVelocity * targetVessel.Velocity();
-                    //if (Vector3.Angle(currentVelocity, leadTargetOffset) > 1) currentVelocity *= 2f * ballisticCoefficient / (TimeWarp.fixedDeltaTime * currentVelocity.magnitude * atmosphereDensity + 2f * ballisticCoefficient); needs bulletdrop gravity accel factored in as well
+                    //if (VectorUtils.Angle(currentVelocity, leadTargetOffset) > 1) currentVelocity *= 2f * ballisticCoefficient / (TimeWarp.fixedDeltaTime * currentVelocity.magnitude * atmosphereDensity + 2f * ballisticCoefficient); needs bulletdrop gravity accel factored in as well
                     //apply some drag to projectile if it's turning. Will mess up initial CPA aim calculations, true; on the other hand, its a guided homing bullet.                                                                                                                                                                                                                
                     currentVelocity = Vector3.RotateTowards(currentVelocity, leadTargetOffset - currentPosition, period * guidanceDPS * atmosphereDensity * Mathf.Deg2Rad, 0); //adapt to rockets for homing rockets?
                 }
@@ -605,9 +605,9 @@ namespace BDArmory.Bullets
             currentPosition += period * currentVelocity; //move bullet
             distanceTraveled += period * currentVelocity.magnitude; // calculate flight distance for achievement purposes
 
-            if (!underwater && FlightGlobals.getAltitudeAtPos(currentPosition) <= 0) // Check if the bullet is now underwater.
+            if (!underwater && FlightGlobals.currentMainBody.ocean && FlightGlobals.getAltitudeAtPos(currentPosition) <= 0) // Check if the bullet is now underwater.
             {
-                float hitAngle = Vector3.Angle(GetDragAdjustedVelocity(), -VectorUtils.GetUpDirection(currentPosition));
+                float hitAngle = VectorUtils.Angle(GetDragAdjustedVelocity(), -VectorUtils.GetUpDirection(currentPosition));
                 if (RicochetScenery(hitAngle))
                 {
                     tracerStartWidth /= 2;
@@ -625,7 +625,7 @@ namespace BDArmory.Bullets
                 {
                     underwater = true;
                 }
-                if (BDArmorySettings.waterHitEffect) FXMonger.Splash(currentPosition, caliber / 2);
+                if (BDArmorySettings.waterHitEffect && FlightGlobals.currentMainBody.ocean) FXMonger.Splash(currentPosition, caliber / 2);
             }
             // Second half-timestep velocity change (leapfrog integrator) (should be identical code-wise to the initial half-step)
             LeapfrogVelocityHalfStep(0.5f * period);
@@ -1063,7 +1063,7 @@ namespace BDArmory.Bullets
                 distanceLastHit = distanceTraveled + bulletHit.hit.distance;
             }
 
-            float hitAngle = Vector3.Angle(impactVelocity, -bulletHit.hit.normal);
+            float hitAngle = VectorUtils.Angle(impactVelocity, -bulletHit.hit.normal);
             float dist = hitPart != null && hitPart.vessel != null && rayLength.ContainsKey(hitPart.vessel) ? rayLength[hitPart.vessel] : currentVelocity.magnitude * period;
 
             if (ProjectileUtils.CheckGroundHit(hitPart, bulletHit.hit, caliber))
@@ -1101,7 +1101,7 @@ namespace BDArmory.Bullets
                 ME.massMod += massMod;
                 ME.duration += BDArmorySettings.WEAPON_FX_DURATION;
             }
-            if (EMP && !VesselModuleRegistry.ignoredVesselTypes.Contains(hitPart.vesselType))
+            if (EMP && !VesselModuleRegistry.IgnoredVesselTypes.Contains(hitPart.vesselType))
             {
                 var emp = hitPart.vessel.rootPart.FindModuleImplementing<ModuleDrainEC>();
                 if (emp == null)
@@ -1781,15 +1781,19 @@ namespace BDArmory.Bullets
                     NukeFX.CreateExplosion(currentPosition, ExplosionSourceType.Bullet, sourceVesselName, bullet.DisplayName, 0, tntMass * 200, tntMass, tntMass, EMP, blastSoundPath, flashModelPath, shockModelPath, blastModelPath, plumeModelPath, debrisModelPath, "", "", hitPart: CurrentPart);
                 hasDetonated = true;
 
-                if (tntMass > 1)
+                // Underwater splash now taken care of in ExplosionFX
+                /*if (tntMass > 1 && BDArmorySettings.waterHitEffect && FlightGlobals.currentMainBody.ocean)
                 {
-                    if ((FlightGlobals.getAltitudeAtPos(currentPosition) <= 0) && (FlightGlobals.getAltitudeAtPos(currentPosition) > -detonationRange))
+                    Vector3 up = VectorUtils.GetUpDirection(currentPosition, out double alt);
+                    if ((alt <= 0) && (alt > -detonationRange))
                     {
-                        double latitudeAtPos = FlightGlobals.currentMainBody.GetLatitude(currentPosition);
-                        double longitudeAtPos = FlightGlobals.currentMainBody.GetLongitude(currentPosition);
-                        if (BDArmorySettings.waterHitEffect) FXMonger.Splash(FlightGlobals.currentMainBody.GetWorldSurfacePosition(latitudeAtPos, longitudeAtPos, 0), tntMass * 20);
+                        //double latitudeAtPos = FlightGlobals.currentMainBody.GetLatitude(currentPosition);
+                        //double longitudeAtPos = FlightGlobals.currentMainBody.GetLongitude(currentPosition);
+                        //FXMonger.Splash(FlightGlobals.currentMainBody.GetWorldSurfacePosition(latitudeAtPos, longitudeAtPos, 0), tntMass * 20);
+                        
+                        FXMonger.Splash(currentPosition - up * (float)alt, tntMass * 20f);
                     }
-                }
+                }*/
                 if (BDArmorySettings.DEBUG_WEAPONS) Debug.Log("[BDArmory.PooledBullet]: Delayed Detonation at: " + Time.time);
                 KillBullet();
             }

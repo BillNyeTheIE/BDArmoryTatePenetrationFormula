@@ -28,10 +28,11 @@ namespace BDArmory.Guidances
 
             var pendingDistance = _originalDistance - surfaceDistanceVector.magnitude;
 
-            if (missile.TimeIndex < 1)
-            {
-                return missile.vessel.CoM + missile.vessel.Velocity() * 10;
-            }
+            // Not really necessary, especially with the new controller, if desired it can be implemented via guidance delay
+            //if (missile.TimeIndex < 1)
+            //{
+            //    return missile.vessel.CoM + missile.vessel.Velocity() * 10;
+            //}
 
             Vector3 agmTarget;
 

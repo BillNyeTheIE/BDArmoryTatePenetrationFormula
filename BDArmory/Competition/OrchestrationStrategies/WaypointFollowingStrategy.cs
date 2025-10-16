@@ -13,6 +13,7 @@ using BDArmory.Modules;
 using BDArmory.Settings;
 using BDArmory.UI;
 using BDArmory.Utils;
+using BDArmory.Extensions;
 
 namespace BDArmory.Competition.OrchestrationStrategies
 {
@@ -67,9 +68,9 @@ namespace BDArmory.Competition.OrchestrationStrategies
         public IEnumerator Execute(BDAScoreClient client, BDAScoreService service)
         {
             if (BDArmorySettings.DEBUG_OTHER) Debug.Log("[BDArmory.WaypointFollowingStrategy]: Started");
-            pilots = BDACompetitionMode.Instance.GetAllPilots().Select(p => VesselModuleRegistry.GetModule<BDGenericAIBase>(p.vessel)).ToList();
+            pilots = BDACompetitionMode.Instance.GetAllPilots().Select(p => p.vessel.ActiveController().AI as BDGenericAIBase).ToList();
             if (BDACompetitionMode.Instance.competitionIsActive) BDACompetitionMode.Instance.StopCompetition(); // Stop any currently active competition.
-            BDACompetitionMode.Instance.ResetCompetitionStuff(); // Reset a bunch of stuff related to competitions so they don't interfere.
+            BDACompetitionMode.Instance.ResetCompetitionStuff(preSpawn: true); // Reset a bunch of stuff related to competitions so they don't interfere.
             BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE, BDArmorySettings.COMPETITION_START_DESPITE_FAILURES, "", CompetitionType.WAYPOINTS);
             if (BDArmorySettings.WAYPOINTS_INFINITE_FUEL_AT_START)
             {
@@ -105,8 +106,10 @@ namespace BDArmory.Competition.OrchestrationStrategies
             }
             else
             {
-                var checkLandedOrSplashed = pilots.ToDictionary(p => p, p => p as BDModuleSurfaceAI == null);
-                yield return new WaitWhile(() => pilots.Any(pilot => pilot != null && pilot.weaponManager != null && pilot.IsRunningWaypoints && (pilot.TakingOff || (checkLandedOrSplashed[pilot] && !pilot.vessel.LandedOrSplashed))));
+                yield return new WaitWhile(() => pilots.Any(
+                    pilot => pilot != null && pilot.WeaponManager != null && pilot.IsRunningWaypoints &&
+                    (pilot.TakingOff || (pilot.aiType switch { AIType.SurfaceAI => false, _ => true } && !pilot.vessel.LandedOrSplashed))
+                ));
             }
             var endedAt = Planetarium.GetUniversalTime();
 
@@ -141,7 +144,7 @@ namespace BDArmory.Competition.OrchestrationStrategies
             else //increment team each heat
             {
                 char T = (char)(Convert.ToUInt16('A') + BDATournament.Instance.currentHeat);
-                pilots[0].weaponManager.SetTeam(BDTeam.Get(T.ToString()));
+                pilots[0].WeaponManager.SetTeam(BDTeam.Get(T.ToString()));
             }
             if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == 55)
             {
@@ -264,8 +267,8 @@ namespace BDArmory.Competition.OrchestrationStrategies
 
             newWayPoint.transform.SetPositionAndRotation(position, rotation);
 
-            newWayPoint.transform.RotateAround(position, newWayPoint.transform.up, Vector3.Angle(newWayPoint.transform.forward, direction)); //rotate model on horizontal plane towards last gate
-            newWayPoint.transform.RotateAround(position, newWayPoint.transform.right, Vector3.Angle(newWayPoint.transform.forward, direction)); //and on vertical plane if elevation change between the two
+            newWayPoint.transform.RotateAround(position, newWayPoint.transform.up, VectorUtils.Angle(newWayPoint.transform.forward, direction)); //rotate model on horizontal plane towards last gate
+            newWayPoint.transform.RotateAround(position, newWayPoint.transform.right, VectorUtils.Angle(newWayPoint.transform.forward, direction)); //and on vertical plane if elevation change between the two
 
             float WPScale = scale / 500; //default ring/torii models scaled for 500m
             newWayPoint.transform.localScale = new Vector3(WPScale, WPScale, WPScale);
@@ -288,8 +291,8 @@ namespace BDArmory.Competition.OrchestrationStrategies
 
             transform.SetPositionAndRotation(WorldCoords, rotation);
 
-            transform.RotateAround(WorldCoords, transform.up, Vector3.Angle(transform.forward, direction)); //rotate model on horizontal plane towards last gate
-            transform.RotateAround(WorldCoords, transform.right, Vector3.Angle(transform.forward, direction)); //and on vertical plane if elevation change between the two
+            transform.RotateAround(WorldCoords, transform.up, VectorUtils.Angle(transform.forward, direction)); //rotate model on horizontal plane towards last gate
+            transform.RotateAround(WorldCoords, transform.right, VectorUtils.Angle(transform.forward, direction)); //and on vertical plane if elevation change between the two
 
             float WPScale = waypoint.scale / 500; //default ring/torii models scaled for 500m
             transform.localScale = new Vector3(WPScale, WPScale, WPScale);
@@ -380,7 +383,7 @@ namespace BDArmory.Competition.OrchestrationStrategies
             Debug.Log("[WayPointTracer] setting up Renderer");
             Transform tf = this.transform;
             tracerRenderer = tf.gameObject.AddOrGetComponent<LineRenderer>();
-            Color Color = BDTISetup.Instance.ColorAssignments[AI.weaponManager.Team.Name]; //hence the incrementing teams in One-at-a-Time mode
+            Color Color = BDTISetup.Instance.ColorAssignments[AI.WeaponManager.Team.Name]; //hence the incrementing teams in One-at-a-Time mode
             tracerRenderer.material = new Material(Shader.Find("KSP/Particles/Alpha Blended"));
             tracerRenderer.material.SetColor("_TintColor", Color);
             tracerRenderer.material.mainTexture = GameDatabase.Instance.GetTexture("BDArmory/Textures/laser", false);

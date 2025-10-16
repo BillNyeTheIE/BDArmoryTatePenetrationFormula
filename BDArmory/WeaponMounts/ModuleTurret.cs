@@ -135,7 +135,7 @@ namespace BDArmory.WeaponMounts
                     }
 
                     Vector3 tDir = yawTransform.parent.InverseTransformDirection(pitchTransform.forward);
-                    float angle = Vector3.Angle(tDir, lastTurretDirection);
+                    float angle = VectorUtils.Angle(tDir, lastTurretDirection);
                     float rate = Mathf.Clamp01((angle / Time.fixedDeltaTime) / maxAudioRotRate);
                     lastTurretDirection = tDir;
 
@@ -266,7 +266,7 @@ namespace BDArmory.WeaponMounts
             float deltaTime = Time.fixedDeltaTime;
 
             float yawOffset = Quaternion.Angle(yawTransform.localRotation, standbyLocalRotation);
-            float pitchOffset = Vector3.Angle(pitchTransform.forward, yawTransform.forward);
+            float pitchOffset = VectorUtils.Angle(pitchTransform.forward, yawTransform.forward);
 
             float yawSpeed;
             float pitchSpeed;
@@ -302,9 +302,9 @@ namespace BDArmory.WeaponMounts
             Vector3 vectorToTarget = targetPosition - referenceTransform.position;
             if (vectorToTarget.sqrMagnitude > maxDistance * maxDistance) return false;
 
-            float angleYaw = Vector3.Angle(vectorToTarget.ProjectOnPlanePreNormalized(referenceTransform.up), referenceTransform.forward);
-            float signedAnglePitch = 90 - Vector3.Angle(referenceTransform.up, vectorToTarget);
-            bool withinView = thresholdDegrees > 0 ? Vector3.Angle(vectorToTarget, referenceTransform.forward) < thresholdDegrees : (signedAnglePitch > minPitch && signedAnglePitch < maxPitch && angleYaw < yawRange / 2);
+            float angleYaw = VectorUtils.Angle(vectorToTarget.ProjectOnPlanePreNormalized(referenceTransform.up), referenceTransform.forward);
+            float signedAnglePitch = 90 - VectorUtils.Angle(referenceTransform.up, vectorToTarget);
+            bool withinView = thresholdDegrees > 0 ? VectorUtils.Angle(vectorToTarget, referenceTransform.forward) < thresholdDegrees : (signedAnglePitch > minPitch && signedAnglePitch < maxPitch && angleYaw < yawRange / 2);
             return withinView;
         }
 

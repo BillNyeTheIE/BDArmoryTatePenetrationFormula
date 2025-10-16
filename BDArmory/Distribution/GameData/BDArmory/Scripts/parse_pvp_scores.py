@@ -12,7 +12,7 @@ from typing import Union
 # Third party imports
 import matplotlib.pyplot as plt
 
-VERSION = "2.1"
+VERSION = "2.2"
 
 parser = argparse.ArgumentParser(description="PVP score parser", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('tournament', type=str, nargs='*', help="Tournament folder to parse.")
@@ -70,9 +70,9 @@ else:
 
 for tournamentNumber, tournamentDir in enumerate(tournamentDirs):
     try:
-        with open(tournamentDir / "summary.json", 'r') as f:
+        with open(tournamentDir / "summary.json", 'r', encoding='utf-8') as f:
             summary = json.load(f)
-        with open(tournamentDir / "results.json", 'r') as f:
+        with open(tournamentDir / "results.json", 'r', encoding='utf-8') as f:
             results = json.load(f)
         weights = {k: w for k, w in summary['meta']['score weights'].items() if w != 0}
         pvp_data = {}

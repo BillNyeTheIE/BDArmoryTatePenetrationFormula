@@ -11,6 +11,7 @@ using BDArmory.Control;
 using BDArmory.Settings;
 using BDArmory.Utils;
 using BDArmory.ModIntegration;
+using BDArmory.Extensions;
 
 /*
 * *Milestone 6: Figure out how to have TI activation toggle the F4 SHOW_LABELS (or is it Flt_Show_labels?) method to sim a keypress?
@@ -40,7 +41,7 @@ namespace BDArmory.UI
         internal const float textOpacity = 2f;
         internal const float iconOpacity = 1f;
 
-        public SortedList<string, List<MissileFire>> weaponManagers = new SortedList<string, List<MissileFire>>();
+        public SortedList<string, List<MissileFire>> weaponManagers = [];
 
         public static string textureDir = "BDArmory/Textures/";
 
@@ -170,6 +171,12 @@ namespace BDArmory.UI
         {
             get { return MTRnd ? MTRnd : MTRnd = GameDatabase.Instance.GetTexture(textureDir + "Mutators/IconUnknown", false); }
         }
+
+        Rect SRect(float line, float margin = 20)
+        {
+            return new Rect(15, line * 25, toolWindowWidth - margin, 20);
+        }
+
         void Start()
         {
             Instance = this;
@@ -235,20 +242,20 @@ namespace BDArmory.UI
                 while (v.MoveNext())
                 {
                     if (v.Current == null || !v.Current.loaded || v.Current.packed) continue;
-                    if (VesselModuleRegistry.ignoredVesselTypes.Contains(v.Current.vesselType)) continue;
+                    if (VesselModuleRegistry.IgnoredVesselTypes.Contains(v.Current.vesselType)) continue;
                     if (fromModifiedEvent) VesselModuleRegistry.OnVesselModified(v.Current, true);
-                    var wms = VesselModuleRegistry.GetMissileFire(v.Current, true);
-                    if (wms != null)
+                    var wm = v.Current.ActiveController().WM;
+                    if (wm != null)
                     {
-                        if (!ColorAssignments.ContainsKey(wms.teamString))
+                        if (!ColorAssignments.ContainsKey(wm.teamString))
                         {
                             float rnd = UnityEngine.Random.Range(0f, 100f);
-                            ColorAssignments.Add(wms.Team.Name, Color.HSVToRGB((rnd / 100f), 1f, 1f));
+                            ColorAssignments.Add(wm.Team.Name, Color.HSVToRGB((rnd / 100f), 1f, 1f));
                         }
-                        if (weaponManagers.TryGetValue(wms.Team.Name, out var teamManagers))
-                            teamManagers.Add(wms);
+                        if (weaponManagers.TryGetValue(wm.Team.Name, out var teamManagers))
+                            teamManagers.Add(wm);
                         else
-                            weaponManagers.Add(wms.Team.Name, new List<MissileFire> { wms });
+                            weaponManagers.Add(wm.Team.Name, [wm]);
                     }
                 }
         }
@@ -392,28 +399,29 @@ namespace BDArmory.UI
                     showPSA = true;
                 }
                 GUI.BeginGroup(IconOptionsGroup, GUIContent.none, BDArmorySetup.BDGuiSkin.box);
-                BDTISettings.TEAMNAMES = GUI.Toggle(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), BDTISettings.TEAMNAMES, StringUtils.Localize("#LOC_BDArmory_Icon_teams"), BDArmorySetup.BDGuiSkin.toggle);
-                BDTISettings.VESSELNAMES = GUI.Toggle(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), BDTISettings.VESSELNAMES, StringUtils.Localize("#LOC_BDArmory_Icon_names"), BDArmorySetup.BDGuiSkin.toggle);
-                BDTISettings.SCORE = GUI.Toggle(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), BDTISettings.SCORE, StringUtils.Localize("#LOC_BDArmory_Icon_score"), BDArmorySetup.BDGuiSkin.toggle);
-                BDTISettings.HEALTHBAR = GUI.Toggle(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), BDTISettings.HEALTHBAR, StringUtils.Localize("#LOC_BDArmory_Icon_healthbars"), BDArmorySetup.BDGuiSkin.toggle);
-                BDTISettings.SHOW_SELF = GUI.Toggle(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), BDTISettings.SHOW_SELF, StringUtils.Localize("#LOC_BDArmory_Icon_show_self"), BDArmorySetup.BDGuiSkin.toggle);
-                BDTISettings.MISSILES = GUI.Toggle(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), BDTISettings.MISSILES, StringUtils.Localize("#LOC_BDArmory_Icon_missiles"), BDArmorySetup.BDGuiSkin.toggle);
-                if (BDTISettings.MISSILES) BDTISettings.MISSILE_TEXT = GUI.Toggle(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), BDTISettings.MISSILE_TEXT, StringUtils.Localize("#LOC_BDArmory_Icon_missile_text"), BDArmorySetup.BDGuiSkin.toggle);
-                BDTISettings.DEBRIS = GUI.Toggle(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), BDTISettings.DEBRIS, StringUtils.Localize("#LOC_BDArmory_Icon_debris"), BDArmorySetup.BDGuiSkin.toggle);
-                BDTISettings.PERSISTANT = GUI.Toggle(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), BDTISettings.PERSISTANT, StringUtils.Localize("#LOC_BDArmory_Icon_persist"), BDArmorySetup.BDGuiSkin.toggle);
-                BDTISettings.THREATICON = GUI.Toggle(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), BDTISettings.THREATICON, StringUtils.Localize("#LOC_BDArmory_Icon_threats"), BDArmorySetup.BDGuiSkin.toggle);
-                BDTISettings.POINTERS = GUI.Toggle(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), BDTISettings.POINTERS, StringUtils.Localize("#LOC_BDArmory_Icon_pointers"), BDArmorySetup.BDGuiSkin.toggle);
-                BDTISettings.TELEMETRY = GUI.Toggle(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), BDTISettings.TELEMETRY, StringUtils.Localize("#LOC_BDArmory_Icon_telemetry"), BDArmorySetup.BDGuiSkin.toggle);
+                BDTISettings.TEAMNAMES = GUI.Toggle(SRect(line++), BDTISettings.TEAMNAMES, StringUtils.Localize("#LOC_BDArmory_Icon_teams"), BDArmorySetup.BDGuiSkin.toggle);
+                BDTISettings.VESSELNAMES = GUI.Toggle(SRect(line++), BDTISettings.VESSELNAMES, StringUtils.Localize("#LOC_BDArmory_Icon_names"), BDArmorySetup.BDGuiSkin.toggle);
+                BDTISettings.SCORE = GUI.Toggle(SRect(line++), BDTISettings.SCORE, StringUtils.Localize("#LOC_BDArmory_Icon_score"), BDArmorySetup.BDGuiSkin.toggle);
+                BDTISettings.HEALTHBAR = GUI.Toggle(SRect(line++), BDTISettings.HEALTHBAR, StringUtils.Localize("#LOC_BDArmory_Icon_healthbars"), BDArmorySetup.BDGuiSkin.toggle);
+                BDTISettings.SHOW_SELF = GUI.Toggle(SRect(line++), BDTISettings.SHOW_SELF, StringUtils.Localize("#LOC_BDArmory_Icon_show_self"), BDArmorySetup.BDGuiSkin.toggle);
+                BDTISettings.MISSILES = GUI.Toggle(SRect(line++), BDTISettings.MISSILES, StringUtils.Localize("#LOC_BDArmory_Icon_missiles"), BDArmorySetup.BDGuiSkin.toggle);
+                if (BDTISettings.MISSILES) BDTISettings.MISSILE_TEXT = GUI.Toggle(SRect(line++), BDTISettings.MISSILE_TEXT, StringUtils.Localize("#LOC_BDArmory_Icon_missile_text"), BDArmorySetup.BDGuiSkin.toggle);
+                BDTISettings.DEBRIS = GUI.Toggle(SRect(line++), BDTISettings.DEBRIS, StringUtils.Localize("#LOC_BDArmory_Icon_debris"), BDArmorySetup.BDGuiSkin.toggle);
+                BDTISettings.PERSISTANT = GUI.Toggle(SRect(line++), BDTISettings.PERSISTANT, StringUtils.Localize("#LOC_BDArmory_Icon_persist"), BDArmorySetup.BDGuiSkin.toggle);
+                BDTISettings.THREATICON = GUI.Toggle(SRect(line++), BDTISettings.THREATICON, StringUtils.Localize("#LOC_BDArmory_Icon_threats"), BDArmorySetup.BDGuiSkin.toggle);
+                BDTISettings.POINTERS = GUI.Toggle(SRect(line++), BDTISettings.POINTERS, StringUtils.Localize("#LOC_BDArmory_Icon_pointers"), BDArmorySetup.BDGuiSkin.toggle);
+                BDTISettings.TELEMETRY = GUI.Toggle(SRect(line++), BDTISettings.TELEMETRY, StringUtils.Localize("#LOC_BDArmory_Icon_telemetry"), BDArmorySetup.BDGuiSkin.toggle);
+                BDTISettings.STORE_TEAM_COLORS = GUI.Toggle(SRect(line++), BDTISettings.STORE_TEAM_COLORS, StringUtils.Localize("#LOC_BDArmory_Icon_StoreTeamColors"), BDArmorySetup.BDGuiSkin.toggle);
                 line += 0.25f;
-                GUI.Label(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), StringUtils.Localize("#LOC_BDArmory_Icon_scale") + " " + (BDTISettings.ICONSCALE * 100f).ToString("0") + "%");
-                BDTISettings.ICONSCALE = GUI.HorizontalSlider(new Rect(10, line++ * 25, toolWindowWidth - 40, 20), BDTISettings.ICONSCALE, 0.25f, 2f);
+                GUI.Label(SRect(line++), StringUtils.Localize("#LOC_BDArmory_Icon_scale") + " " + (BDTISettings.ICONSCALE * 100f).ToString("0") + "%");
+                BDTISettings.ICONSCALE = GUI.HorizontalSlider(SRect(line++, 40), BDTISettings.ICONSCALE, 0.25f, 2f);
                 line -= 0.15f;
-                GUI.Label(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), $"{StringUtils.Localize("#LOC_BDArmory_Icon_distance_threshold")} {BDTISettings.DISTANCE_THRESHOLD:0}m");
-                BDTISettings.DISTANCE_THRESHOLD = BDAMath.RoundToUnit(GUI.HorizontalSlider(new Rect(10, line++ * 25, toolWindowWidth - 40, 20), BDTISettings.DISTANCE_THRESHOLD, 10f, 250f), 10f);
-                GUI.Label(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), $"{StringUtils.Localize("#LOC_BDArmory_Icon_opacity")} {BDTISettings.OPACITY * 100f:0}%");
-                BDTISettings.OPACITY = BDAMath.RoundToUnit(GUI.HorizontalSlider(new Rect(10, line++ * 25, toolWindowWidth - 40, 20), BDTISettings.OPACITY, 0f, 1f), 0.01f);
-                GUI.Label(new Rect(15, line++ * 25, toolWindowWidth - 20, 20), $"{StringUtils.Localize("#LOC_BDArmory_Icon_max_distance_threshold")} {(BDTISettings.MAX_DISTANCE_THRESHOLD < BDArmorySettings.MAX_GUARD_VISUAL_RANGE ? $"{BDTISettings.MAX_DISTANCE_THRESHOLD / 1000f:0}km" : "Unlimited")}");
-                BDTISettings.MAX_DISTANCE_THRESHOLD = GUIUtils.HorizontalSemiLogSlider(new Rect(10, line++ * 25, toolWindowWidth - 40, 20), BDTISettings.MAX_DISTANCE_THRESHOLD / 1000f, 1f, BDArmorySettings.MAX_GUARD_VISUAL_RANGE / 1000f, 1, false, false, ref cacheMaxDistanceThreshold) * 1000f;
+                GUI.Label(SRect(line++), $"{StringUtils.Localize("#LOC_BDArmory_Icon_distance_threshold")} {BDTISettings.DISTANCE_THRESHOLD:0}m");
+                BDTISettings.DISTANCE_THRESHOLD = BDAMath.RoundToUnit(GUI.HorizontalSlider(SRect(line++, 40), BDTISettings.DISTANCE_THRESHOLD, 10f, 250f), 10f);
+                GUI.Label(SRect(line++), $"{StringUtils.Localize("#LOC_BDArmory_Icon_opacity")} {BDTISettings.OPACITY * 100f:0}%");
+                BDTISettings.OPACITY = BDAMath.RoundToUnit(GUI.HorizontalSlider(SRect(line++, 40), BDTISettings.OPACITY, 0f, 1f), 0.01f);
+                GUI.Label(SRect(line++), $"{StringUtils.Localize("#LOC_BDArmory_Icon_max_distance_threshold")} {(BDTISettings.MAX_DISTANCE_THRESHOLD < BDArmorySettings.MAX_GUARD_VISUAL_RANGE ? $"{BDTISettings.MAX_DISTANCE_THRESHOLD / 1000f:0}km" : "Unlimited")}");
+                BDTISettings.MAX_DISTANCE_THRESHOLD = GUIUtils.HorizontalSemiLogSlider(SRect(line++, 40), BDTISettings.MAX_DISTANCE_THRESHOLD / 1000f, 1f, BDArmorySettings.MAX_GUARD_VISUAL_RANGE / 1000f, 1, false, false, ref cacheMaxDistanceThreshold) * 1000f;
                 GUI.EndGroup();
                 IconOptionsGroup.height = 25f * line;
 

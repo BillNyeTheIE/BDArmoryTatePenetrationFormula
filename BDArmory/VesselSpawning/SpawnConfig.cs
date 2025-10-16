@@ -32,17 +32,17 @@ namespace BDArmory.VesselSpawning
         }
         public SpawnConfig(SpawnConfig other)
         {
-            this.worldIndex = other.worldIndex;
-            this.latitude = other.latitude;
-            this.longitude = other.longitude;
-            this.altitude = other.altitude;
-            this.killEverythingFirst = other.killEverythingFirst;
-            this.assignTeams = other.assignTeams;
-            this.numberOfTeams = other.numberOfTeams;
-            this.teamCounts = other.teamCounts;
-            this.teamsSpecific = other.teamsSpecific;
-            this.folder = other.folder;
-            this.craftFiles = other.craftFiles?.ToList();
+            worldIndex = other.worldIndex;
+            latitude = other.latitude;
+            longitude = other.longitude;
+            altitude = other.altitude;
+            killEverythingFirst = other.killEverythingFirst;
+            assignTeams = other.assignTeams;
+            numberOfTeams = other.numberOfTeams;
+            teamCounts = other.teamCounts;
+            teamsSpecific = other.teamsSpecific;
+            folder = other.folder;
+            craftFiles = other.craftFiles?.ToList();
         }
         public int worldIndex;
         public double latitude;
@@ -62,32 +62,20 @@ namespace BDArmory.VesselSpawning
     /// @Note: this has to be a class so that setting editorFacility during spawning persists back to the calling function.
     /// </summary>
     [Serializable]
-    public class VesselSpawnConfig
+    public class VesselSpawnConfig(string craftURL, Vector3 position, Vector3 direction, float altitude, float pitch, bool airborne, bool inOrbit, int teamIndex = 0, bool reuseURLVesselName = false, bool deconflictVesselName = true, List<ProtoCrewMember> crew = null)
     {
-        public string craftURL; // The craft file.
-        public Vector3 position; // World-space coordinates (x,y,z) to place the vessel once spawned (before adjusting for terrain altitude).
-        public Vector3 direction; // Direction to point the plane horizontally (i.e., heading).
-        public float altitude; // Altitude above terrain / water to adjust spawning position to.
-        public float pitch; // Pitch if spawning airborne.
-        public bool airborne; // Whether the vessel should be spawned in an airborne configuration or not.
-        public bool inOrbit; // Whether the vessel should be spawned in orbit or not (overrides airborne).
-        public int teamIndex;
-        public bool reuseURLVesselName; // Reuse the vesselName for the same craftURL (for continuous spawning).
-        public List<ProtoCrewMember> crew; // Override the crew.
+        public string craftURL = craftURL; // The craft file.
+        public Vector3 position = position; // World-space coordinates (x,y,z) to place the vessel once spawned (before adjusting for terrain altitude).
+        public Vector3 direction = direction; // Direction to point the plane horizontally (i.e., heading).
+        public float altitude = altitude; // Altitude above terrain / water to adjust spawning position to.
+        public float pitch = pitch; // Pitch if spawning airborne.
+        public bool airborne = airborne; // Whether the vessel should be spawned in an airborne configuration or not.
+        public bool inOrbit = inOrbit; // Whether the vessel should be spawned in orbit or not (overrides airborne).
+        public int teamIndex = teamIndex; // Index for team assignment.
+        public bool reuseURLVesselName = reuseURLVesselName; // Reuse the vesselName for the same craftURL (for continuous spawning / tournaments).
+        public bool deconflictVesselName = deconflictVesselName; // Apply vessel name deconfliction during spawning for consistent and unique vessel naming.
+        public List<ProtoCrewMember> crew = crew?.ToList(); // Override the crew.
         public EditorFacility editorFacility = EditorFacility.SPH; // Which editorFacility the craft belongs to (found out during spawning).
-        public VesselSpawnConfig(string craftURL, Vector3 position, Vector3 direction, float altitude, float pitch, bool airborne, bool inOrbit, int teamIndex = 0, bool reuseURLVesselName = false, List<ProtoCrewMember> crew = null)
-        {
-            this.craftURL = craftURL;
-            this.position = position;
-            this.direction = direction;
-            this.altitude = altitude;
-            this.pitch = pitch;
-            this.airborne = airborne;
-            this.inOrbit = inOrbit;
-            this.teamIndex = teamIndex;
-            this.reuseURLVesselName = reuseURLVesselName;
-            this.crew = crew == null ? null : crew.ToList(); // Take a copy.
-        }
     }
 
     /// <summary>

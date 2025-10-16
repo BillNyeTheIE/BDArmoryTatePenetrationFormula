@@ -391,7 +391,7 @@ namespace BDArmory.UI
                     button.btnToggleGeneric.SetGroup(412440121);
                     button.transform.SetParent(BDAPartBar, false);
                     // button.transform.position = new Vector3(BDACategory.button.transform.position.x + 34, 424, 750) + button_offset * SubcategoryButtons.Count;
-                    button.transform.position = new Vector3(BDACategory.button.transform.position.x + 34, panelTop - button_offset.y, 750) + button_offset * SubcategoryButtons.Count;
+                    button.transform.position = new Vector3(BDACategory.button.transform.position.x + 34 * GameSettings.UI_SCALE, panelTop - button_offset.y, 750) + button_offset * SubcategoryButtons.Count;
                     categorizer_button.DeleteSubcategory();
                     SubcategoryButtons.Add(button);
                     // Gotta use a saved value, because the enumerator changes the value during the run
@@ -453,12 +453,12 @@ namespace BDArmory.UI
             bool shouldOpen = BDArmorySettings.SHOW_CATEGORIES && FilterByFunctionCategory.button.activeButton.Value && BDACategory.button.activeButton.Value;
             if (shouldOpen && !expanded)
             {
-                ExpandPartSelector(offset);
+                ExpandPartSelector(offset * GameSettings.UI_SCALE);
                 expanded = true;
             }
             else if (!shouldOpen && expanded)
             {
-                ExpandPartSelector(-offset);
+                ExpandPartSelector(-offset * GameSettings.UI_SCALE);
                 expanded = false;
             }
 

@@ -52,10 +52,10 @@ namespace BDArmory.Weapons.Missiles
             float minLaunchRange = Mathf.Max(missile.minStaticLaunchRange, missile.GetEngagementRangeMin());
             float maxLaunchRange = missile.GetEngagementRangeMax();
             if (unguidedGuidedMissile) maxLaunchRange /= 10;
-            
+
             // For missiles in space, bypass DLZ calc and just return static ranges
             if (missile.vessel.InNearVacuum())
-               return new MissileLaunchParams(Mathf.Clamp(minLaunchRange, 0, BDArmorySettings.MAX_ENGAGEMENT_RANGE), Mathf.Clamp(maxLaunchRange, 0, BDArmorySettings.MAX_ENGAGEMENT_RANGE));
+                return new MissileLaunchParams(Mathf.Clamp(minLaunchRange, 0, BDArmorySettings.MAX_ENGAGEMENT_RANGE), Mathf.Clamp(maxLaunchRange, 0, BDArmorySettings.MAX_ENGAGEMENT_RANGE));
 
 
             float bodyGravity = (float)PhysicsGlobals.GravitationalAcceleration * (float)missile.vessel.orbit.referenceBody.GeeASL; // Set gravity for calculations;
@@ -87,7 +87,7 @@ namespace BDArmory.Weapons.Missiles
                     float futureTime = Mathf.Clamp((surfaceLaunch ? 0f : missile.dropTime), 0f, 2f);
                     Vector3 futureRelPosition = (targetPosition + targetVelocity * futureTime) - (launcherPosition + launcherVelocity * futureTime);
                     float missileTurnRadius = (ml.optimumAirspeed * ml.optimumAirspeed) / maxEstimatedGForce;
-                    float targetAngle = Vector3.Angle(missileFwd, futureRelPosition);
+                    float targetAngle = VectorUtils.Angle(missileFwd, futureRelPosition);
                     float arcLength = Mathf.Deg2Rad * targetAngle * missileTurnRadius;
 
                     // Add additional range term for the missile to manuever to target at missileActiveTime

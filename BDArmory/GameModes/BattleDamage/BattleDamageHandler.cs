@@ -20,10 +20,10 @@ namespace BDArmory.GameModes
 {
     class BattleDamageHandler
     {
-        public static void CheckDamageFX(Part part, float caliber, float penetrationFactor, bool explosivedamage, bool incendiary, string attacker, RaycastHit hitLoc, bool firsthit = true, bool cockpitPen = false)
+        public static void CheckDamageFX(Part part, float caliber, float penetrationFactor, bool explosivedamage, bool incendiary, string attacker, RaycastHit hitLoc, bool firsthit = true, bool cockpitPen = false, Vector3 colliderLocalHitPoint = default)
         {      
             if (!BDArmorySettings.BATTLEDAMAGE || BDArmorySettings.PAINTBALL_MODE) return;
-            if (penetrationFactor <= 0) penetrationFactor = 0.01f;
+            penetrationFactor = Mathf.Clamp(penetrationFactor, 0.01f, 4f);
             if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.ZOMBIE_MODE)
             //if (BDArmorySettings.RUNWAY_PROJECT && BDArmorySettings.RUNWAY_PROJECT_ROUND == -1)
             {
@@ -37,7 +37,8 @@ namespace BDArmory.GameModes
             }
             if (ProjectileUtils.IsIgnoredPart(part)) return; // Ignore ignored parts.
 
-            double damageChance = Mathf.Clamp((BDArmorySettings.BD_DAMAGE_CHANCE * ((1 - part.GetDamagePercentage()) * 10) * (penetrationFactor / 2)), 0, 100); //more heavily damaged parts more likely to take battledamage
+            double damageChance = Mathf.Clamp((BDArmorySettings.BD_DAMAGE_CHANCE * ((1f - part.GetDamagePercentage()) * 10f) * ((penetrationFactor - BDArmorySettings.BD_DAMAGE_PENETRATION) * 0.5f)), 0, 100); //more heavily damaged parts more likely to take battledamage
+            Vector3 hitPoint = colliderLocalHitPoint == default ? hitLoc.point : hitLoc.collider.transform.TransformPoint(colliderLocalHitPoint);
 
             if (BDArmorySettings.BD_TANKS)
             {
@@ -55,11 +56,11 @@ namespace BDArmory.GameModes
                     {
                         if (alreadyburning != null)
                         {
-                            if (rubbertank == null || !rubbertank.InertTank) BulletHitFX.AttachFire(hitLoc.point, part, caliber, attacker);
+                            if (rubbertank == null || !rubbertank.InertTank) BulletHitFX.AttachFire(hitPoint, part, caliber, attacker);
                         }
                         else
                         {
-                            BulletHitFX.AttachLeak(hitLoc, part, caliber, explosivedamage, incendiary, attacker, rubbertank != null ? rubbertank.InertTank : false);
+                            BulletHitFX.AttachLeak(hitLoc, part, caliber, explosivedamage, incendiary, attacker, rubbertank != null ? rubbertank.InertTank : false, colliderLocalHitPoint);
                         }
                     }
                 }
@@ -83,7 +84,7 @@ namespace BDArmory.GameModes
                         if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log("[BDArmory.BattleDamageHandler]: Battery Dice Roll: " + Diceroll);
                         if (Diceroll <= BDArmorySettings.BD_DAMAGE_CHANCE)
                         {
-                            BulletHitFX.AttachFire(hitLoc.point, part, caliber, attacker);
+                            BulletHitFX.AttachFire(hitPoint, part, caliber, attacker);
                         }
                     }
                 }
@@ -99,7 +100,7 @@ namespace BDArmory.GameModes
                         if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log("[BDArmory.BattleDamageHandler]: Wood part Dice Roll: " + Diceroll);
                         if (Diceroll <= BDArmorySettings.BD_DAMAGE_CHANCE)
                         {
-                            BulletHitFX.AttachFire(hitLoc.point, part, caliber, attacker, 90);
+                            BulletHitFX.AttachFire(hitPoint, part, caliber, attacker, 90);
                         }
                     }
                 }
@@ -174,7 +175,7 @@ namespace BDArmory.GameModes
                             var leak = part.GetComponentInChildren<FuelLeakFX>();
                             if (leak == null && !tracker.isSRB) //engine isn't a srb
                             {
-                                BulletHitFX.AttachLeak(hitLoc, part, caliber, explosivedamage, incendiary, attacker, false);
+                                BulletHitFX.AttachLeak(hitLoc, part, caliber, explosivedamage, incendiary, attacker, false, colliderLocalHitPoint);
                             }
                         }
                         if (part.GetDamagePercentage() < 0.50f || (part.GetDamagePercentage() < 0.625f && penetrationFactor > 2))
@@ -184,14 +185,14 @@ namespace BDArmory.GameModes
                             {
                                 if ((explosivedamage || incendiary) && tracker.SRBFuelled)
                                 {
-                                    BulletHitFX.AttachFire(hitLoc.point, part, caliber, attacker);
+                                    BulletHitFX.AttachFire(hitPoint, part, caliber, attacker);
                                 }
                             }
                             else
                             {
                                 if (alreadyburning == null)
                                 {
-                                    BulletHitFX.AttachFire(hitLoc.point, part, caliber, attacker, -1, 1);
+                                    BulletHitFX.AttachFire(hitPoint, part, caliber, attacker, -1, 1);
                                 }
                             }
                         }
@@ -270,7 +271,7 @@ namespace BDArmory.GameModes
                             gimbal.gimbalRange = 0;
                             if (incendiary)
                             {
-                                BulletHitFX.AttachFire(hitLoc.point, part, caliber, attacker, 20);
+                                BulletHitFX.AttachFire(hitPoint, part, caliber, attacker, 20);
                             }
                         }
                     }
@@ -326,7 +327,7 @@ namespace BDArmory.GameModes
                                 aileron.ctrlSurfaceRange /= 2;
                                 if (Diceroll <= ((BDArmorySettings.BD_DAMAGE_CHANCE * HEBonus) / 2))
                                 {
-                                    BulletHitFX.AttachFire(hitLoc.point, part, caliber, attacker, 10);
+                                    BulletHitFX.AttachFire(hitPoint, part, caliber, attacker, 10);
                                 }
                             }
                             else
@@ -429,7 +430,7 @@ namespace BDArmory.GameModes
                     {
                         if (incendiary)
                         {
-                            BulletHitFX.AttachFire(hitLoc.point, part, caliber, attacker, 20);
+                            BulletHitFX.AttachFire(hitPoint, part, caliber, attacker, 20);
                         }
                     }
                 }
