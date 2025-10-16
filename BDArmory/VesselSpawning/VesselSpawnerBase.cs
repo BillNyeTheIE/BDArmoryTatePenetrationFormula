@@ -5,16 +5,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-using BDArmory.Control;
 using BDArmory.Competition;
 using BDArmory.Extensions;
 using BDArmory.GameModes;
 using BDArmory.Settings;
 using BDArmory.Utils;
 using BDArmory.UI;
-using BDArmory.Damage;
-using BDArmory.FX;
-using BDArmory.Weapons;
 using BDArmory.ModIntegration;
 
 namespace BDArmory.VesselSpawning

@@ -184,6 +184,7 @@ namespace BDArmory.VesselSpawning
             Queue<string> craftToSpawn = [];
 
             double currentUpdateTick;
+            bool hasSetTeamColours = BDTISettings.STORE_TEAM_COLORS;
             var sufficientCraftTimer = Time.time;
             bool resetRound = false;
             while (vesselsSpawningContinuously)
@@ -305,7 +306,7 @@ namespace BDArmory.VesselSpawning
                             foreach (var vessel in vessels) spawnPoint += vessel.CoM;
                             spawnPoint /= 1 + vessels.Count;
                             radialUnitVector = (spawnPoint - FlightGlobals.currentMainBody.transform.position).normalized;
-                            spawnPoint += (spawnConfig.altitude - BodyUtils.GetTerrainAltitudeAtPos(spawnPoint)) * radialUnitVector; // Reset the altitude to the desired spawn altitude.
+                            spawnPoint += (spawnConfig.altitude - BodyUtils.GetRadarAltitudeAtPos(spawnPoint)) * radialUnitVector; // Reset the altitude to the desired spawn altitude.
                         }
                         var refDirection = Math.Abs(Vector3.Dot(Vector3.up, radialUnitVector)) < 0.71f ? Vector3.up : Vector3.forward; // Avoid that the reference direction is colinear with the local surface normal.
                         // Configure vessel spawn configs
@@ -335,6 +336,11 @@ namespace BDArmory.VesselSpawning
                     {
                         yield return new WaitWhileFixed(() => currentlySpawningCount > 0);
                         vesselsSpawning = false;
+                        if (!hasSetTeamColours)
+                        {
+                            BDTISetup.Instance.ResetColors();
+                            hasSetTeamColours = true;
+                        }
                     }
 
                     // Start the competition once we have enough craft.

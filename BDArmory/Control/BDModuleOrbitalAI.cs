@@ -634,7 +634,7 @@ namespace BDArmory.Control
                             SetStatus("Correcting Orbit (On escape trajectory)");
                             ongoingOrbitCorrectionDueTo = OrbitCorrectionReason.Escaping;
 
-                            fc.attitude = -o.Prograde(UT);
+                            fc.attitude = -o.GetPrograde(UT);
                             fc.throttle = 1;
                         }
                         else if (descending && o.PeA < minSafeAltitude && (

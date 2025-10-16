@@ -1602,7 +1602,7 @@ namespace BDArmory.VesselSpawning
                     craftList[craft].LoadDetailsFromCraftFile(craftNode, craft);
                     craftList[craft].SaveToMetaFile(craftMeta);
                 }
-                var thumbURL = $"/thumbs/{ShipConstruction.GetPlayerCraftThumbnailName(profile, thumbURLSubDir, Path.GetFileNameWithoutExtension(craft))}";
+                var thumbURL = $"/thumbs/{GetPlayerCraftThumbnailName(profile, thumbURLSubDir, Path.GetFileNameWithoutExtension(craft))}";
                 craftThumbnails[craft] = ShipConstruction.GetThumbnail(thumbURL);
             }
             var failedToParse = craftList.Where(kvp => kvp.Value is null || kvp.Value.partNames is null).ToList();
@@ -1634,7 +1634,7 @@ namespace BDArmory.VesselSpawning
                 subfolder = null; // Revert to the base folder when changing facilities.
                 CustomCraftBrowserDialog.facility = facility;
             }
-            baseFolder = Path.GetFullPath(ShipConstruction.GetShipsPathFor(profile, facility).TrimEnd(['/']));
+            baseFolder = Path.GetFullPath(GetShipsPathFor(profile, facility).TrimEnd(['/']));
             if (!Directory.Exists(baseFolder))
             {
                 var message = $"The base folder for the {facility} doesn't exist! Your KSP install is broken!";
@@ -1676,6 +1676,21 @@ namespace BDArmory.VesselSpawning
             }
             return false;
         }
+
+        public static string GetPlayerCraftThumbnailName(string profile, string thumbURLSubDir, string shipName)
+        {
+            if ((Versioning.version_major == 1 && Versioning.version_minor > 11) || Versioning.version_major > 1) // Introduced in 1.12
+                return GetPlayerCraftThumbnailName_1_12(profile, thumbURLSubDir, shipName);
+            return $"{profile}{thumbURLSubDir.Replace('/', '_')}_{shipName}";
+        }
+        public static string GetPlayerCraftThumbnailName_1_12(string profile, string thumbURLSubDir, string shipName) => ShipConstruction.GetPlayerCraftThumbnailName(profile, thumbURLSubDir, shipName);
+        public static string GetShipsPathFor(string profile, EditorFacility facility)
+        {
+            if ((Versioning.version_major == 1 && Versioning.version_minor > 11) || Versioning.version_major > 1) // Introduced in 1.12
+                return GetShipsPathFor_1_12(profile, facility);
+            return Path.Combine(KSPUtil.ApplicationRootPath, "saves", profile, "Ships", ShipConstruction.GetShipsSubfolderFor(facility));
+        }
+        public static string GetShipsPathFor_1_12(string profile, EditorFacility facility) => ShipConstruction.GetShipsPathFor(profile, facility);
     }
 
     internal class CraftBrowserMissingThumbnailGenerator : MonoBehaviour
