@@ -15,7 +15,7 @@ namespace BDArmory.Utils
 {
     class ProjectileUtils
     {
-        public static string settingsConfigURL = Path.Combine(KSPUtil.ApplicationRootPath, "GameData/BDArmory/PluginData/PartsBlacklists.cfg");
+        public static string settingsConfigURL = Path.GetFullPath(Path.Combine(KSPUtil.ApplicationRootPath, "GameData/BDArmory/PluginData/PartsBlacklists.cfg"));
         public static void SetUpPartsHashSets()
         {
             var fileNode = ConfigNode.Load(settingsConfigURL);
@@ -555,8 +555,7 @@ namespace BDArmory.Utils
             {
                 if (IsArmorPart(hitPart))
                 {
-                    //armorArea = hitPart.Modules.GetModule<HitpointTracker>().armorVolume * 10000;
-                    armorArea = (Armor.armorMass / (Armor.Density / 1000)) / (Armor.Armor / 1000); //mass / density / thickness to get surface area, m2
+                    armorArea = Armor.armorVolume; // pseudo-surface area, m2
                     if (double.IsNaN(armorArea) || Armor.Armor <= 0)
                         return false; //no armor to stop explosion
                     spallArea = Mathf.Min(armorArea, radius * radius * 1.5f); //clamp based on max size of explosion, m2

@@ -71,17 +71,16 @@ namespace BDArmory.WeaponMounts
             get { return rdyMissile; }
         }
 
-        MissileFire wm;
-
-        public MissileFire weaponManager
+        MissileFire WeaponManager
         {
             get
             {
-                if (wm && wm.vessel == vessel) return wm;
-                wm = VesselModuleRegistry.GetMissileFire(vessel, true);
-                return wm;
+                if (_weaponManager == null || !_weaponManager.IsPrimaryWM || _weaponManager.vessel != vessel)
+                    _weaponManager = vessel && vessel.loaded ? vessel.ActiveController().WM : null;
+                return _weaponManager;
             }
         }
+        MissileFire _weaponManager;
 
         [KSPEvent(guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_RailsPlus")]//Rails++
         public void RailsPlus()
@@ -566,7 +565,8 @@ namespace BDArmory.WeaponMounts
                 rdyToFire = true;
                 nextMissile = null;
 
-                if (weaponManager)
+                var wm = WeaponManager;
+                if (wm)
                 {
                     if (wm.weaponIndex > 0 && wm.selectedWeapon.GetPart().name == rdyMissile.part.name)
                     {
@@ -635,7 +635,8 @@ namespace BDArmory.WeaponMounts
 
                 PrepMissileForFire(missileIndex);
 
-                if (weaponManager)
+                var wm = WeaponManager;
+                if (wm)
                 {
                     wm.SendTargetDataToMissile(missileChildren[missileIndex], targetVessel, true, targetData, true);
                     wm.PreviousMissile = missileChildren[missileIndex];
@@ -653,7 +654,7 @@ namespace BDArmory.WeaponMounts
 
                 if (!missileChildren[missileIndex].reloadableRail) UpdateMissileChildren();
 
-                if (wm)
+                if (wm) // If the primary WM changes, the list will automatically update.
                 {
                     wm.UpdateList();
                 }

@@ -84,7 +84,7 @@ namespace BDArmory.Armor
 
         void OnGUI()
         {
-            if (BDArmorySettings.DEBUG_LINES)
+            if (BDArmorySettings.DEBUG_LINES && BDArmorySettings.DEBUG_ARMOR)
             {
                 try
                 {

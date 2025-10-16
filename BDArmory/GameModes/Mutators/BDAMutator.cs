@@ -70,7 +70,7 @@ namespace BDArmory.GameModes
             }
             mutatorName = name;
             mutators = BDAcTools.ParseNames(name);
-            var mf = VesselModuleRegistry.GetMissileFire(vessel);
+            var mf = vessel.ActiveController().WM;
             for (int r = 0; r < (HOS ? mutators.Count : BDArmorySettings.MUTATOR_APPLY_NUM); r++)
             {
                 name = MutatorInfo.mutators[mutators[r]].name;
@@ -130,12 +130,12 @@ namespace BDArmory.GameModes
                                 }
                                 else
                                 {
-                                    var WM = VesselModuleRegistry.GetMissileFire(part.vessel, true);
+                                    var WM = part.vessel.ActiveController().WM;
                                     string color = $"{Mathf.RoundToInt(BDTISetup.Instance.ColorAssignments[WM.Team.Name].r * 255)},{Mathf.RoundToInt(BDTISetup.Instance.ColorAssignments[WM.Team.Name].g * 255)},{Mathf.RoundToInt(BDTISetup.Instance.ColorAssignments[WM.Team.Name].b * 255)},{Mathf.RoundToInt(BDTISetup.Instance.ColorAssignments[WM.Team.Name].a * 255)}";
                                     weapon.Current.projectileColor = color;
 
                                 }
-                                Debug.Log($"[MUTATOR BEAM DEBUG] Beam color for {part} on {vessel.GetName()} set to {weapon.Current.projectileColor}");
+                                if (BDArmorySettings.DEBUG_OTHER) Debug.Log($"[BDArmory.BDAMutator]: Beam color for {part} on {vessel.GetName()} set to {weapon.Current.projectileColor}");
                                 weapon.Current.laserTexList = BDAcTools.ParseNames(weapon.Current.laserTexturePath);
                                 weapon.Current.SetupLaserSpecifics();
                                 weapon.Current.pulseLaser = true;
@@ -146,7 +146,7 @@ namespace BDArmory.GameModes
                                 weapon.Current.externalAmmo = true;
                             }
                             weapon.Current.resourceSteal = mutatorInfo.resourceSteal;
-                            //Debug.Log("[MUTATOR] current weapon status: " + weapon.Current.WeaponStatusdebug());
+                            //if (BDArmorySettings.DEBUG_OTHER) Debug.Log($"[BDArmory.BDAMutator]: current weapon status: " + weapon.Current.WeaponStatusdebug());
                         }
                 }
                 if (mutatorInfo.EngineMult > 0)
@@ -226,7 +226,7 @@ namespace BDArmory.GameModes
             if (!mutatorEnabled) return;
             mutatorEnabled = false;
             if (BDArmorySettings.DEBUG_OTHER) Debug.Log("[BDArmory.BDAMutator]: Disabling " + mutatorInfo.name + "Mutator on " + part.vessel.vesselName);
-            var mf = VesselModuleRegistry.GetMissileFire(vessel);
+            var mf = vessel.ActiveController().WM;
             using (var weapon = VesselModuleRegistry.GetModules<ModuleWeapon>(vessel).GetEnumerator())
                 while (weapon.MoveNext())
                 {

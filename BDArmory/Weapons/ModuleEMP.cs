@@ -4,6 +4,7 @@ using UnityEngine;
 using BDArmory.Damage;
 using BDArmory.Settings;
 using BDArmory.Utils;
+using BDArmory.Weapons.Missiles;
 
 namespace BDArmory.Weapons
 {
@@ -35,7 +36,7 @@ namespace BDArmory.Weapons
             foreach (Vessel v in FlightGlobals.Vessels)
             {
                 if (v == null || !v.loaded || v.packed) continue;
-                if (VesselModuleRegistry.ignoredVesselTypes.Contains(v.vesselType)) continue;
+                if (VesselModuleRegistry.IgnoredVesselTypes.Contains(v.vesselType)) continue;
                 if (!v.HoldPhysics)
                 {
                     double targetDistance = Vector3d.Distance(this.vessel.GetWorldPos3D(), v.GetWorldPos3D());
@@ -46,8 +47,10 @@ namespace BDArmory.Weapons
                         if (emp == null)
                         {
                             emp = (ModuleDrainEC)v.rootPart.AddModule("ModuleDrainEC");
+                            var MB = v.rootPart.FindModuleImplementing<MissileBase>();
+                            if (MB != null) emp.isMissile = true;
                         }
-                        emp.incomingDamage += ((proximity - (float)targetDistance) * 10); //this way craft at edge of blast might only get disabled instead of bricked
+                        emp.incomingDamage += ((proximity - (float)targetDistance) * 10) * BDArmorySettings.DMG_MULTIPLIER; //this way craft at edge of blast might only get disabled instead of bricked
                         emp.softEMP = AllowReboot; //can bypass DMP damage cap
                     }
                 }

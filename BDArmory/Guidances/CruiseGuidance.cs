@@ -56,12 +56,13 @@ namespace BDArmory.Guidances
         private float _popupSin = -1f;
 
         // Popup 1/g
-        const float invG = 1f / 10f; // 1/maneuver G
+        float invG = 1f / 10f; // 1/maneuver G
         const float invg = 1f / 9.80665f; // 1/gravity on Earth/Kerbin
 
-        public CruiseGuidance(MissileBase missile)
+        public CruiseGuidance(MissileBase missile, float invManeuvergLimit = 0.1f) // 1/maneuver G
         {
             _missile = missile;
+            invG = invManeuvergLimit;
         }
 
         public ThrottleDecision ThrottleDecision { get; set; }
@@ -72,8 +73,9 @@ namespace BDArmory.Guidances
         public Vector3 GetDirection(MissileBase missile, Vector3 targetPosition, Vector3 targetVelocity)
         {
             //set up
-            if (_missile.TimeIndex < 1)
-                return _missile.vessel.CoM + _missile.vessel.Velocity() * 10;
+            // Not really necessary, especially with the new controller, if desired it can be implemented via guidance delay
+            //if (_missile.TimeIndex < 1)
+            //    return _missile.vessel.CoM + _missile.vessel.Velocity() * 10;
 
             upDirection = _missile.vessel.up;
 
@@ -196,8 +198,14 @@ namespace BDArmory.Guidances
                 {
                     float a = Vector3.Dot(_missile.GetForwardTransform(), upDirection);
 
+                    // Time taken to sweep through the turning arc is arc length / cruise speed
+                    // arc length = (angle in rad) * r
+                    // mv^2/r = ma -> v^2/a = r, a = (9.81) * gLoad
+                    // arc length = (angle in rad) * v^2 * invG * invg
+                    // thus: t = (angle in rad) * v * invG  * invg
                     _futureSpeed = CalculateFutureSpeed((_missile.CruisePopupAngle * Mathf.Deg2Rad - Mathf.Acos(a)) * (float)_lastHorizontalSpeed * invG * invg);
 
+                    // turn dist is just r * (sin(popup angle) - cos(curr angle)) due to simple trigonometry
                     float turnDist = (float)(_futureSpeed * _futureSpeed) * invG * invg * (_popupSin - a);
 
                     _missile.Throttle = 1f;

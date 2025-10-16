@@ -192,7 +192,7 @@ namespace BDArmory.Weapons
         {
             if (v != vessel || hasDetonated || goingCritical || !engineCore) return;
             VesselModuleRegistry.OnVesselModified(v);
-            if (VesselModuleRegistry.GetModuleCount<MissileFire>(v) == 0)
+            if (v.ActiveController().WM == null)
             {
                 if (BDArmorySettings.DEBUG_OTHER) Debug.Log("[BDArmory.RWPS3R2NukeModule]: Nuclear engine on " + Sourcevessel + " has become detached.");
                 goingCritical = true;

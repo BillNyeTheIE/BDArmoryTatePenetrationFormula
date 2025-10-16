@@ -13,6 +13,7 @@ namespace BDArmory.Targeting
         TGPCameraEffects camEffects;
         Light nvLight;
         public bool nvMode = false;
+        public bool color = false;
 
         private Texture2D reticleTex;
 
@@ -326,6 +327,7 @@ namespace BDArmory.Targeting
                     { Destroy(camera.gameObject); }
                 }
             }
+            if (targetCamRenderTexture != null) targetCamRenderTexture.Release();
         }
 
         public static bool IsTGPCamera(Camera c)

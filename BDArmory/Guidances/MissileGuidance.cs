@@ -11,6 +11,8 @@ namespace BDArmory.Guidances
 {
     public class MissileGuidance
     {
+        const float invg = 1f / 9.80665f; // 1/gravity on Earth/Kerbin
+
         public static Vector3 GetAirToGroundTarget(Vector3 targetPosition, Vector3 targetVelocity, Vessel missileVessel, float descentRatio, float minSpeed = 200)
         {
             // Incorporate lead for target velocity
@@ -113,6 +115,128 @@ namespace BDArmory.Guidances
             }
         }
 
+        public static Vector3 GetCLOSTarget(Vector3 sensorPos, Vector3 currentPos, Vector3 currentVelocity, Vector3 targetPos, Vector3 targetVel,
+            float correctionFactor, float N, out float gLimit)
+        {
+            targetPos += targetVel * Time.fixedDeltaTime;
+            Vector3 accel = GetCLOSAccel(sensorPos, Vector3.zero, currentPos, currentVelocity, targetPos, targetVel, Vector3.zero, correctionFactor, N);
+            gLimit = accel.magnitude;
+
+            return currentPos + 4f * currentVelocity + 16f * accel;
+        }
+
+        public static Vector3 GetThreePointTarget(Vector3 sensorPos, Vector3 sensorVel, Vector3 currentPos, Vector3 currentVelocity, Vector3 targetPos, Vector3 targetVel,
+            float correctionFactor, float N, out float gLimit)
+        {
+            Vector3 relVelocity = targetVel - sensorVel;
+            Vector3 relRange = targetPos - sensorPos;
+            Vector3 angVel = Vector3.Cross(relRange, relVelocity) / relRange.sqrMagnitude;
+
+            Vector3 accel = GetCLOSAccel(sensorPos, sensorVel, currentPos, currentVelocity, targetPos, targetVel, angVel, correctionFactor, N);
+
+            accel -= 2f * Vector3.Cross(currentVelocity, angVel);
+            gLimit = accel.magnitude / 9.80665f;
+
+            return currentPos + 4f * currentVelocity + 16f * accel;
+        }
+
+        public static Vector3 GetCLOSLeadTarget(Vector3 sensorPos, Vector3 sensorVel, Vector3 currentPos, Vector3 currentVelocity, Vector3 targetPos, Vector3 targetVel,
+            float correctionFactor, float N, float beamLeadFactor, out float gLimit)
+        {
+            Vector3 relVelocity = targetVel - sensorVel;
+            Vector3 relRange = targetPos - sensorPos;
+            float RSqr = relRange.sqrMagnitude;
+
+            float currVel = currentVelocity.magnitude;
+            if (currVel < 200f)
+                currentVelocity *= 200f / currVel;
+
+            (float rangeM, Vector3 dirM) = (currentPos - sensorPos).MagNorm();
+            (float rangeT, Vector3 dirT) = (targetPos - sensorPos).MagNorm();
+            float leadTime = Mathf.Clamp((rangeT - rangeM) / (Mathf.Max(currVel, 200f) - Vector3.Dot(targetVel, dirT)), 0f, 8f);
+
+            Vector3 deltaLOS = (Mathf.Clamp01(beamLeadFactor) * leadTime / RSqr) * Vector3.Cross(relRange, relVelocity);
+            Quaternion rotation = Quaternion.AngleAxis(deltaLOS.magnitude * Mathf.Rad2Deg, deltaLOS);
+            Vector3 corrRelRange = rotation * relRange;
+
+            Vector3 angVel = Vector3.Cross(relRange, relVelocity) / RSqr;
+
+            // Once below the max leadTime, the LoS vector moves towards the target at half of angVel due to the nature of half-rectification
+            // guidance, hence when we get the CLOS accel we use half of angVel
+            // Now that half-rectification has been generalized, this is beamLeadFactor rather than 0.5.
+            if (leadTime < 8)
+                angVel *= (1f - beamLeadFactor);
+
+            Vector3 accel = GetCLOSAccel(sensorPos, sensorVel, currentPos, currentVelocity, sensorPos + corrRelRange, targetVel, angVel, correctionFactor, N);
+
+            //accel -= 2f * Vector3.Cross(currentVelocity, angVel);
+            gLimit = accel.magnitude / 9.80665f;
+
+            return currentPos + 4f * currentVelocity + 16f * accel;
+        }
+
+        /*public static Vector3 GetCLOSAccel(Vector3 sensorPos, Vector3 currentPos, Vector3 currentVelocity, Vector3 targetPos, Vector3 targetVel,
+            float correctionFactor, float correctionDamping)
+        {
+            Vector3 beamDir = (targetPos - sensorPos).normalized;
+            float onBeamDistance = Vector3.Dot(currentPos - sensorPos, beamDir);
+            Vector3 onBeamPos = sensorPos + beamDir * onBeamDistance;
+
+            (float beamError, Vector3 beamErrorV) = (onBeamPos - currentPos).MagNorm();
+
+            Vector3 rotVec = Vector3.Cross(beamDir, (currentPos - sensorPos).normalized);
+
+            (float velAngularErr, Vector3 velAngularErrV) = Vector3.Cross(beamDir, currentVelocity.normalized).MagNorm();
+            velAngularErr = Mathf.Acos(velAngularErr);
+
+            if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileGuidance] beamError: {beamError}, beamErrorV: {beamErrorV}, velAngularErr: {velAngularErr}, velAngularErrV: {velAngularErrV}.");
+
+            Vector3 accel = Vector3.Cross(currentVelocity, (correctionFactor * beamError * rotVec + correctionFactor * correctionDamping * velAngularErr * velAngularErrV));
+
+            return accel;
+        }*/
+
+        public static Vector3 GetCLOSAccel(Vector3 sensorPos, Vector3 sensorVel, Vector3 currentPos, Vector3 currentVelocity, Vector3 targetPos, Vector3 targetVel, Vector3 beamAngVel,
+            float correctionFactor, float N)
+        {
+            Vector3 beamDir = (targetPos - sensorPos).normalized;
+            float onBeamDistance = Vector3.Dot(currentPos - sensorPos, beamDir);
+            Vector3 onBeamPos = sensorPos + beamDir * onBeamDistance;
+
+            Vector3 beamVelocity = Vector3.Cross(beamAngVel, beamDir * onBeamDistance);
+
+            (float beamError, Vector3 beamErrorV) = (currentPos - onBeamPos).MagNorm();
+
+            (float currentSpeed, Vector3 velDir) = currentVelocity.MagNorm();
+
+            currentSpeed = Mathf.Max(currentSpeed, 200f);
+
+            // This gives the velocity command normal to the beam
+            Vector3 velCommand = -correctionFactor * beamError * beamErrorV + beamVelocity + sensorVel;
+            
+            // We calculate how much remains of currentVelocity once we subtract away the velocity command
+            float temp = 1f - velCommand.sqrMagnitude / (currentSpeed * currentSpeed);
+            
+            if (temp < 0f)
+                // If the velocity command is greater than the currentSpeed then pointing we maximize
+                // our velocity normal to the beam
+                velCommand = velCommand.normalized;
+            else
+                // Otherwise, we put what remains of currentVelocity into velocity along the beamDir
+                velCommand = velCommand / currentSpeed + BDAMath.Sqrt(temp) * beamDir;
+
+            // We use velCommand crossed with velDir as our angular velocity command since it's more
+            // efficient than using a linear angular error based command like was used in the previous
+            // attempt at CLOS guidance. Velocity crossed with the angular velocity command gives us our
+            // normal acceleration. This being a triple product we simplify to a vector difference and a
+            // dot product. We use a proportional constant N just like in pronav to modify the acceleration
+            Vector3 accel = N * currentSpeed * (velCommand - Vector3.Dot(velCommand, velDir) * velDir);
+
+            if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileGuidance] beamError: {beamError}, beamErrorV: {beamErrorV}, velCommand: {velCommand}, accel: {accel}.");
+
+            return accel;
+        }
+
         public static Vector3 GetBeamRideTarget(Ray beam, Vector3 currentPosition, Vector3 currentVelocity,
             float correctionFactor, float correctionDamping, Ray previousBeam)
         {
@@ -136,11 +260,11 @@ namespace BDArmory.Guidances
             Vector3 targetAcceleration, Vessel missileVessel, out float timeToImpact, float minSpeed = 200)
         {
             float leadTime = 0;
-            float RSqr = Vector3.SqrMagnitude(targetPosition - missileVessel.CoM);
 
             Vector3 currVel = Mathf.Max((float)missileVessel.srfSpeed, minSpeed) * missileVessel.Velocity().normalized;
 
             Vector3 Rdir = (targetPosition - missileVessel.CoM);
+            float RSqr = Rdir.sqrMagnitude;
             leadTime = -RSqr / Vector3.Dot(targetVelocity - currVel, Rdir);
 
             if (leadTime <= 0f)
@@ -153,7 +277,7 @@ namespace BDArmory.Guidances
             return targetPosition + (targetVelocity * leadTime);
         }
 
-        public static Vector3 GetWeaveTarget(Vector3 targetPosition, Vector3 targetVelocity, Vessel missileVessel, ref float gVert, ref float gHorz, float gRand, float omega, float terminalAngle, float weaveFactor, bool useAGMDescentRatio, float agmDescentRatio, ref float weaveOffset, ref Vector3 weaveStart, out float ttgo, out float gLimit)
+        public static Vector3 GetWeaveTarget(Vector3 targetPosition, Vector3 targetVelocity, Vessel missileVessel, ref float gVert, ref float gHorz, Vector3 gRand, ref float omega, float terminalAngle, float weaveFactor, bool useAGMDescentRatio, float agmDescentRatio, float maneuvergLimit, ref float weaveOffset, ref Vector3 weaveStart, ref float WeaveAlt, out float ttgo, out float gLimit)
         {
             // Based on https://www.sciencedirect.com/science/article/pii/S1474667015333437
 
@@ -186,9 +310,18 @@ namespace BDArmory.Guidances
 
             Vector3 right = Vector3.Cross(planarDirToTarget, upDirection);
 
-            float verticalAngle = (Mathf.Deg2Rad * Mathf.Sign(Vector3.Dot(missileVel, upDirection))) * Vector3.Angle(missileVel.ProjectOnPlanePreNormalized(right), planarDirToTarget);
+            float pullUpCos = Vector3.Dot(missileVel.normalized, upDirection);
 
-            float horizontalAngle = (Mathf.Deg2Rad * Mathf.Sign(Vector3.Dot(missileVel, right))) * Vector3.Angle(missileVel.ProjectOnPlanePreNormalized(upDirection), planarDirToTarget);
+            float horizontalAngle = VectorUtils.GetAngleOnPlane(missileVel, planarDirToTarget, right);
+            const float halfPi = Mathf.PI * 0.5f;
+            float verticalAngle = halfPi - Mathf.Acos(pullUpCos);
+
+            //verticalAngle *= Mathf.Deg2Rad;
+            horizontalAngle *= Mathf.Deg2Rad;
+
+            /*float verticalAngle = (Mathf.Deg2Rad * Mathf.Sign(pullUpCos)) * VectorUtils.Angle(missileVel.ProjectOnPlanePreNormalized(right), planarDirToTarget);
+
+            float horizontalAngle = (Mathf.Deg2Rad * Mathf.Sign(Vector3.Dot(missileVel, right))) * VectorUtils.Angle(missileVel.ProjectOnPlanePreNormalized(upDirection), planarDirToTarget);*/
 
             const float PI2 = 2f * Mathf.PI;
 
@@ -204,10 +337,12 @@ namespace BDArmory.Guidances
                 if (UnityEngine.Random.value < 0.5)
                     gHorz = -gHorz;
 
-                if (gVert != 0.0f)
-                    gVert += gRand * (2f * UnityEngine.Random.value - 1f);
                 if (gHorz != 0.0f)
-                    gHorz += gRand * (2f * UnityEngine.Random.value - 1f);
+                    gHorz += gRand.x * (2f * UnityEngine.Random.value - 1f);
+                if (gVert != 0.0f)
+                    gVert += gRand.y * (2f * UnityEngine.Random.value - 1f);
+                if (gRand.z != 0.0f)
+                    omega += gRand.z * (2f * UnityEngine.Random.value - 1f);
             }
             else
             {
@@ -216,7 +351,7 @@ namespace BDArmory.Guidances
                 ttgoWeave = weaveFactor * 1.5f * weaveDist / speed;
                 right = Vector3.Cross(weaveDir, upDirection);
             }
-                    
+
             float omegaBeta = PI2 * omega * ttgoWeave;
             float sinOmegaBeta = Mathf.Sin(omegaBeta);
             float cosOmegaBeta = Mathf.Cos(omegaBeta);
@@ -231,22 +366,110 @@ namespace BDArmory.Guidances
             float ttgoWeaveInv = 1f / ttgoWeave;
             float omegaBetaInv = 1f / (Mathf.Max(omegaBeta * omegaBeta, 0.000001f));
 
-            float aVert = ((terminalAngle > 0) ? (speed * (6f * Mathf.Asin(Vector3.Dot(upDirection, Rdir) / Rdir.magnitude) - 4f * verticalAngle + 2f * terminalAngle * Mathf.Deg2Rad) * ttgoWeaveInv) : 0.0f) // A_BPN                                                                                                                                    
-                + ((gVert != 0.0f) ? (gVert * g * ((ka + omegaBeta * omegaBeta) * sinOmegaBetaOff + kj * cosOmegaBetaOff) * omegaBetaInv) : 0.0f); // A_W
-            float aHor = ((terminalAngle > 0) ? (-6f * speed * horizontalAngle) * ttgoWeaveInv : 0.0f) // A_BPN            
+            float gVertTemp = gVert;
+            float vertGuidanceAngle;
+            float ttgoWeaveInvVert = ttgoWeaveInv;
+            bool useA_BPN = (terminalAngle > 0);
+
+            if (useAGMDescentRatio)
+            {
+                float currAlt = (float)missileVessel.altitude;
+
+                if (WeaveAlt < 0f)
+                    WeaveAlt = currAlt;
+
+                float altitudeClamp = Mathf.Clamp(
+                    (weaveDist - ((float)missileVessel.srfSpeed * agmDescentRatio)) * 0.22f, 0f,
+                    WeaveAlt);// + Mathf.Max(VectorUtils.AnglePreNormalized(upDirection, missileVel.normalized) - 90f, 0f) * Mathf.Deg2Rad * weaveDist);
+
+                float curvatureCompensation = (1f - Vector3.Dot(upDirection, VectorUtils.GetUpDirection(targetPosition))) * (float) FlightGlobals.currentMainBody.Radius;
+
+                Rdir += (altitudeClamp + curvatureCompensation) * upDirection;
+
+                vertGuidanceAngle = Mathf.Asin(Vector3.Dot(upDirection, Rdir) / Rdir.magnitude);
+
+                /*
+                // If we have a vertical weave
+                if (pullUpCos < 0)
+                {
+                    // Get distance to pull up
+                    float pullUpSin = BDAMath.Sqrt(1f - pullUpCos * pullUpCos);
+                    // Turn radius is mv^2/r = ma -> v^2/r = a -> v^2/a = r, a = 6 g -> v^2 * 1/6 g = r
+                    float pullUpg = gVertTemp > 0.0f ? gVertTemp * 0.8f : (gHorz > 0.0f ? Mathf.Min(gHorz * 0.8f, 6f) : 6f);
+                    float invG = invg / pullUpg;
+                    float pullUpDist = (speed * speed * invG) * (1f - pullUpSin);
+                    float altDiff = currAlt - altitudeClamp;
+
+                    if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileGuidance] speed: {speed}, altitude: {missileVessel.altitude}, altitudeClamp: {altitudeClamp}, pullUpDist: {pullUpDist}, altDiff: {altDiff}, pullUpCos: {pullUpCos}, pullUpSin: {pullUpSin}, verticalAngle: {verticalAngle}, ttgoWeaveInvVert: {ttgoWeaveInvVert}.");
+
+                    if (pullUpDist > currAlt)
+                    {
+                        // If we desperately need to pull up
+                        gVertTemp = 0f;
+                        // Calculate the vertical acceleration required to pull up in time
+                        aVert = pullUpDist / currAlt * pullUpg * 9.8066f;
+                        calcaVert = false;
+                    }
+                    // If we're above the target altitude and we need to pull up
+                    if (altDiff > 0 && altDiff < pullUpDist)
+                        gVertTemp = 0f;
+                }
+                */
+
+                float altDiff = currAlt - altitudeClamp;
+                if (pullUpCos < 0 || altDiff < 0)
+                {
+                    // Get angle relative to vertical
+                    float pullUpSin = BDAMath.Sqrt(1f - pullUpCos * pullUpCos);
+                    // Turn radius is mv^2/r = ma -> v^2/r = a -> v^2/a = r, a = 6 g -> v^2 * 1/6 g = r
+                    float invG = invg / maneuvergLimit;
+                    float pullUpDist = (speed * speed * invG) * (1f - pullUpSin);
+
+                    if (altDiff < 0)
+                    {
+                        gVertTemp = 0f;
+                        float remainingSin = pullUpSin + altDiff / (speed * speed * invG);
+                        float remainingCos = BDAMath.Sqrt(1f - remainingSin * remainingSin);
+                        float remainingAngle = Mathf.Asin(remainingSin);
+
+                        Vector3 turnLead = (speed * speed * invG * -0.8f) * ((pullUpCos + remainingCos) * planarDirToTarget) - altDiff * upDirection;
+                        vertGuidanceAngle = Mathf.Asin(Vector3.Dot(upDirection, turnLead) / turnLead.magnitude);
+                        ttgoWeaveInvVert = 1f / (Mathf.Max(-verticalAngle + remainingAngle, 0.00001f) * speed * invG * 0.8f);
+                        //terminalAngle = 0f;
+                    }
+                    else if (altDiff < pullUpDist)
+                    {
+                        gVertTemp = 0f;
+                        Vector3 turnLead = (speed * speed * invG * -0.8f) * (pullUpCos * planarDirToTarget) - altDiff * upDirection;
+                        vertGuidanceAngle = Mathf.Asin(Vector3.Dot(upDirection, turnLead) / turnLead.magnitude);
+                        ttgoWeaveInvVert = 1f / (Mathf.Max(-verticalAngle, 0.00001f) * speed * invG * 0.8f);
+                        terminalAngle = 0f;
+                        useA_BPN = true;
+                    }
+
+                    //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileGuidance] speed: {speed}, altitude: {missileVessel.altitude}, altitudeClamp: {altitudeClamp}, pullUpDist: {pullUpDist}, altDiff: {altDiff}, curvatureComp: {curvatureCompensation}, leadx: {speed * speed * invG * -0.8f * pullUpCos}, pullUpCos: {pullUpCos}, pullUpSin: {pullUpSin}, verticalAngle: {verticalAngle}, ttgoWeaveInvVert: {ttgoWeaveInvVert}.");
+                }
+                
+            }
+            else
+                vertGuidanceAngle = Mathf.Asin(Vector3.Dot(upDirection, Rdir) / Rdir.magnitude);
+
+            float aVert = (useA_BPN ? (speed * (6f * vertGuidanceAngle - 4f * verticalAngle + 2f * terminalAngle * Mathf.Deg2Rad) * ttgoWeaveInvVert) : 0.0f) // A_BPN                                                                                                                                    
+                    + ((gVertTemp != 0.0f) ? (gVertTemp * g * ((ka + omegaBeta * omegaBeta) * sinOmegaBetaOff + kj * cosOmegaBetaOff) * omegaBetaInv) : 0.0f); // A_W
+            float aHor = (useA_BPN ? (-6f * speed * horizontalAngle) * ttgoWeaveInv : 0.0f) // A_BPN            
                 + ((gHorz != 0.0f) ? (gHorz * g * ((ka + omegaBeta * omegaBeta) * cosOmegaBetaOff + kj * sinOmegaBetaOff) * omegaBetaInv) : 0.0f); // A_W
 
             Quaternion rotationPitch = Quaternion.AngleAxis(verticalAngle, right);
             Quaternion rotationYaw = Quaternion.AngleAxis(horizontalAngle, upDirection);
 
             Vector3 accel = (aVert * (rotationPitch * rotationYaw * upDirection) + aHor * (rotationYaw * right));// + GetPNAccel(targetPosition, targetVelocity, missileVessel, 3f);
-            if (terminalAngle < 0)
+            if (useA_BPN)
+                gLimit = BDAMath.Sqrt(aVert * aVert + aHor * aHor) / (float)PhysicsGlobals.GravitationalAcceleration;
+            else
             {
                 accel += GetPNAccel(targetPosition, targetVelocity, missileVessel, 3f);
                 gLimit = accel.magnitude / (float)PhysicsGlobals.GravitationalAcceleration;
             }
-            else
-                gLimit = BDAMath.Sqrt(aVert * aVert + aHor * aHor) / (float)PhysicsGlobals.GravitationalAcceleration;
 
             if (BDArmorySettings.DEBUG_MISSILES)
                 Debug.Log($"[BDArmory.MissileGuidance] Weave guidance ttgoWeave: {ttgoWeave}, omegaBeta: {omegaBeta}, ka: {ka}, kj: {kj}, vertAngle: {Mathf.Rad2Deg * verticalAngle}, horAngle: {Mathf.Rad2Deg * horizontalAngle}, aVert: {aVert} m/s^2, aHor: {aHor} m/s^2.");
@@ -254,21 +477,6 @@ namespace BDArmory.Guidances
             float leadTime = Mathf.Min(4f, ttgoWeave);
 
             Vector3 aimPos = missileVessel.CoM + leadTime * missileVel + accel * (0.5f * leadTime * leadTime);
-
-            if (useAGMDescentRatio)
-            {
-                float altitudeClamp = Mathf.Clamp(
-                    (weaveDist - ((float)missileVessel.srfSpeed * agmDescentRatio)) * 0.22f, 0f,
-                    (float)missileVessel.altitude +
-                    Mathf.Max(VectorUtils.AnglePreNormalized(upDirection, missileVel.normalized) - 90f, 0f) * Mathf.Deg2Rad * weaveDist);
-
-                float altDiff = Vector3.Dot(aimPos - missileVessel.CoM, upDirection) + (float)missileVessel.altitude - Mathf.Max(FlightGlobals.getAltitudeAtPos(targetPosition), -2f);
-
-                if (altDiff < altitudeClamp)
-                {
-                    aimPos += (altitudeClamp - altDiff) * upDirection;
-                }
-            }
 
             return aimPos;
         }
@@ -300,7 +508,10 @@ namespace BDArmory.Guidances
             Vector3 Rdir = (targetPosition - ml.vessel.CoM);
             ttgo = -R*R / Vector3.Dot(targetVelocity - currVel, Rdir);
 
+            // Lead limiting
             if (ttgo <= 0f)
+                ttgo = 60f;
+            if (ttgo > 60f)
                 ttgo = 60f;
 
             float ttgoInv = 1f / ttgo;
@@ -313,13 +524,31 @@ namespace BDArmory.Guidances
             // Set up PIP vector
             Vector3 predictedImpactPoint = AIUtils.PredictPosition(targetPosition, targetVelocity, Vector3.zero, leadTime + TimeWarp.fixedDeltaTime);
 
-            float sinTarget = Vector3.Dot((predictedImpactPoint - ml.vessel.CoM).normalized, -upDirection); //Vector3.Dot((targetPosition - ml.vessel.CoM), -upDirection) / R;
+            bool boostGuidance = (loftState < MissileBase.LoftStates.Midcourse);
 
-            // If still in boost phase
-            if ((loftState < MissileBase.LoftStates.Midcourse) && (midcourseRange > 0f) && (R > midcourseRange) && (sinTarget < Mathf.Sin(loftTermAngle * Mathf.Deg2Rad)) && (-sinTarget < Mathf.Sin(loftAngle * Mathf.Deg2Rad)))
+            Vector3 planarDirectionToTarget = Vector3.zero;
+
+            if (boostGuidance)
             {
-                Vector3 planarDirectionToTarget = ((predictedImpactPoint - ml.vessel.CoM).ProjectOnPlanePreNormalized(upDirection)).normalized;
+                planarDirectionToTarget = ((predictedImpactPoint - ml.vessel.CoM).ProjectOnPlanePreNormalized(upDirection)).normalized;
 
+                // Get angle relative to vertical
+                float pullDownCos = Vector3.Dot(velDirection, upDirection);
+                float pullDownSin = BDAMath.Sqrt(1f - pullDownCos * pullDownCos);
+                // Turn radius is mv^2/r = ma -> v^2/r = a -> v^2/a = r, a = 6 g -> v^2 * 1/6 g = r
+                float invG = invg / (ml.gLimit > 0.0f ? ml.gLimit : 20f);
+                Vector3 turnLead = (currSpeed * currSpeed * invG) * (pullDownCos * planarDirectionToTarget + (1f - pullDownSin) * upDirection); //(currSpeed * currSpeed * 0.0169952698051929473876953125f) * (pullDownSin * planarDirectionToTarget + (1f - pullDownCos) * upDirection);
+                //float turnTimeOffset = (loftTermAngle * Mathf.Deg2Rad + 0.5f * Mathf.PI - Mathf.Acos(pullDownCos)) * currSpeed * invG;
+
+                float curvatureCompensation = (1f - Vector3.Dot(upDirection, VectorUtils.GetUpDirection(predictedImpactPoint))) * (float) FlightGlobals.currentMainBody.Radius;
+
+                float sinTarget = Vector3.Dot((predictedImpactPoint - ml.vessel.CoM - turnLead - curvatureCompensation * upDirection).normalized, -upDirection); //Vector3.Dot((targetPosition - ml.vessel.CoM), -upDirection) / R;
+
+                boostGuidance = (midcourseRange > 0f) && (R > midcourseRange) && (sinTarget < Mathf.Sin(loftTermAngle * Mathf.Deg2Rad)) && (-sinTarget < Mathf.Sin(loftAngle * Mathf.Deg2Rad));
+            }
+            // If still in boost phase
+            if (boostGuidance)
+            {
                 //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log("[BDArmory.MissileGuidance]: Lofting");
 
                 float altitudeClamp = Mathf.Clamp(targetAlt + 10f * rangeFac * Mathf.Pow(Vector3.Dot(targetPosition - ml.vessel.CoM, planarDirectionToTarget), Mathf.Abs(vertVelComp)), targetAlt, Mathf.Max(maxAltitude, targetAlt));
@@ -330,7 +559,7 @@ namespace BDArmory.Guidances
                 turnFactor = Mathf.Clamp(turnFactor, -1f, 1f);
 
                 // Limit gs during climb
-                gLimit = 6f;
+                gLimit = ml.maneuvergLimit;
 
                 return ml.vessel.CoM + currSpeed * ((Mathf.Cos(loftAngle * turnFactor * Mathf.Deg2Rad) * planarDirectionToTarget) + (Mathf.Sin(loftAngle * turnFactor * Mathf.Deg2Rad) * upDirection));
             }
@@ -372,9 +601,9 @@ namespace BDArmory.Guidances
                     float q = (float)(0.5f * ml.vessel.atmDensity * ml.vessel.srfSpeed * ml.vessel.srfSpeed);
 
                     // Needs to be changed if the lift and drag curves are changed
-                    float Lalpha = 2.864788975654117f * q * ml.liftArea * BDArmorySettings.GLOBAL_LIFT_MULTIPLIER; // CLmax/AoA(CLmax) * q * S * Lift Multiplier, I.E. linearized Lift/AoA (not CL/AoA)
-                    float D0 = 0.00215f * q * ml.dragArea * BDArmorySettings.GLOBAL_DRAG_MULTIPLIER; // Drag at 0 AoA
-                    float eta = 0.025f * BDArmorySettings.GLOBAL_DRAG_MULTIPLIER * ml.dragArea / (BDArmorySettings.GLOBAL_LIFT_MULTIPLIER * ml.liftArea); // D = D0 + eta*Lalpha*AoA^2, quadratic approximation of drag.
+                    float Lalpha = 2.864788975654117f * q * ml.currLiftArea * BDArmorySettings.GLOBAL_LIFT_MULTIPLIER; // CLmax/AoA(CLmax) * q * S * Lift Multiplier, I.E. linearized Lift/AoA (not CL/AoA)
+                    float D0 = 0.00215f * q * ml.currDragArea * BDArmorySettings.GLOBAL_DRAG_MULTIPLIER; // Drag at 0 AoA
+                    float eta = 0.025f * BDArmorySettings.GLOBAL_DRAG_MULTIPLIER * ml.currDragArea / (BDArmorySettings.GLOBAL_LIFT_MULTIPLIER * ml.currLiftArea); // D = D0 + eta*Lalpha*AoA^2, quadratic approximation of drag.
                     // eta needs to change if the lift/drag curves are changed. Note this is for small angles
 
                     // Pre-calculation since it's used a lot
@@ -433,9 +662,9 @@ namespace BDArmory.Guidances
         public static Vector3 GetAirToAirLoftTarget(Vector3 targetPosition, Vector3 targetVelocity,
             Vector3 targetAcceleration, Vessel missileVessel, float targetAlt, float maxAltitude,
             float rangeFactor, float vertVelComp, float velComp, float loftAngle, float termAngle,
-            float termDist, ref MissileBase.LoftStates loftState, out float timeToImpact, out float gLimit,
-            out float targetDistance, MissileBase.GuidanceModes homingModeTerminal, float N,
-            float minSpeed = 200)
+            float termDist, float maneuvergLimit, float invManeuvergLimit, ref MissileBase.LoftStates loftState,
+            out float timeToImpact, out float gLimit, out float targetDistance,
+            MissileBase.GuidanceModes homingModeTerminal, float N, float optimumAirspeed = 200)
         {
             Vector3 velDirection = missileVessel.srf_vel_direction; //missileVessel.Velocity().normalized;
 
@@ -443,10 +672,17 @@ namespace BDArmory.Guidances
 
             float currSpeed;// = Mathf.Max((float)missileVessel.srfSpeed, minSpeed);
 
-            if (loftState < MissileBase.LoftStates.Midcourse)
-                currSpeed = Mathf.Max((float)missileVessel.srfSpeed, minSpeed);
+            if (loftState == MissileBase.LoftStates.Boost)
+                currSpeed = Mathf.Max((float)missileVessel.srfSpeed, optimumAirspeed);
             else
-                currSpeed = (float)missileVessel.srfSpeed;
+            {
+                // If still accelerating
+                if (Vector3.Dot(missileVessel.acceleration_immediate, velDirection) > 0)
+                    currSpeed = Mathf.Max((float)missileVessel.srfSpeed, optimumAirspeed);
+                else
+                    currSpeed = (float)missileVessel.srfSpeed;
+            }
+                
 
             Vector3 currVel = currSpeed * velDirection;
 
@@ -491,6 +727,47 @@ namespace BDArmory.Guidances
                 //targetCompVel = targetVelocity + velComp * targetAlVelMag * velDirectionHor; // New velComp logic
                 targetCompVel = targetVelocity + velComp * targetAlVelMag * velDirectionHor + vertVelComp * targetVertVelMag * upDirection; // New velComp logic
 
+                // Use simple lead compensation to minimize over-compensation
+                // Get planar direction to target
+                Vector3 planarDirectionToTarget =
+                    ((AIUtils.PredictPosition(targetPosition, targetVelocity, Vector3.zero, leadTime + TimeWarp.fixedDeltaTime) - missileVessel.CoM).ProjectOnPlanePreNormalized(upDirection)).normalized;
+
+                //float turnTimeOffset = 0f;
+
+                if (loftState == MissileBase.LoftStates.Boost)
+                {
+                    // Get angle relative to vertical
+                    float pullDownCos = Vector3.Dot(velDirection, upDirection);
+                    // Make sure we're actually pulling down, otherwise our assumptions won't hold,
+                    // Specifically, pullDownSin would require a negative sign in our turnLead
+                    // calculation as it represents distance already covered. Similarly,
+                    // instead of termAngle + turnAngleOffset, it'd be termAngle - turnAngleOffset
+                    // in turnTimeOffset. Either way, this calculation is not required as it is
+                    // expected that the user will have accounted for turn time required from
+                    // horizontal to termAngle in the termAngle trigger point
+                    if (pullDownCos > 0)
+                    {
+                        // If the target isn't above the loft angle
+                        if (Mathf.Cos(loftAngle) * targetDistance > Vector3.Dot(missileRelativePosition, upDirection))
+                        {
+                            float pullDownSin = BDAMath.Sqrt(1f - pullDownCos * pullDownCos);
+                            // Turn radius is mv^2/r = ma -> v^2/r = a -> v^2/a = r, a = 10 g -> v^2 * 1/(10 g) = r
+                            // We use 1.5f * currSpeed to account for accelerating missiles
+                            float tempSpeed = Mathf.Max(currSpeed * 1.1f, optimumAirspeed);
+
+                            float curvatureCompensation = (1f - Vector3.Dot(upDirection, VectorUtils.GetUpDirection(targetPosition))) * (float)FlightGlobals.currentMainBody.Radius;
+                            float turnRadius = (tempSpeed * tempSpeed * invg * invManeuvergLimit);
+
+                            Vector3 turnLead = (turnRadius * (pullDownCos + Mathf.Sin(termAngle * Mathf.Deg2Rad))) * planarDirectionToTarget + (turnRadius * (1f - pullDownSin) - curvatureCompensation) * upDirection;
+
+                            firePosition += turnLead;
+                            //turnTimeOffset = (termAngle * Mathf.Deg2Rad + (Mathf.PI * 0.5f - Mathf.Acos(pullDownCos))) * tempSpeed * 0.0169952698051929473876953125f;
+                        }
+                        else
+                            loftState = MissileBase.LoftStates.Midcourse;
+                    }
+                }
+
                 var count = 0;
                 do
                 {
@@ -506,8 +783,8 @@ namespace BDArmory.Guidances
                     targetPredictedPosition = AIUtils.PredictPosition(targetPosition, targetCompVel, Vector3.zero, Mathf.Min(timeToCPA, 16f));
                     missileDropOffset = -0.5f * missileAcceleration * timeToCPA * timeToCPA;
                     ballisticTarget = targetPredictedPosition + missileDropOffset;
-                    velDirection = (ballisticTarget - missileVessel.CoM).normalized;
-                } while (++count < 10 && Vector3.Angle(lastVelDirection, velDirection) > 1f); // 1° margin of error is sufficient to prevent premature firing (usually)
+                    velDirection = (ballisticTarget - firePosition).normalized;
+                } while (++count < 10 && VectorUtils.Angle(lastVelDirection, velDirection) > 1f); // 1° margin of error is sufficient to prevent premature firing (usually)
 
 
                 // Determine horizontal and up components of velocity, calculate the elevation angle
@@ -516,11 +793,6 @@ namespace BDArmory.Guidances
                 float angle = Mathf.Atan2(velUp, velForwards);
 
                 //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileGuidance]: Loft Angle: [{(angle * Mathf.Rad2Deg):G3}]");
-
-                // Use simple lead compensation to minimize over-compensation
-                // Get planar direction to target
-                Vector3 planarDirectionToTarget =
-                    ((AIUtils.PredictPosition(targetPosition, targetVelocity, Vector3.zero, leadTime + TimeWarp.fixedDeltaTime) - missileVessel.CoM).ProjectOnPlanePreNormalized(upDirection)).normalized;
 
                 // Check if termination angle agrees with termAngle
                 if ((loftState < MissileBase.LoftStates.Midcourse) && (angle > -termAngle * Mathf.Deg2Rad))
@@ -564,9 +836,9 @@ namespace BDArmory.Guidances
                     float turnFactor = (float)(altitudeClamp - missileVessel.altitude) / (4f * (float)missileVessel.srfSpeed);
                     turnFactor = Mathf.Clamp(turnFactor, -1f, 1f);
 
-                    loftAngle = Mathf.Max(loftAngle, angle);
+                    //loftAngle = Mathf.Max(loftAngle, angle);
 
-                    gLimit = 6f;
+                    gLimit = maneuvergLimit;
 
                     //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileGuidance]: AAM Loft altitudeClamp: [{altitudeClamp:G6}] COS: [{Mathf.Cos(loftAngle * turnFactor * Mathf.Deg2Rad):G3}], SIN: [{Mathf.Sin(loftAngle * turnFactor * Mathf.Deg2Rad):G3}], turnFactor: [{turnFactor:G3}].");
                     return missileVessel.CoM + (float)missileVessel.srfSpeed * ((Mathf.Cos(loftAngle * turnFactor * Mathf.Deg2Rad) * planarDirectionToTarget) + (Mathf.Sin(loftAngle * turnFactor * Mathf.Deg2Rad) * upDirection));
@@ -629,28 +901,40 @@ namespace BDArmory.Guidances
                     } else
                     {
                         // Otherwise just fly towards the target according to velUp and velForwards
-                        float spdUp = (float)missileVessel.srfSpeed * velUp, spdF = (float)missileVessel.srfSpeed * velForwards;
+                        float spdUp = 0.25f * leadTime * (float)missileVessel.srfSpeed * velUp, spdF = 0.25f * leadTime * (float)missileVessel.srfSpeed * velForwards;
                         finalTargetPos = new Vector3(missileVessel.CoM.x + spdUp * upDirection.x + spdF * planarDirectionToTarget.x,
                             missileVessel.CoM.y + spdUp * upDirection.y + spdF * planarDirectionToTarget.y,
                             missileVessel.CoM.z + spdUp * upDirection.z + spdF * planarDirectionToTarget.z);
                     }
 
                     // If the target is at <  2 * termDist start mixing
-                    if (targetDistance < 2f * termDist)
+                    if (targetDistance < 3f * termDist)
                     {
                         float blendFac = (targetDistance - termDist) / termDist;
+                        blendFac *= 0.25f * blendFac;
+
+                        Vector3 aamTarget;
 
                         if (homingModeTerminal == MissileBase.GuidanceModes.PN)
-                            return (1f - blendFac) * GetPNTarget(targetPosition, targetVelocity, missileVessel, N, out timeToImpact, out gLimit) + blendFac * finalTargetPos;
+                            aamTarget = (1f - blendFac) * GetPNTarget(targetPosition, targetVelocity, missileVessel, N, out timeToImpact, out gLimit) + blendFac * finalTargetPos;
                         else if (homingModeTerminal == MissileBase.GuidanceModes.APN)
-                            return (1f - blendFac) * GetAPNTarget(targetPosition, targetVelocity, targetAcceleration, missileVessel, N, out timeToImpact, out gLimit) + blendFac * finalTargetPos;
+                            aamTarget = (1f - blendFac) * GetAPNTarget(targetPosition, targetVelocity, targetAcceleration, missileVessel, N, out timeToImpact, out gLimit) + blendFac * finalTargetPos;
                         else if (homingModeTerminal == MissileBase.GuidanceModes.AAMPure)
                             return (1f - blendFac) * targetPosition + blendFac * finalTargetPos;
+                        else if (homingModeTerminal == MissileBase.GuidanceModes.AAMLead)
+                            return (1f - blendFac) * AIUtils.PredictPosition(targetPosition, targetVelocity, targetAcceleration, leadTime + TimeWarp.fixedDeltaTime) + blendFac * finalTargetPos;
                         else
-                            return (1f - blendFac) * GetPNTarget(targetPosition, targetVelocity, missileVessel, N, out timeToImpact, out gLimit) + blendFac * finalTargetPos; // Default to PN
-                    }
+                            aamTarget = (1f - blendFac) * GetPNTarget(targetPosition, targetVelocity, missileVessel, N, out timeToImpact, out gLimit) + blendFac * finalTargetPos; // Default to PN
 
-                    // No mixing if targetDistance > 2 * termDist
+                        gLimit += 10f * blendFac;
+
+                        return aamTarget;
+                    }
+                    //else
+                    //    gLimit = Mathf.Clamp(20f * (1 - (targetDistance - termDist - 100f) / Mathf.Clamp(termDist * 4f, 5000f, 25000f)), 10f, 20f);
+
+
+                    // No mixing if targetDistance > 3 * termDist
                     return finalTargetPos;
 
                     //if (velUp > 0f)
@@ -675,7 +959,7 @@ namespace BDArmory.Guidances
                 loftState = MissileBase.LoftStates.Terminal;
                 //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log("[BDArmory.MissileGuidance]: Terminal");
 
-                if (targetDistance < 2f * termDist)
+                if (targetDistance < 3f * termDist)
                 {
                     float blendFac = 0f;
                     Vector3 targetPos = Vector3.zero;
@@ -683,20 +967,26 @@ namespace BDArmory.Guidances
                     if ((targetDistance > termDist) && (homingModeTerminal != MissileBase.GuidanceModes.AAMLead) && (homingModeTerminal != MissileBase.GuidanceModes.AAMPure))
                     {
                         blendFac = (targetDistance - termDist) / termDist;
+                        blendFac *= 0.25f * blendFac;
                         targetPos = AIUtils.PredictPosition(targetPosition, targetVelocity, Vector3.zero, leadTime + TimeWarp.fixedDeltaTime);
                     }
-                        
+
+                    Vector3 aamTarget;
 
                     if (homingModeTerminal == MissileBase.GuidanceModes.PN)
-                        return (1f-blendFac) * GetPNTarget(targetPosition, targetVelocity, missileVessel, N, out timeToImpact, out gLimit) + blendFac * targetPos;
+                        aamTarget = (1f - blendFac) * GetPNTarget(targetPosition, targetVelocity, missileVessel, N, out timeToImpact, out gLimit) + blendFac * targetPos;
                     else if (homingModeTerminal == MissileBase.GuidanceModes.APN)
-                        return (1f - blendFac) * GetAPNTarget(targetPosition, targetVelocity, targetAcceleration, missileVessel, N, out timeToImpact, out gLimit) + blendFac * targetPos;
+                        aamTarget = (1f - blendFac) * GetAPNTarget(targetPosition, targetVelocity, targetAcceleration, missileVessel, N, out timeToImpact, out gLimit) + blendFac * targetPos;
                     else if (homingModeTerminal == MissileBase.GuidanceModes.AAMLead)
                         return AIUtils.PredictPosition(targetPosition, targetVelocity, targetAcceleration, leadTime + TimeWarp.fixedDeltaTime);
                     else if (homingModeTerminal == MissileBase.GuidanceModes.AAMPure)
                         return targetPosition;
                     else
                         return (1f - blendFac) * GetPNTarget(targetPosition, targetVelocity, missileVessel, N, out timeToImpact, out gLimit) + blendFac * targetPos; // Default to PN
+
+                    gLimit += 10f * blendFac;
+
+                    return aamTarget;
                 }
                 else
                 {
@@ -906,7 +1196,7 @@ namespace BDArmory.Guidances
         /// <param name="targetPosition"></param>
         /// <param name="targetVelocity"></param>
         /// <returns></returns>
-        public static Vector3 GetAirToAirFireSolution(MissileBase missile, Vector3 targetPosition, Vector3 targetVelocity)
+        public static Vector3 GetAirToAirFireSolution(MissileBase missile, Vector3 targetPosition, Vector3 targetVelocity, bool turretLoft = false, float turretLoftFac = 0.5f)
         {
             MissileLauncher launcher = missile as MissileLauncher;
             BDModularGuidance modLauncher = missile as BDModularGuidance;
@@ -919,17 +1209,18 @@ namespace BDArmory.Guidances
             float accel = launcher != null ? ((Mathf.Clamp01(launcher.boostTime / maxSimTime)) * launcher.thrust + Mathf.Clamp01((maxSimTime - launcher.cruiseDelay - launcher.boostTime) / maxSimTime) * launcher.cruiseThrust) / missile.part.mass
                 : modLauncher.thrust / modLauncher.mass;
             float leadTimeError = 1f;
+            float missileVelOpt = launcher != null ? launcher.optimumAirspeed : 1500;
                 int count = 0;
                 do
                 {
                     leadDirection = leadPosition - missile.vessel.CoM;
                     float targetDistance = leadDirection.magnitude;
                     leadDirection.Normalize();
-                    velOpt = (inSpace ? BDAMath.Sqrt(2 * accel * targetDistance) * leadDirection + vel : (launcher != null ? launcher.optimumAirspeed : 1500) * leadDirection);
+                    velOpt = (inSpace ? BDAMath.Sqrt(2f * accel * targetDistance) * leadDirection + vel : missileVelOpt * leadDirection);
                     float deltaVel = Vector3.Dot(targetVelocity - vel, leadDirection);
                     float deltaVelOpt = Vector3.Dot(targetVelocity - velOpt, leadDirection);
                     float T = Mathf.Clamp((velOpt - vel).magnitude / accel, 0, maxSimTime); //time to optimal airspeed, clamped to at most 8s
-                    float D = deltaVel * T + 1 / 2 * accel * (T * T); //relative distance covered accelerating to optimum airspeed
+                    float D = deltaVel * T + 0.5f * accel * (T * T); //relative distance covered accelerating to optimum airspeed
                     leadTimeError = -leadTime;
                     if (targetDistance > D) leadTime = (targetDistance - D) / deltaVelOpt + T;
                     else leadTime = (-deltaVel - BDAMath.Sqrt((deltaVel * deltaVel) + 2 * accel * targetDistance)) / accel;
@@ -937,6 +1228,32 @@ namespace BDArmory.Guidances
                     leadTimeError += leadTime;
                     leadPosition = AIUtils.PredictPosition(targetPosition, targetVelocity - (inSpace ? vel : Vector3.zero), Vector3.zero, leadTime);
                 } while (++count < 5 && Mathf.Abs(leadTimeError) > 1e-3f);  // At most 5 iterations to converge. Also, 1e-2f may be sufficient.
+
+            if (!missile.vessel.InNearVacuum() && turretLoft)
+            {
+                Vector3 relPos = leadPosition - missile.vessel.CoM;
+                float vertDist = Vector3.Dot(relPos, missile.vessel.upAxis);
+                float horzDist = (float)(relPos - vertDist * missile.vessel.upAxis).magnitude;
+                float g = (float)missile.vessel.mainBody.GeeASL;
+                float theta;
+
+                missileVelOpt *= turretLoftFac;
+                float missileVelOptSqr = missileVelOpt * missileVelOpt;
+
+                float det = missileVelOptSqr * missileVelOptSqr - g * (g * horzDist * horzDist + 2f * vertDist * missileVelOptSqr);
+                if (det > 0f)
+                    // Regular angle based on projectile motion
+                    theta = Mathf.Atan((missileVelOptSqr - BDAMath.Sqrt(det)) / (g * horzDist));
+                else
+                    // Angle to hit the furthest possible target at that elevation
+                    theta = Mathf.Atan(missileVelOpt / (BDAMath.Sqrt(missileVelOptSqr - 2f * g * vertDist)));
+                theta *= Mathf.Rad2Deg;
+
+                float angle = 90f - VectorUtils.Angle(relPos, missile.vessel.upAxis);
+                if (theta > angle)
+                    leadPosition = missile.vessel.CoM + Vector3.RotateTowards(relPos, missile.vessel.upAxis, (theta - angle) * Mathf.Deg2Rad, vertDist);
+            }
+
             return leadPosition;
         }
 
@@ -1005,24 +1322,29 @@ namespace BDArmory.Guidances
         }
 
         public static FloatCurve DefaultLiftCurve = new([
-            new(0, 0),
-            new(8, 0.35f),
+            new(0, 0, 0.04375f, 0.04375f),
+            new(8, 0.35f, 0.04801136f, 0.04801136f),
             //new(19, 1f),
             //new(23, 0.9f),
             new(30, 1.5f),
             new(65, 0.6f),
             new(90, 0.7f)
             ]);
-      
+
         public static FloatCurve DefaultDragCurve = new([
-            new(0, 0.00215f, 0.00014f, 0.00014f),
-            new(5, .00285f, 0.0002775f, 0.0002775f),
-            new(15, .007f, 0.0003146428f, 0.0003146428f),
-            new(29, .01f, 0.0002142857f, 0.01115385f),
-            new(55, .3f, 0.008434067f, 0.008434067f),
-            new(90, .5f, 0.005714285f, 0.005714285f)
+            //new(0, 0.00215f, 0.00014f, 0.00014f),
+            //new(5, .00285f, 0.0002775f, 0.0002775f),
+            //new(15, .007f, 0.0003146428f, 0.0003146428f),
+            //new(29, .01f, 0.0002142857f, 0.01115385f),
+            //new(55, .3f, 0.008434067f, 0.008434067f),
+            //new(90, .5f, 0.005714285f, 0.005714285f)
+            new(0f, 0.00215f, 0f, 0f),
+            new(5f, 0.00285f, 0.0002775f, 0.0002775f),
+            new(30f, 0.01f, 0.0002142857f, 0.01115385f),
+            new(55f, 0.3f, 0.008434067f, 0.008434067f),
+            new(90f, 0.5f, 0.005714285f, 0.005714285f)
         ]);
-      
+
         // The below curves and constants are derived from the lift and drag curves and will need to be re-calculated
         // if these are changed
 
@@ -1032,33 +1354,33 @@ namespace BDArmory.Guidances
         // longer exists, above this every section must be searched
 
         public static FloatCurve AoACurve = new([
-            new(0.0000000000f, 30.0000000000f),
-            new(0.7107107107f, 33.9639639640f),
-            new(1.5315315315f, 39.6396396396f),
-            new(1.9419419419f, 43.6936936937f),
-            new(2.1421421421f, 46.6666666667f),
-            new(2.2122122122f, 48.3783783784f),
-            new(2.2422422422f, 49.7297297297f)
+            new(0.0000000000f, 30.0000000000f, 5.577463f, 5.577463f),
+            new(0.7107107107f, 33.9639639640f, 6.24605f, 6.24605f),
+            new(1.5315315315f, 39.6396396396f, 8.396343f, 8.396343f),
+            new(1.9419419419f, 43.6936936937f, 12.36403f, 12.36403f),
+            new(2.1421421421f, 46.6666666667f, 19.63926f, 19.63926f),
+            new(2.2122122122f, 48.3783783784f, 34.71423f, 34.71423f),
+            new(2.2422422422f, 49.7297297297f, 44.99994f, 44.99994f)
         ]); // Floatcurve containing AoA of (local) max acceleration
         // for a given thrust to lift (at the max CL of 1.5 at 30 degrees of AoA) ratio. Limited to a max
         // of TRatioInflec2 where a local maximum no longer exists
 
         public static FloatCurve AoAEqCurve = new([
-            new(1.1911911912f, 89.6396396396f),
-            new(1.3413413413f, 81.6216216216f),
-            new(1.5215215215f, 73.3333333333f),
-            new(1.7217217217f, 67.4774774775f),
-            new(1.9819819820f, 62.4324324324f),
-            new(2.1821821822f, 56.6666666667f),
-            new(2.2422422422f, 52.6126126126f)
+            new(1.1911911912f, 89.6396396396f, -53.40001f, -53.40001f),
+            new(1.3413413413f, 81.6216216216f, -49.69999f, -49.69999f),
+            new(1.5215215215f, 73.3333333333f, -37.62499f, -37.62499f),
+            new(1.7217217217f, 67.4774774775f, -24.31731f, -24.31731f),
+            new(1.9819819820f, 62.4324324324f, -24.09232f, -24.09232f),
+            new(2.1821821822f, 56.6666666667f, -48.1499f, -48.1499f),
+            new(2.2422422422f, 52.6126126126f, -67.49978f, -67.49978f)
         ]); // Floatcurve containing AoA after which the acceleration goes above
         // that of the local maximums'. Only exists between TRatioInflec1 and TRatioInflec2.
 
         public static FloatCurve gMaxCurve = new([
-            new(0.0000000000f, 1.5000000000f),
-            new(1.2012012012f, 2.4907813293f),
-            new(1.9119119119f, 3.1757276995f),
-            new(2.2422422422f, 3.5307206802f)
+            new(0.0000000000f, 1.5000000000f, 0.8248255f, 0.8248255f),
+            new(1.2012012012f, 2.4907813293f, 0.8942869f, 0.8942869f),
+            new(1.9119119119f, 3.1757276995f, 1.019205f, 1.019205f),
+            new(2.2422422422f, 3.5307206802f, 1.074661f, 1.074661f)
         ]); // Floatcurve containing max acceleration times the mass (total force)
         // normalized by q*S*GLOBAL_LIFT_MULTIPLIER for TRatio between 0 and TRatioInflec2. Note that after TRatioInflec1
         // this becomes a local maxima not a global maxima. This is used to narrow down what part of the curve we should
@@ -1075,7 +1397,7 @@ namespace BDArmory.Guidances
         // y-Intercept of line at those intervals
         public static float[] linIntc = { 0f, -0.182352433879912f, 0.729802202492494f, 1.94837317784257f, 2.70216909620991f, 1.57147521865889f, 0.34f };
 
-        public static float getGLimit(MissileLauncher ml, float thrust, float gLim, float margin)//, out bool gLimited)
+        public static float getGLimit(MissileLauncher ml, float thrust, float gLim, float margin, float maxAoA)//, out bool gLimited)
         {
             if (ml.vessel.InVacuum())
             {
@@ -1084,10 +1406,14 @@ namespace BDArmory.Guidances
             
             bool gLimited = false;
 
+            //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileGuidance] gLim: {gLim}");
+
             // Force required to reach g-limit
             gLim *= (float)(ml.vessel.totalMass * PhysicsGlobals.GravitationalAcceleration);
 
-            float maxAoA = ml.maxAoA;
+            //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileGuidance] force: {gLim}");
+
+            //float maxAoA = ml.maxAoA;
 
             float currAoA = maxAoA;
 
@@ -1095,7 +1421,7 @@ namespace BDArmory.Guidances
 
             // Factor by which to multiply the lift coefficient to get lift, it's the dynamic pressure times the lift area times
             // the global lift multiplier
-            float qSk = (float) (0.5f * ml.vessel.atmDensity * ml.vessel.srfSpeed * ml.vessel.srfSpeed) * ml.liftArea * BDArmorySettings.GLOBAL_LIFT_MULTIPLIER;
+            float qSk = (float) (0.5 * ml.vessel.atmDensity * ml.vessel.srfSpeed * ml.vessel.srfSpeed) * ml.currLiftArea * BDArmorySettings.GLOBAL_LIFT_MULTIPLIER;
 
             float currG = 0;
 
@@ -1155,7 +1481,7 @@ namespace BDArmory.Guidances
                 if (TRatio < TRatioInflec2)
                 {
                     // If we're below TRatioInflec2 then we know there's a local max
-                    currG = gMaxCurve.Evaluate(TRatio);
+                    currG = qSk * gMaxCurve.Evaluate(TRatio);
 
                     if (TRatio > TRatioInflec1)
                     {
@@ -1205,7 +1531,7 @@ namespace BDArmory.Guidances
                             // If we're not within the margin then we need to consider
                             // the high AoA section. First calculate the absolute maximum
                             // g we can achieve
-                            currG = 0.3f * qSk + thrust;
+                            currG = 0.7f * qSk + thrust;
 
                             // If the absolute maximum g we can achieve is not enough, then return
                             // the local maximum in order to preserve energy
@@ -1221,16 +1547,12 @@ namespace BDArmory.Guidances
                             float AoAEq = AoAEqCurve.Evaluate(TRatio);
 
                             // And determine the left hand bound from there
-                            if (AoAEq > linAoA[7])
+                            if (AoAEq > linAoA[6])
                             {
                                 // If we're in the final section then just calculate it directly
-                                currAoA = calcAoAforGNonLin(qSk, gLim, linSlope[7], linIntc[7], 0);
+                                currAoA = calcAoAforGNonLin(qSk, gLim, linSlope[6], linIntc[6], 0);
                                 gLimited = currAoA < maxAoA;
                                 return gLimited ? currAoA : maxAoA;
-                            }
-                            else if (AoAEq > linAoA[6])
-                            {
-                                LHS = 6;
                             }
                             else if (AoAEq > linAoA[5])
                             {
@@ -1249,7 +1571,7 @@ namespace BDArmory.Guidances
                         float AoAMax = AoACurve.Evaluate(TRatio);
 
                         // Determine the right hand bound for calculation
-                        if (currG < gLim)
+                        if (gLim < currG)
                         {
                             if (AoAMax > linAoA[3])
                             {
@@ -1267,13 +1589,29 @@ namespace BDArmory.Guidances
                         }
                     }
                 }
-                // If we're above TRatioInflec2 then we have to search the whole thing, but past that ratio
-                // the function is monotonically increasing so it's OK
+                else
+                {
+                    // If we're above TRatioInflec2 then we have to search the whole thing, but past that ratio
+                    // the function is monotonically increasing so it's OK
+
+                    // That being said, first calculate the absolute maximum
+                    // g we can achieve
+                    currG = 0.7f * qSk + thrust;
+
+                    // If the absolute maximum g we can achieve is not enough, then return
+                    // max AoA
+                    if (currG < gLim)
+                        return maxAoA;
+                }
+
+                currG = linCL[RHS] * qSk + thrust * linSin[RHS];
+                if (currG < gLim)
+                    return maxAoA;
 
                 // Bisection search
                 while ( (RHS - LHS) > 1)
                 {
-                    interval = (int)(0.5f * (RHS + LHS));
+                    interval = Mathf.FloorToInt(0.5f * (RHS + LHS));
 
                     currG = linCL[interval] * qSk + thrust * linSin[interval];
 
@@ -1289,7 +1627,7 @@ namespace BDArmory.Guidances
                     }
                 }
 
-                if (LHS < 2)
+                if (LHS == 0)
                 {
                     // If we're below 15 (here 10 degrees) then use the linear approximation for sin
                     currAoA = calcAoAforGLinear(qSk, gLim, linSlope[LHS], linIntc[LHS], thrust);
@@ -1310,7 +1648,7 @@ namespace BDArmory.Guidances
             // We know it's in the first section. If m*gReq > (1.5*q*k*s) then set to min of maxAoA and 30 (margin?). If
             // < then we first make linear estimate, then solve by bisection of intervals first -> solve on interval.
             // If TRatio < TRatioInflec2
-            // First we check the endpoints -> both gMax, and, if TRatio > TRatioInflec1, then 0.3*q*S*k + T (90 degree case).
+            // First we check the endpoints -> both gMax, and, if TRatio > TRatioInflec1, then 0.7*q*S*k + T (90 degree case).
             // If gMax > m*gReq then the answer < AoACurve -> Determine where it is via calculating the pre-calculated points
             // then seeing which one has gCalc > m*gReq, using the interval bounded by the point with gCalc > m*gReq on the
             // right end. Use bisection -> we know it's bounded at the RHS by the 38 or the 57 section. We can compare the
@@ -1339,29 +1677,208 @@ namespace BDArmory.Guidances
         // small angle approximation for sin and non-linear uses a 2nd order approximation of sin about pi/2
         public static float calcAoAforGLinear(float qSk, float mg, float CLalpha, float CLintc, float thrust)
         {
-            return Mathf.Rad2Deg * (mg - CLintc * qSk) / (CLalpha * qSk + thrust);
+            //if (BDArmorySettings.DEBUG_MISSILES)
+            //{
+            //    float AoA = (mg - CLintc * qSk) / (CLalpha * qSk + thrust * Mathf.Deg2Rad);
+            //    Debug.Log($"[BDArmory.MissileGuidance]: Linear: AoA: {AoA}, thrust: {thrust}, qSk: {qSk}, Predicted CL: {AoA * CLalpha + CLintc}, actual CL: {DefaultLiftCurve.Evaluate(AoA)}, CLa: {CLalpha}, CLintc: {CLintc}, predicted force: {qSk * (AoA * CLalpha + CLintc) + thrust * AoA * Mathf.Deg2Rad}, actual force: {qSk * DefaultLiftCurve.Evaluate(AoA) + thrust * Mathf.Sin(AoA * Mathf.Deg2Rad)}, desired: {mg}");
+            //}
+            return (mg - CLintc * qSk) / (CLalpha * qSk + thrust * Mathf.Deg2Rad);
         }
 
         public static float calcAoAforGNonLin(float qSk, float mg, float CLalpha, float CLintc, float thrust)
         {
             CLalpha *= qSk;
 
-            return Mathf.Rad2Deg * (2f * CLalpha + Mathf.PI * thrust + 2f * BDAMath.Sqrt(CLalpha * CLalpha + Mathf.PI * thrust * CLalpha + 2f * thrust * (CLintc * qSk + thrust - mg))) / (2f * thrust);
+            //if (BDArmorySettings.DEBUG_MISSILES)
+            //{
+            //    float invqSk = 1f / qSk;
+            //    float AoA = (2f * CLalpha + Mathf.PI * thrust * Mathf.Deg2Rad - 2f * BDAMath.Sqrt(CLalpha * CLalpha + Mathf.PI * thrust * Mathf.Deg2Rad * CLalpha + 2f * thrust * (CLintc * qSk + thrust - mg) * Mathf.Deg2Rad * Mathf.Deg2Rad)) / (2f * thrust * Mathf.Deg2Rad * Mathf.Deg2Rad);
+            //    Debug.Log($"[BDArmory.MissileGuidance]: NonLin: AoA: {AoA}, thrust: {thrust}, qSk: {qSk}, Predicted CL: {AoA * CLalpha * invqSk + CLintc}, actual CL: {DefaultLiftCurve.Evaluate(AoA)}, CLa: {CLalpha * invqSk}, CLintc: {CLintc}, predicted force: {qSk * (AoA * CLalpha * invqSk + CLintc) + thrust * (1f - (-Mathf.PI * 0.5f + Mathf.Deg2Rad * AoA) * (-Mathf.PI * 0.5f + Mathf.Deg2Rad * AoA) * 0.5f)}, actual force: {qSk * DefaultLiftCurve.Evaluate(AoA) + thrust * Mathf.Sin(AoA * Mathf.Deg2Rad)}, desired: {mg}");
+            //}
+            return (2f * CLalpha + Mathf.PI * thrust * Mathf.Deg2Rad - 2f * BDAMath.Sqrt(CLalpha * CLalpha + Mathf.PI * thrust * Mathf.Deg2Rad * CLalpha + 2f * thrust * (CLintc * qSk + thrust - mg) * Mathf.Deg2Rad * Mathf.Deg2Rad)) / (2f * thrust * Mathf.Deg2Rad * Mathf.Deg2Rad);
+        }
+
+        // Linearized curves for cos*CL and sin*CD v.s. AoA for fast solving of the AoA at which maxTorque no longer is sufficient to maintain
+        // control of the missile.
+
+        public static FloatCurve torqueAoAReturn = new([
+                new(2.6496350364963499f, 88.7129999999999939f, -106.9758f, -106.9758f),
+                new(2.73134328358208922f, 79.9722000000000008f, -70.59726f, -70.59726f),
+                new(3.14937759336099621f, 65.6675999999999931f, -28.9337f, -28.9337f),
+                new(3.52488687782805465f, 56.7873000000000019f, -31.87921f, -31.87921f),
+                new(3.69483568075117441f, 49.9707000000000008f, -61.73428f, -61.73428f),
+                new(3.76190476190476275f, 44.3798999999999992f, -83.35883f, -18.59649f),
+                new(3.83091787439613629f, 43.0964999999999989f, -23.74979f, -23.74979f),
+                new(3.92610837438423754f, 40.3451999999999984f, -28.9031f, -28.9031f)
+            ]);
+
+        // Note we use linAoA for this as well
+        public static float[] linLiftTorque = { 0f, 0.449212170675488687f, 1.23071251302548967f, 1.29903810567665712f, 1.08779669420507852f, 0.391903830317496704f, 0.253570957044423284f, 0f };
+        public static float[] linDragTorque = { 0f, 0.000748453415988048856f, 0.00346671023416293559f, 0.00499999999999927499f, 0.0656669812489726473f, 0.26524150275361541f, 0.336257675049945692f, 0.5f };
+
+        // Slope of cos * CL at the intervals
+        public static float[] linLiftTorqueSlope = { 0.0449212178074f, 0.0558214214286f, 0.0113876666667f, -0.026405125f, -0.0366259562991f, -0.0172916091591f, -0.0101428382818f };
+        // y-Intercept of line at those intervals
+        public static float[] linLiftTorqueIntc = { 0f, -0.109002114286f, 0.957408f, 2.09119175f, 2.47958333937f, 1.37752555239f, 0.91285544536f };
+
+        // Slope of sin * CD at the intervals
+        public static float[] linDragTorqueSlope = { 0.000166666666667f, 0.000166666666667f, 0.000166666666667f, 0.00691309375f, 0.0107346842105f, 0.009046f, 0.00653472f };
+        // y-Intercept of line at those intervals
+        public static float[] linDragTorqueIntc = { 0f, 0f, 0f, -0.2023928125f, -0.347613f, -0.251358f, -0.0881248f };
+
+        const float DLRatioInflec1 = 2.63636363636363624f;
+        const float DLRatioInflec2 = 3.92610837438423754f;
+
+        // Algorithm is similar to getGLimit, except in this case we only calculate which sections to search in whenever
+        // the liftArea and dragArea change. We define this using a set of numbers, torqueAoAReturn, the AoA at which torque goes past the local
+        // maximum which occurs at around 28° AoA, if this is set to -1, then we ONLY search the lower portion of the plot and torqueMaxLocal which
+        // gives the non-dim torque (which needs to be pre-multiplied by the SUM of liftArea * liftMult and dragArea * dragMult before being saved)
+        // which is +ve when there's a local maximum, it is set to the negative of the number when a local maximum does not exist, it is not set to
+        // -1 instead as it still provides a useful bisection point, with which we can determine the first LHS/RHS index.
+        //public static float[] linAoA = { 0f, 10f, 24f, 30f, 38f, 57f, 65f, 90f };
+        public static void setupTorqueAoALimit(MissileLauncher ml, float liftArea, float dragArea)
+        {
+            // Drag / Lift ratio
+            float DL = (BDArmorySettings.GLOBAL_DRAG_MULTIPLIER * dragArea)/(BDArmorySettings.GLOBAL_LIFT_MULTIPLIER * liftArea);
+            // The % contribution of drag, note that this will error out if there's no drag,
+            // but that's not supposed to happen.
+            float SkR = DL / (DL + 1);
+
+            // If we're above DLRationInflec2 then we must search the whole range of AoAs
+            if (DL < DLRatioInflec2)
+            {
+                // If we're below DLRatioInflec1 then we're bounded on the right by 30° 
+                if (DL < DLRatioInflec1)
+                    ml.torqueBounds = [3, -1];
+                else
+                {
+                    float AoARHS = torqueAoAReturn.Evaluate(DL);
+                    if (AoARHS > linAoA[6])
+                        ml.torqueBounds = [6, 7];
+                    else if (AoARHS > linAoA[5])
+                        ml.torqueBounds = [5, 7];
+                    else
+                        ml.torqueBounds = [4, 7];
+
+                    ml.torqueAoABounds[2] = AoARHS;
+                }
+                // This AoA happens to be a linear function of D/L
+                ml.torqueAoABounds[0] = 0.0307482f * DL + 28.49333f;
+                // This non-dimensionalized torque happens to be a
+                // linear function of SkR
+                ml.torqueAoABounds[1] = -1.30417f * SkR + 1.30879f;
+            }
+
+            //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileGuidance] TorqueAoALimits for {ml} at SkR: {SkR}, D/L: {DL} are, torqueAoABounds: {ml.torqueAoABounds[0]}, {ml.torqueAoABounds[1]}, {ml.torqueAoABounds[2]}, torqueBounds: {ml.torqueBounds[0]}, {ml.torqueBounds[1]}");
+        }
+
+        public static float getTorqueAoALimit(MissileLauncher ml, float liftArea, float dragArea, float maxTorque)
+        {
+            // Dynamic pressure
+            float q = (float)(0.5 * ml.vessel.atmDensity * ml.vessel.srfSpeed * ml.vessel.srfSpeed);
+            // Technically not required, but in case anyone starts allowing for the CoL to vary
+            float CoLDist = 1f;
+
+            // Divide out the dynamic pressure and CoLDist components of torque
+            maxTorque /= q * CoLDist;
+            maxTorque *= 0.8f; // Let's only go up to 80% of maxTorque to leave some leeway
+
+            int LHS = 0;
+            int RHS = 7;
+            int interval = 3;
+
+            // Drag and Lift Area multipliers
+            float dragSk = dragArea * BDArmorySettings.GLOBAL_DRAG_MULTIPLIER;
+            float liftSk = liftArea * BDArmorySettings.GLOBAL_LIFT_MULTIPLIER;
+
+            // Here we store the AoA of local max torque, we set it to 180f as for the case
+            // where the entire range must be searched, this gives the correct AoA
+            float currAoA = 180f;
+
+            if (ml.torqueBounds[0] > 0)
+            {
+                // If we have a left torque bound then we don't need to search the entire range
+                float torqueMaxLocal = ml.torqueAoABounds[0];
+                currAoA = ml.torqueAoABounds[1];
+
+                if (ml.torqueBounds[1] > 0)
+                {
+                    // If we have a right torque bound then we need to determine if we're searching
+                    // in the low AoA or the high AoA section, this is decided by if the maxTorque
+                    // is greater than torqueAoABounds times dragSk + liftSk
+                    if (maxTorque > torqueMaxLocal * (dragSk + liftSk))
+                    {
+                        // If maxTorque exceeds the max aerodynamic torque possible, then just return 180f
+                        if (maxTorque > (liftSk * linLiftTorque[7] + dragSk * linDragTorque[7]))
+                            return 180f;
+
+                        LHS = ml.torqueBounds[0];
+                        RHS = ml.torqueBounds[1];
+                    }
+                    else
+                    {
+                        RHS = ml.torqueBounds[0];
+                    }
+                }
+                else
+                {
+                    // If we don't have a right torque bound then we're bound only by the low
+                    // AoA section, and hence can return immediately if torque exceeds the localMax
+                    if (maxTorque > torqueMaxLocal * (dragSk + liftSk))
+                        return 180f;
+
+                    // Otherwise we just search the low AoA portion
+                    RHS = ml.torqueBounds[0];
+                }
+            }
+            else
+            {
+                // If maxTorque exceeds the max aerodynamic torque possible, then just return 180f
+                if (maxTorque > (liftSk * linLiftTorque[7] + dragSk * linDragTorque[7]))
+                    return 180f;
+            }
+
+            float currTorque;
+
+            // Bisection search
+            while ((RHS - LHS) > 1)
+            {
+                interval = Mathf.FloorToInt(0.5f * (RHS + LHS));
+
+                currTorque = liftSk * linLiftTorque[interval] + dragSk * linDragTorque[interval];
+
+                //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileGuidance]: LHS: {LHS}, RHS: {RHS}, interval: {interval}, currTorque: {currTorque}, maxTorque: {maxTorque}");
+
+                if (currTorque < maxTorque)
+                {
+                    LHS = interval;
+                }
+                else
+                {
+                    RHS = interval;
+                }
+            }
+
+            currAoA = (maxTorque - (linLiftTorqueIntc[LHS] * liftSk + linDragTorqueIntc[LHS] * dragSk)) / (linLiftTorqueSlope[LHS] * liftSk + linDragTorqueSlope[LHS] * dragSk);
+
+            //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileGuidance]: q: {q}, Final Interval: {LHS}, currAoA: {currAoA}, maxTorque: {maxTorque}");
+
+            return currAoA;
         }
 
         public static Vector3 DoAeroForces(MissileLauncher ml, Vector3 targetPosition, float liftArea, float dragArea, float steerMult,
-            Vector3 previousTorque, float maxTorque, float maxAoA)
+            Vector3 previousTorque, float maxTorque, float maxTorqueAero, float maxAoA)
         {
 
             FloatCurve liftCurve = DefaultLiftCurve;
             FloatCurve dragCurve = DefaultDragCurve;
 
-            return DoAeroForces(ml, targetPosition, liftArea, dragArea, steerMult, previousTorque, maxTorque, maxAoA, liftCurve,
-                dragCurve);
+            return DoAeroForces(ml, targetPosition, liftArea, dragArea, steerMult, previousTorque, maxTorque, maxAoA, maxTorqueAero,
+                liftCurve, dragCurve);
         }
 
         public static Vector3 DoAeroForces(MissileLauncher ml, Vector3 targetPosition, float liftArea, float dragArea, float steerMult,
-            Vector3 previousTorque, float maxTorque, float maxAoA, FloatCurve liftCurve, FloatCurve dragCurve)
+            Vector3 previousTorque, float maxTorque, float maxTorqueAero, float maxAoA, FloatCurve liftCurve, FloatCurve dragCurve)
         {
             Rigidbody rb = ml.part.rb;
             if (rb == null || rb.mass == 0) return Vector3.zero;
@@ -1375,6 +1892,9 @@ namespace BDArmory.Guidances
             Vector3 CoL = new Vector3(0, 0, -1f);
             float liftMultiplier = BDArmorySettings.GLOBAL_LIFT_MULTIPLIER;
             float dragMultiplier = BDArmorySettings.GLOBAL_DRAG_MULTIPLIER;
+            double dynamicq = 0.5 * airDensity * airSpeed * airSpeed;
+
+            maxTorque += (float)dynamicq * maxTorqueAero;
 
             //lift
             float AoA = Mathf.Clamp(VectorUtils.AnglePreNormalized(forward, velNorm), 0, 90);
@@ -1384,7 +1904,7 @@ namespace BDArmory.Guidances
             ml.smoothedAoA.Update(AoA);
             if (AoA > 0)
             {
-                liftForce = 0.5 * airDensity * airSpeed * airSpeed * liftArea * liftMultiplier * Mathf.Max(liftCurve.Evaluate(AoA), 0f);
+                liftForce = dynamicq * liftArea * liftMultiplier * Mathf.Max(liftCurve.Evaluate(AoA), 0f);
                 rb.AddForceAtPosition((float)liftForce * forceDirection,
                     forcePos);
             }
@@ -1393,7 +1913,7 @@ namespace BDArmory.Guidances
             double dragForce = 0.0;
             if (airSpeed > 0)
             {
-                dragForce = 0.5 * airDensity * airSpeed * airSpeed * dragArea * dragMultiplier * Mathf.Max(dragCurve.Evaluate(AoA), 0f);
+                dragForce = dynamicq * dragArea * dragMultiplier * Mathf.Max(dragCurve.Evaluate(AoA), 0f);
                 rb.AddForceAtPosition((float)dragForce * -velNorm,
                     forcePos);
             }
@@ -1419,7 +1939,7 @@ namespace BDArmory.Guidances
                 if (AoA < maxAoA)
                 {
                     targetDirection = (targetPosition - ml.vessel.CoM);
-                    targetAngle = Mathf.Min(maxAoA,Vector3.Angle(velNorm, targetDirection) * 4f);
+                    targetAngle = Mathf.Min(maxAoA,VectorUtils.Angle(velNorm, targetDirection) * 4f);
                 }
                 else
                 {
@@ -1434,51 +1954,95 @@ namespace BDArmory.Guidances
                 Vector3 finalTorque = Vector3.Lerp(previousTorque, torqueDirection * torque, 1).ProjectOnPlanePreNormalized(Vector3.forward);
                 */
 
+                float AoALim = Mathf.Min(maxAoA + Mathf.Min(0.1f * maxAoA, 2f), getTorqueAoALimit(ml, liftArea, dragArea, maxTorque));
+                //if (ml.torqueAoALimit.x > 0)
+                //    AoALim = Mathf.Min(maxAoA + Mathf.Min(0.1f * maxAoA, 2f), 1.2f * ml.torqueAoALimit.x * ml.torqueAoALimit.y / (float)airSpeed * BDAMath.Sqrt(ml.torqueAoALimit.z / (float)airDensity));
+
                 Vector3 targetDirection = (targetPosition - ml.vessel.CoM).normalized;
                 float targetAngle = VectorUtils.AnglePreNormalized(velNorm, targetDirection);
-                if (targetAngle > maxAoA)
-                    targetDirection = Vector3.Slerp(velNorm, targetDirection, maxAoA / targetAngle);
+                if (targetAngle > AoALim)
+                    targetDirection = Vector3.Slerp(velNorm, targetDirection, AoALim / targetAngle);
                 float turningAngle = VectorUtils.AnglePreNormalized(forward, targetDirection);
+
                 Vector3 finalTorque;
-                if (turningAngle > 0f)
+                if (turningAngle * Mathf.Deg2Rad > 0.005f)
                 {
                     Vector3 torqueDirection = Vector3.Cross(forward, targetDirection) / Mathf.Sin(turningAngle * Mathf.Deg2Rad);
                     //Debug.Log($"[BDArmory.MissileGuidance]: torqueDirection = {torqueDirection}, sqrMagnitude = {torqueDirection.sqrMagnitude}.");
-                    float torque = Mathf.Clamp(turningAngle * 2f * steerMult, 0f, maxTorque);
+
+                    if (turningAngle < 1f)
+                        turningAngle *= turningAngle;
+
+                    float torque = Mathf.Clamp(Mathf.Min(turningAngle, AoALim) * 4f * steerMult, 0f, maxTorque);
+
+                    float aeroTorqueSqr = aeroTorque.sqrMagnitude;
 
                     // If aeroTorque < maxTorque we're not yet saturated
-                    if (aeroTorque.sqrMagnitude < maxTorque * maxTorque)
+                    if (aeroTorqueSqr < maxTorque * maxTorque)
                     {
+                        float temp = Vector3.Dot(aeroTorque, torqueDirection);
                         //Debug.Log($"[BDArmory.MissileGuidance]: aeroTorque not saturated, torque = {torque}.");
                         // If torque drives us over maxTorque, then using the quadratic formula, we determine the value that gets us maxTorque
                         if ((aeroTorque + torqueDirection * torque).sqrMagnitude > maxTorque * maxTorque)
                         {
                             // Solution to the quadratic formula for the intersection of a line with a sphere, note we use the +ve solution
                             // There is no need to check the determinant as any line that originates within the sphere will always intersect the sphere
-                            float temp = Vector3.Dot(aeroTorque, torqueDirection);
                             torque = BDAMath.Sqrt(temp * temp - (aeroTorque.sqrMagnitude - maxTorque * maxTorque)) - temp;
                             //Debug.Log($"[BDArmory.MissileGuidance]: torque saturation! torque = {torque}.");
                         }
+                        //// If aeroTorque is within 50% of maxTorque then tone down torque marginally
+                        //if (aeroTorqueSqr > 0.25f * maxTorque * maxTorque)// && temp > 0f)
+                        //{
+                        //    //Debug.Log($"[BDArmory.MissileGuidance] torque limiter: {(1f - (aeroTorqueSqr / (maxTorque * maxTorque) - 0.49f) * 1.96078f)}");
+                        //    //torque *= (1f - (aeroTorqueSqr / (maxTorque * maxTorque) - 0.49f) * 1.96078f);
+                        //    float aeroTorqueMag = BDAMath.Sqrt(aeroTorqueSqr);
+                        //    float x = 1.7f - aeroTorqueMag / maxTorque;
+                        //    //Debug.Log($"[BDArmory.MissileGuidance] torque limiter: {(x*x*x*x - 0.0625f) * 1.066f}");
+                        //    torque *= (x * x * x * x - 0.0625f) * 1.066f;
+                        //}
+
+                        if (temp < 0)
+                            torque *= 0.5f;
+
+                        // If we're approaching the limit (90% of maxTorque) and we're faster than the last time we reached it,
+                        // recalculate the torqueAoALimit as the estimate is a bit more restrictive when going faster
+                        //if (ml.torqueAoALimit.x > 0f && aeroTorqueSqr > 0.81f * maxTorque * maxTorque && airSpeed > 1.5f * ml.torqueAoALimit.y)
+                        //{
+                        //    // Here we assume the torqueAoALimit has more or less a quadratic relationship with AoA
+                        //    ml.torqueAoALimit = new Vector3(1.2f * BDAMath.Sqrt(BDAMath.Sqrt(aeroTorqueSqr / (maxTorque * maxTorque))) * AoA, (float)airSpeed, (float)airDensity);
+                        //}
+
                         // Otherwise we just use torque unmodified
                     }
                     else
                     {
+                        //ml.torqueAoALimit = new Vector3(AoA, (float)airSpeed, (float)airDensity);
                         //Debug.Log($"[BDArmory.MissileGuidance]: aeroTorque saturated! torque = {torque}.");
                         // If we're saturated, then as long as torqueDirection somewhat opposes aeroTorque we can look
                         // at how much torque we can apply
                         float temp = Vector3.Dot(aeroTorque, torqueDirection);
                         // We check the determinant of the quadratic as well to ensure we actually intersect with the sphere
                         float det = temp * temp - (aeroTorque.sqrMagnitude - maxTorque * maxTorque);
-                        if (temp < 0 && det > 0)
+                        if (temp < 0f && det > 0f)
                         {
                             float temp2 = BDAMath.Sqrt(det);
                             // temp2 > 0 and temp < 0 so LHS < RHS
                             float LHS = -temp2 - temp;
                             float RHS = temp2 - temp;
+                            //Debug.Log($"[BDArmory.MissileGuidance]: Possible to unsaturate! LHS: {LHS}, {RHS}, torque = {torque}.");
                             // There are three cases here, first is the case is if torque is insufficient to drive us under saturation,
-                            // in which case we'll just apply enough to saturate
+                            // in which case we'll just apply enough to saturate, but only if LHS is < 2f * torque and maxTorque
                             if (torque < LHS)
-                                torque = LHS;
+                            {
+                                // This unsaturation method lead to some pretty poor results so I'm just disabling it
+                                //if (LHS < 2f * torque && LHS < maxTorque)
+                                //    torque = LHS;
+                                //else
+                                //{
+                                    torque = 0f;
+                                    aeroTorque = (maxTorque / aeroTorque.magnitude) * aeroTorque;
+                                //}
+                            }
                             // The second case is where we've gone over in the opposite direction, in which case we must reduce our torque
                             else if (torque > RHS)
                                 torque = RHS;
@@ -1486,7 +2050,6 @@ namespace BDArmory.Guidances
                             // torque can potentially approx. equal the single point solution but in that case we wouldn't have to modify
                             // the torque. If torque is not approx. equal one of these two cases should catch it
                             // The third case is where we're perfectly within bounds so we don't modify torque
-                            //Debug.Log($"[BDArmory.MissileGuidance]: Possible to unsaturate! torque = {torque}.");
                         }
                         else
                         {
@@ -1508,7 +2071,9 @@ namespace BDArmory.Guidances
 
                     finalTorque = aeroTorque;
                 }
-                
+
+                if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_MISSILES) ml.debugString.AppendLine($"achieved g: {(ml.vessel.acceleration.ProjectOnPlanePreNormalized(velNorm).magnitude) * (1f / 9.81f):F5}, lift: {liftForce / ml.part.mass * (1f / 9.81f):F5}, CL: {liftCurve.Evaluate(AoA):F5}\nAoA: {AoA:F5}, AoALim: {AoALim:F5}, MaxAoA: {maxAoA:F5}\nTargetAngle: {targetAngle:F5}, TurningAngle: {turningAngle:F5}\nmaxTorque: {maxTorque}, maxTorqueAero: {maxTorqueAero * dynamicq}, currTorque: {finalTorque.magnitude}, liftArea: {liftArea}, dragArea: {dragArea}");
+
                 finalTorque = ml.transform.InverseTransformDirection(finalTorque).ProjectOnPlanePreNormalized(Vector3.forward);
 
                 //Debug.Log($"[BDArmory.MissileGuidance]: torque = {torque}, torqueDirection = {torqueDirection}, aeroTorque = {aeroTorque}, finalTorque = {finalTorque}.");

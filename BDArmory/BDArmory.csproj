@@ -169,6 +169,7 @@
     <Compile Include="CounterMeasure\ModuleECMJammer.cs" />
     <Compile Include="CounterMeasure\VesselChaffInfo.cs" />
     <Compile Include="CounterMeasure\VesselCloakInfo.cs" />
+    <Compile Include="CounterMeasure\VesselCMDropperInfo.cs" />
     <Compile Include="CounterMeasure\VesselECMJInfo.cs" />
     <Compile Include="Damage\BuildingDamage.cs" />
     <Compile Include="Damage\DamageService.cs" />
@@ -228,6 +229,7 @@
     <Compile Include="Initialization\Dependencies.cs" />
     <Compile Include="ModIntegration\BDATeamIcons.cs" />
     <Compile Include="ModIntegration\CameraTools.cs" />
+    <Compile Include="ModIntegration\ConformalDecals.cs" />
     <Compile Include="ModIntegration\ModuleManager.cs" />
     <Compile Include="ModIntegration\MouseAimFlight.cs" />
     <Compile Include="ModIntegration\PhysicsRangeExtender.cs" />

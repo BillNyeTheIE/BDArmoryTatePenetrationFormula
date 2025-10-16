@@ -88,7 +88,7 @@ namespace BDArmory.Modules
                 evaKerbalsToMonitor.Clear();
                 foreach (var vessel in FlightGlobals.Vessels)
                 {
-                    if (VesselModuleRegistry.ignoredVesselTypes.Contains(vessel.vesselType)) continue;
+                    if (VesselModuleRegistry.IgnoredVesselTypes.Contains(vessel.vesselType)) continue;
                     CheckVesselForKerbals(vessel);
                 }
             }
@@ -263,26 +263,90 @@ namespace BDArmory.Modules
             }
         }
 
+        /// <summary>
+        /// Vessels leaving the SoI can cause the Kraken to break KSP if they're switched to, so we detect and remove such vessels.
+        /// </summary>
+        /// <param name="fromTo"></param>
         void EatenByTheKraken(GameEvents.HostedFromToAction<Vessel, CelestialBody> fromTo)
         {
             if (!BDACompetitionMode.Instance.competitionIsActive) return;
+            string vesselName = fromTo.host.vesselName;
+            if (fromTo.host.isActiveVessel)
+            {
+                foreach (var wm in LoadedVesselSwitcher.Instance.WeaponManagers.SelectMany(tm => tm.Value))
+                {
+                    if (wm == null || wm.vessel == null) continue;
+                    if (wm.vessel.mainBody == fromTo.from)
+                    {
+                        Debug.LogWarning($"[BDArmory.KerbalSafety]: {vesselName} was the active vessel, switching away to avoid the Kraken. Force-switching to {wm.vessel.vesselName}.");
+                        LoadedVesselSwitcher.Instance.ForceSwitchVessel(wm.vessel); // Switch to the first vessel in the SoI that this vessel came from.
+                        break;
+                    }
+                }
+            }
             if (evaKerbalsToMonitor.Where(k => k != null).Select(k => k.vessel).Contains(fromTo.host))
             {
-                var message = fromTo.host.vesselName + " got eaten by the Kraken!";
+                var message = $"{vesselName} got eaten by the Kraken!";
                 Debug.LogWarning("[BDArmory.KerbalSafety]: " + message);
                 BDACompetitionMode.Instance.competitionStatus.Add(message);
                 fromTo.host.gameObject.SetActive(false);
                 evaKerbalsToMonitor.Remove(evaKerbalsToMonitor.Find(k => k.vessel == fromTo.host));
                 fromTo.host.Die();
-                LoadedVesselSwitcher.Instance.TriggerSwitchVessel(0);
             }
             else
             {
                 if (fromTo.host != null && fromTo.host.loaded && !GameModes.AsteroidUtils.IsManagedAsteroid(fromTo.host))
                 {
-                    Debug.LogWarning("[BDArmory.KerbalSafety]: " + fromTo.host + " got eaten by the Kraken!");
+                    Debug.LogWarning($"[BDArmory.KerbalSafety]: {fromTo.host.GetName()} got eaten by the Kraken!");
                     fromTo.host.gameObject.SetActive(false);
                     fromTo.host.Die();
+                }
+            }
+            StartCoroutine(FeedTheKraken());
+        }
+
+        /// <summary>
+        /// During this frame and the next, remove debris that's left the SoI.
+        /// </summary>
+        IEnumerator FeedTheKraken()
+        {
+            CheckForDebrisBeyondTheSoI();
+            yield return new WaitForFixedUpdate();
+            CheckForDebrisBeyondTheSoI();
+        }
+
+        /// <summary>
+        /// Clean up debris that's left the current SoI.
+        /// 
+        /// Note: Occasionally, a "won't fix" bug in Unity's reuse of Transforms causes a series of errors of the form
+        ///   Infinity or NaN floating point numbers appear when calculating the transform matrix for a Collider.
+        /// to appear in the logs due to performing raycasting operations. These usually disappear once the part with the broken collider gets destroyed.
+        /// </summary>
+        void CheckForDebrisBeyondTheSoI()
+        {
+            foreach (var vessel in FlightGlobals.Vessels.ToList()) // Look for and remove any debris that might also have been Kraken'd.
+            {
+                if (vessel.vesselType == VesselType.Debris && vessel.mainBody != FlightGlobals.currentMainBody)
+                {
+                    if (BDArmorySettings.DEBUG_OTHER) Debug.Log($"[BDArmory.KerbalSafety]: Feeding {vessel.vesselName} ({(vessel.rootPart != null ? vessel.rootPart.partInfo.name : "")}) to the Kraken.");
+                    RecoverVesselNow(vessel);
+                }
+                else
+                {
+                    List<Collider> badColliders = [];
+                    foreach (var part in vessel.Parts)
+                    {
+                        foreach (var collider in part.GetPartColliders())
+                        {
+                            if (collider.enabled && collider.bounds.size.sqrMagnitude == 0)
+                            {
+                                // Debug.Log($"DEBUG Part collider {collider} on {part.partInfo.name} on {vessel.vesselName} has bounds of magnitude 0!");
+                                badColliders.Add(collider);
+                            }
+                        }
+                        foreach (var collider in badColliders) Destroy(collider);
+                        badColliders.Clear();
+                    }
                 }
             }
         }
@@ -290,11 +354,11 @@ namespace BDArmory.Modules
         void OnVesselSwitch(Vessel from, Vessel to)
         {
             var weaponManagers = LoadedVesselSwitcher.Instance.WeaponManagers.SelectMany(tm => tm.Value).ToList();
-            if (to != null && weaponManagers.Contains(VesselModuleRegistry.GetMissileFire(to, true))) // New vessel is an active competitor.
+            if (to != null && weaponManagers.Contains(to.ActiveController().WM)) // New vessel is an active competitor.
             {
                 activeVesselBeforeEject = to;
             }
-            else if (from != null && weaponManagers.Contains(VesselModuleRegistry.GetMissileFire(from, true))) // Old vessel is an active competitor.
+            else if (from != null && weaponManagers.Contains(from.ActiveController().WM)) // Old vessel is an active competitor.
             {
                 activeVesselBeforeEject = from;
             }

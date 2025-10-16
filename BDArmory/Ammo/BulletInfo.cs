@@ -41,6 +41,8 @@ namespace BDArmory.Bullets
         // Parsed types
         public PooledBulletTypes eHEType { get; private set; }
         public BulletFuzeTypes eFuzeType { get; private set; }
+        public float fuzeSensitivity { get; private set; } = -1f;
+        public float fuzeDelay { get; private set; } = -1f;
         public BulletDragTypes bulletDragType { get; private set; }
         // Calculated Values
         public float bulletBallisticCoefficient { get; private set; }
@@ -316,19 +318,41 @@ namespace BDArmory.Bullets
 
             if (tntMass > 0 || beehive)
             {
-                eFuzeType = fuzeType.ToLower() switch
+                string[] fuzeStrings = fuzeType.Split([',']);
+                if (fuzeStrings.Length > 0)
                 {
-                    //Anti-Air fuzes
-                    "timed" => BulletFuzeTypes.Timed,
-                    "proximity" => BulletFuzeTypes.Proximity,
-                    "flak" => BulletFuzeTypes.Flak,
-                    //Anti-Armor fuzes
-                    "delay" => BulletFuzeTypes.Delay,
-                    "penetrating" => BulletFuzeTypes.Penetrating,
-                    "impact" => BulletFuzeTypes.Impact,
-                    "none" => beehive ? BulletFuzeTypes.Timed : BulletFuzeTypes.Impact,
-                    _ => beehive ? BulletFuzeTypes.Timed : BulletFuzeTypes.Impact
-                };
+                    eFuzeType = fuzeStrings[0].ToLower() switch
+                    {
+                        //Anti-Air fuzes
+                        "timed" => BulletFuzeTypes.Timed,
+                        "proximity" => BulletFuzeTypes.Proximity,
+                        "flak" => BulletFuzeTypes.Flak,
+                        //Anti-Armor fuzes
+                        "delay" => BulletFuzeTypes.Delay,
+                        "penetrating" => BulletFuzeTypes.Penetrating,
+                        "impact" => BulletFuzeTypes.Impact,
+                        "none" => beehive ? BulletFuzeTypes.Timed : BulletFuzeTypes.Impact,
+                        _ => beehive ? BulletFuzeTypes.Timed : BulletFuzeTypes.Impact
+                    };
+                }
+                else
+                {
+                    eFuzeType = beehive ? BulletFuzeTypes.Timed : BulletFuzeTypes.Impact;
+                }
+                
+
+                if (eFuzeType == BulletFuzeTypes.Delay && fuzeStrings.Length > 1)
+                {
+                    if (float.TryParse(fuzeStrings[1], out float temp))
+                        fuzeDelay = temp;
+                }
+                else if (eFuzeType == BulletFuzeTypes.Penetrating && fuzeStrings.Length > 1)
+                {
+                    if (float.TryParse(fuzeStrings[1], out float temp))
+                        fuzeDelay = temp;
+                    if (fuzeStrings.Length > 2 && float.TryParse(fuzeStrings[2], out temp))
+                        fuzeSensitivity = temp;
+                }
             }
             else
             {

@@ -39,7 +39,7 @@ namespace BDArmory.UI
         /// <param name="columns">The number of columns in the selection grid.</param>
         /// <param name="persistant">Does the box remain open after clicking a selection</param>
         public BDGUIComboBox(Rect buttonRect, Rect listRect, GUIContent buttonContent, GUIContent[] listContent, float maxHeight, GUIStyle listStyle, int columns = 2, bool persistant = false)
-		{
+        {
             this.buttonRect = buttonRect;
             this.listRect = listRect;
             this.buttonContent = buttonContent;
@@ -76,6 +76,16 @@ namespace BDArmory.UI
                 GUI.EndScrollView();
             }
 
+            return selectedItemIndex;
+        }
+
+        /// <summary>
+        /// Externally set the selected item index.
+        /// </summary>
+        /// <param name="index"></param>
+        public int SetSelectedItemIndex(int index)
+        {
+            selectedItemIndex = index;
             return selectedItemIndex;
         }
 

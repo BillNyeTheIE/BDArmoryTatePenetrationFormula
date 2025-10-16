@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using KSP.UI.Screens;
 
+using BDArmory.Competition;
 using BDArmory.Extensions;
 using BDArmory.Settings;
 using BDArmory.UI;
@@ -47,13 +48,13 @@ namespace BDArmory.VesselSpawning
             ready = false;
             StartCoroutine(WaitForBdaSettings());
             ConfigureStyles();
-            SetUpMoveIndicator();
+            SetupMoveIndicator();
             GameEvents.onVesselChange.Add(OnVesselChanged);
 
             if (BDArmorySettings.VM_TOOLBAR_BUTTON) AddToolbarButton();
         }
 
-        void SetUpMoveIndicator()
+        void SetupMoveIndicator()
         {
             moveIndicator = new GameObject().AddComponent<LineRenderer>();
             moveIndicator.material = new Material(Shader.Find("KSP/Emissive/Diffuse"));
@@ -654,7 +655,12 @@ namespace BDArmory.VesselSpawning
             messageState = Messages.None;
             if (spawnFailureReason != SpawnFailureReason.None) { state = State.None; yield break; }
             if (BDArmorySettings.DEBUG_SPAWNING) Debug.Log($"[BDArmory.VesselMover]: Spawned {spawnedVessel.vesselName} at {geoCoords:G6}");
+
+            // Wait for the vessel to be usable.
+            // Note: Smart parts that are pre-enabled can trigger events that break craft while they spawn (particularly altitude and speed based ones). Those should be set active on AG10 instead.
             while (spawnedVessel != null && (!spawnedVessel.loaded || spawnedVessel.packed)) yield return wait;
+
+            // Reposition the vessel to where it should be.
             if (spawnedVessel != null)
             {
                 var up = (spawnedVessel.transform.position - FlightGlobals.currentMainBody.transform.position).normalized;
@@ -751,7 +757,7 @@ namespace BDArmory.VesselSpawning
         IEnumerator GetSpawnPoint()
         {
             messageState = Messages.ChoosingSpawnPoint;
-            GameObject indicatorObject = SetUpSpawnPointIndicator();
+            GameObject indicatorObject = SetupSpawnPointIndicator();
 
             Vector3 mouseAim, point;
             Ray ray;
@@ -797,7 +803,7 @@ namespace BDArmory.VesselSpawning
             Destroy(indicatorObject);
         }
 
-        GameObject SetUpSpawnPointIndicator()
+        GameObject SetupSpawnPointIndicator()
         {
             // Use the same indicator as the original VesselMover for familiarity.
             GameObject indicatorObject = new();
@@ -845,7 +851,18 @@ namespace BDArmory.VesselSpawning
                 VesselSpawner.ReservedCrew = crew.Select(crew => crew.name).ToHashSet(); // Reserve the crew so they don't get swapped out.
                 foreach (var c in crew) c.rosterStatus = ProtoCrewMember.RosterStatus.Available; // Set all the requested crew as available.
             }
-            VesselSpawnConfig vesselSpawnConfig = new VesselSpawnConfig(craftUrl, spawnPoint, direction, (float)altitude, initialPitch, false, false, crew: crew);
+            VesselSpawnConfig vesselSpawnConfig = new(
+                craftUrl,
+                spawnPoint,
+                direction,
+                (float)altitude,
+                initialPitch,
+                airborne: false,
+                inOrbit: false,
+                deconflictVesselName: BDACompetitionMode.Instance.competitionIsActive || BDACompetitionMode.Instance.competitionStarting, // Deconflict name only if spawning into an active competition.
+                crew: crew
+            );
+            ResetInternals(); // Reset spawner internals.
 
             // Spawn vessel.
             yield return SpawnSingleVessel(vesselSpawnConfig);
@@ -1622,7 +1639,7 @@ namespace BDArmory.VesselSpawning
             {
                 var message = $"The base folder for the {facility} doesn't exist! Your KSP install is broken!";
                 Debug.LogError($"[BDArmory.VesselMover]: {message}");
-                Competition.BDACompetitionMode.Instance.competitionStatus.Add(message);
+                BDACompetitionMode.Instance.competitionStatus.Add(message);
                 return;
             }
             if (!relative || string.IsNullOrEmpty(currentFolder)) currentFolder = baseFolder;

@@ -199,7 +199,18 @@ UI_FloatRange(minValue = 1f, maxValue = 4, stepIncrement = 1f, scene = UI_Scene.
                                 if (missile.FindModuleImplementing<MissileLauncher>())
                                 {
                                     MissileName = missile.name;
-                                    missileScale = new Vector2(Mathf.Max(missile.collider.bounds.size.x, missile.collider.bounds.size.y, missile.collider.bounds.size.z), Mathf.Min(missile.collider.bounds.size.x, missile.collider.bounds.size.y, missile.collider.bounds.size.z));
+                                    float scaleMax = 0f;
+                                    float scaleMin = 0f;
+                                    var childColliders = missile.GetComponentsInChildren<Collider>(includeInactive: false);
+                                    foreach (var col in childColliders)
+                                    {
+                                        if (col)
+                                        {
+                                            scaleMax = Mathf.Max(scaleMax, Mathf.Max(col.bounds.size.x, col.bounds.size.y, col.bounds.size.z));
+                                            scaleMin = Mathf.Max(scaleMin, Mathf.Min(col.bounds.size.x, col.bounds.size.y, col.bounds.size.z));
+                                        }
+                                    }
+                                    missileScale = new Vector2(scaleMax, scaleMin);
                                     //Debug.Log($"[MissileMagazine] Missile bounds are {missile.collider.bounds.size.x.ToString("0.00")}, {missile.collider.bounds.size.y.ToString("0.00")}, {missile.collider.bounds.size.z.ToString("0.00")}");
                                     //this will grab missile body dia/length, something something folding fins. But given BDA missiles are IRL scale instead of ~0.7 kerbalscale, including fins would make the mags *really* large
                                     MissileLauncher MLConfig = missile.FindModuleImplementing<MissileLauncher>();

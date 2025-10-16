@@ -52,7 +52,7 @@ namespace BDArmory.GameModes.Waypoints
 
     public class WaypointCourse
     {
-        public static string waypointLocationsCfg = Path.Combine(KSPUtil.ApplicationRootPath, "GameData/BDArmory/PluginData/Waypoint_locations.cfg");
+        public static string waypointLocationsCfg = Path.GetFullPath(Path.Combine(KSPUtil.ApplicationRootPath, "GameData/BDArmory/PluginData/Waypoint_locations.cfg"));
         public string name;
         public int worldIndex;
         public Vector2d spawnPoint;

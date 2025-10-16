@@ -154,8 +154,8 @@ namespace BDArmory.VesselSpawning
                     spawnAirborne,
                     spawnInOrbit,
                     customVesselSpawnConfig.teamIndex,
-                    false,
-                    crew
+                    reuseURLVesselName: BDATournament.Instance.tournamentStatus == TournamentStatus.Running || TournamentCoordinator.Instance.IsRunning,
+                    crew: crew
                 ));
             }
             VesselSpawner.ReservedCrew = vesselSpawnConfigs.Where(config => config.crew.Count > 0).SelectMany(config => config.crew).Select(crew => crew.name).ToHashSet();
@@ -201,13 +201,13 @@ namespace BDArmory.VesselSpawning
             {
                 if (spawnConfig.numberOfTeams == 1) // Folders
                 {
-                    foreach (var vesselName in spawnedVesselURLs.Keys)
-                        SpawnUtils.originalTeams[vesselName] = Path.GetFileName(Path.GetDirectoryName(spawnedVesselURLs[vesselName]));
+                    foreach (var vesselName in SpawnUtils.SpawnedVesselURLs.Keys)
+                        SpawnUtils.originalTeams[vesselName] = Path.GetFileName(Path.GetDirectoryName(SpawnUtils.SpawnedVesselURLs[vesselName]));
                 }
                 else // Files as folders
                 {
-                    foreach (var vesselName in spawnedVesselURLs.Keys)
-                        SpawnUtils.originalTeams[vesselName] = Path.GetFileNameWithoutExtension(spawnedVesselURLs[vesselName]);
+                    foreach (var vesselName in SpawnUtils.SpawnedVesselURLs.Keys)
+                        SpawnUtils.originalTeams[vesselName] = Path.GetFileNameWithoutExtension(SpawnUtils.SpawnedVesselURLs[vesselName]);
                 }
             }
             if (BDArmorySettings.VESSEL_SPAWN_SMART_REASSIGN_TEAMS && spawnConfig.assignTeams && spawnConfig.numberOfTeams == 11)
@@ -219,7 +219,7 @@ namespace BDArmory.VesselSpawning
                     foreach (var vesselName in team)
                     {
                         if (!spawnedVessels.ContainsKey(vesselName)) continue;
-                        var wm = VesselModuleRegistry.GetMissileFire(spawnedVessels[vesselName]);
+                        var wm = spawnedVessels[vesselName].ActiveController().WM;
                         if (wm == null) continue;
                         if (wm.Team.Name.Length < 2) continue; // If it's a one-letter name, ignore it.
                         if (teamNames.Contains(wm.Team.Name)) continue; // The team name already exists, ignore it.
@@ -639,7 +639,7 @@ namespace BDArmory.VesselSpawning
                     // Something changed, update the filtered list.
                     _filteredCraft.Item1 = selectionFilter;
                     _filteredCraft.Item2 = craftBrowser.craftListUpdateTimestamp;
-                    _filteredCraft.Item3 = [.. craftBrowser.craftList.Where(kvp => kvp.Key!=null && kvp.Value!=null && kvp.Value.shipName.ToLower().Contains(selectionFilter.ToLower())).Select(kvp => kvp.Key)];
+                    _filteredCraft.Item3 = [.. craftBrowser.craftList.Where(kvp => kvp.Key != null && kvp.Value != null && kvp.Value.shipName.ToLower().Contains(selectionFilter.ToLower())).Select(kvp => kvp.Key)];
                 }
                 return _filteredCraft.Item3;
             }

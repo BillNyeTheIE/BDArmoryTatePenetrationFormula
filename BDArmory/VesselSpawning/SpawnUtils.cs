@@ -2,6 +2,7 @@ using UnityEngine;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 using BDArmory.Competition;
@@ -36,7 +37,7 @@ namespace BDArmory.VesselSpawning
             if (ContinuousSpawning.Instance && ContinuousSpawning.Instance.vesselsSpawningContinuously)
             { ContinuousSpawning.Instance.CancelSpawning(); }
 
-            SpawnUtils.RevertSpawnLocationCamera(true);
+            RevertSpawnLocationCamera(true);
         }
 
         /// <summary>
@@ -232,6 +233,229 @@ namespace BDArmory.VesselSpawning
 
         #region Post-Spawn
         public static void OnVesselReady(Vessel vessel) => SpawnUtilsInstance.Instance.OnVesselReady(vessel);
+
+        /// <summary>
+        /// Activation sequence for an airborne vessel.
+        /// 
+        /// Checks for the vessel or weapon manager being null or having lost parts should have been done before calling this.
+        /// </summary>
+        /// <param name="vessel"></param>
+        public static void AirborneActivation(Vessel vessel, bool withInitialVelocity)
+        {
+            // Activate the vessel with AG10, or failing that, staging.
+            vessel.ActionGroups.ToggleGroup(BDACompetitionMode.KM_dictAG[10]); // Modular Missiles use lower AGs (1-3) for staging, use a high AG number to not affect them
+            var weaponManager = vessel.ActiveController().WM;
+            if (weaponManager != null)
+            {
+                var ai = weaponManager.AI;
+                if (ai != null)
+                {
+                    ai.ActivatePilot();
+                    ai.CommandTakeOff();
+                    if (withInitialVelocity)
+                    {
+                        var pilot = ai as BDModulePilotAI;
+                        if (pilot != null) { vessel.SetWorldVelocity(pilot.idleSpeed * vessel.transform.up); }
+                    }
+                    var orbitalAI = ai as BDModuleOrbitalAI;
+                    if (orbitalAI && vessel.altitude > vessel.mainBody.MinSafeAltitude()) // In space with an orbital AI. Set it in a circular orbit.
+                    {
+                        Vector3d orbitVelocity = Math.Sqrt(FlightGlobals.getGeeForceAtPosition(vessel.CoM, vessel.mainBody).magnitude * (vessel.mainBody.Radius + vessel.altitude)) * FlightGlobals.currentMainBody.getRFrmVel(vessel.CoM).normalized;
+                        if (BDKrakensbane.IsActive) orbitVelocity -= BDKrakensbane.FrameVelocityV3f;
+                        vessel.SetWorldVelocity(orbitVelocity);
+                    }
+                }
+                if (weaponManager.guardMode)
+                {
+                    if (BDArmorySettings.DEBUG_SPAWNING) Debug.Log($"[BDArmory.SpawnUtils]: Disabling guardMode on {vessel.vesselName}.");
+                    weaponManager.ToggleGuardMode(); // Disable guard mode (in case someone enabled it on AG10 or in the SPH).
+                    weaponManager.SetTarget(null);
+                }
+            }
+
+            if (!BDArmorySettings.NO_ENGINES && CountActiveEngines(vessel) == 0) // If the vessel didn't activate their engines on AG10, then activate all their engines and hope for the best.
+            {
+                if (BDArmorySettings.DEBUG_SPAWNING) Debug.Log($"[BDArmory.SpawnUtils]: {vessel.vesselName} didn't activate engines on AG10! Activating ALL their engines.");
+                ActivateAllEngines(vessel);
+            }
+            else if (BDArmorySettings.NO_ENGINES && CountActiveEngines(vessel) > 0) // Vessel had some active engines. Turn them off if possible.
+            {
+                ActivateAllEngines(vessel, false);
+            }
+        }
+        #endregion
+
+        #region Name Deconfliction
+        public static Dictionary<string, string> SpawnedVesselURLs = []; // Deconflicted vessel name => URL. Vessels not spawned via BDA's spawners will have a null URL.
+        public static Dictionary<string, string> DeconflictionSuffixes = []; // Deconflicted vessel name => suffix added to deconflict it. (For applying deconfliction to VESSELNAMING parts when reusing names.)
+        public static HashSet<string> FighterNames = []; // Deconflicted vessel names of fighters.
+
+        /// <summary>
+        /// Reset the vessel name deconfliction dictionaries.
+        /// </summary>
+        public static void ResetVesselNamingDeconfliction(bool fightersOnly = false)
+        {
+            if (!fightersOnly)
+            {
+                SpawnedVesselURLs.Clear();
+                DeconflictionSuffixes.Clear();
+            }
+            FighterNames.Clear();
+        }
+        /// <summary>
+        /// Deconflict vessel names by appending a suffix.
+        /// If the vessel has detached from a parent craft, then the suffix is of the form "_Fn" for "fighters", otherwise the suffix is of the form "_n" for some integer n.
+        /// 
+        /// Notes:
+        /// - VESSELNAMING requires that the vessel's parts list has been populated, which takes a few frames after spawning.
+        /// - Deconfliction occurs during spawning (if not disabled in the SpawnConfig) and when adding to a running competition (for detached vessels).
+        ///     - Spawning via the VM disables deconfliction for that vessel unless a competition is active to avoid messing with names unnecessarily.
+        ///     - Deconfliction also occurs when resetting a competition prior to initialising scores.
+        /// - The deconfliction dictionaries are reset under various conditions:
+        ///     - Starting a tournament (during tournaments, the deconfliction dictionaries are stored as part of the tournament state in case of interruption).
+        ///     - Starting a continuous spawn tournament. (reuse=true for cts spawn.)
+        ///     - Performing a group spawn outside of a tournament when killEverythingFirst is true.
+        /// </summary>
+        /// <param name="vessel">The vessel for which to deconflict naming.</param>
+        /// <param name="reuse">Reuse the previously deconflicted name for the vessel (if it exists).</param>
+        public static void DeconflictVesselName(Vessel vessel, bool reuse = false)
+        {
+            // Before anything else, strip the type from the vessel's name. This avoids names like "Some craft name Rover", but also means "Jeb's Plane" isn't a valid name for a plane.
+            vessel.StripTypeFromName();
+
+            // If vessel naming deconfliction has previously been applied to this vessel, don't make further changes.
+            var ac = vessel.ActiveController();
+            if (ac.VesselNamingDeconflictionHasBeenApplied) return;
+            ac.VesselNamingDeconflictionHasBeenApplied = true;
+            if (ac.WM == null) return; // Not a valid craft for competitions so don't bother deconflicting its name.
+
+            // Start by deconflicting VESSELNAMING within the vessel.
+            var vesselNamingParts = DeconflictPartVesselNaming(vessel);
+            if (vesselNamingParts.Count > 0)
+            {
+                var vesselNamingName = vesselNamingParts.Select(p => p.vesselNaming.vesselName).First();
+                if (!string.IsNullOrEmpty(vesselNamingName))
+                {
+                    if (BDArmorySettings.DEBUG_SPAWNING && vessel.vesselName != vesselNamingName) Debug.Log($"[BDArmory.SpawnUtils]: Overriding vesselName of {vessel.vesselName} with {vesselNamingName} from VESSELNAMING.");
+                    vessel.vesselName = vesselNamingName; // Override vesselName with the highest priority VESSELNAMING name (since that's what KSP does).
+                }
+            }
+
+            // Then make sure all the names are truly unique between vessels.
+            var craftURL = ac.WM.SourceVesselURL;
+            var isFighter = ac.IsFighter;
+            if (reuse && !isFighter && craftURL != null && SpawnedVesselURLs.ContainsValue(craftURL))
+            { // A unique name has previously been found and we should just reuse it.
+                var potentialName = SpawnedVesselURLs.Where(kvp => kvp.Value == craftURL).Select(kvp => kvp.Key).First();
+                if (BDArmorySettings.DEBUG_SPAWNING && vessel.vesselName != potentialName) Debug.Log($"[BDArmory.SpawnUtils]: Renaming {vessel.vesselName} to {potentialName} due to reusing previously spawned name.");
+                vessel.vesselName = potentialName;
+                if (vesselNamingParts.Count > 0)
+                {
+                    if (BDArmorySettings.DEBUG_SPAWNING && vesselNamingParts.First().vesselNaming.vesselName != potentialName)
+                    {
+                        var part = vesselNamingParts.First();
+                        Debug.Log($"[BDArmory.SpawnUtils]: Renaming VESSELNAMING {part.vesselNaming.vesselName} on {part.partInfo.name} to {potentialName} due to reusing previously spawned name.");
+                    }
+                    vesselNamingParts.First().vesselNaming.vesselName = potentialName; // Override the VESSELNAMING of the primary part that was originally used to set the name.
+                    foreach (var part in vesselNamingParts.Skip(1))
+                    {
+                        var oldName = part.vesselNaming.vesselName;
+                        part.vesselNaming.vesselName += DeconflictionSuffixes.GetValueOrDefault(potentialName);
+                        if (BDArmorySettings.DEBUG_SPAWNING && oldName != part.vesselNaming.vesselName) Debug.Log($"[BDArmory.SpawnUtils]: Renaming VESSELNAMING {oldName} on {part.partInfo.name} to {part.vesselNaming.vesselName} due to parent being renamed.");
+                    }
+                }
+            }
+            else
+            {
+                var suffix = isFighter ? "_F" : "_";
+                var count = 1;
+                if (isFighter)
+                {
+                    bool IsNameUsed(string name) => SpawnedVesselURLs.ContainsKey(name) ||
+                        (reuse ?
+                            FlightGlobals.Vessels.Where(v => v != null && v.loaded && v != vessel && v.ActiveController().WM != null).Select(v => v.vesselName).Contains(name) : // If reusing fighter names, only check active vessels.
+                            FighterNames.Contains(name)
+                        );
+                    if (IsNameUsed(vessel.vesselName))
+                    {
+                        var baseName = vessel.vesselName;
+                        // If the baseName conforms to the fighter naming pattern, strip the suffix to avoid "SomeName_F1_F1" names.
+                        // This typically happens if two fighters are attached to a parent and the parent gets destroyed before they detach.
+                        var suffixIndex = baseName.LastIndexOf(suffix);
+                        if (suffixIndex > -1 && int.TryParse(baseName.Substring(suffixIndex + 2), NumberStyles.None, CultureInfo.InvariantCulture, out _))
+                        { baseName = baseName.Remove(suffixIndex); }
+                        var potentialName = $"{baseName}{suffix}{count}";
+                        while (IsNameUsed(potentialName))
+                            potentialName = $"{baseName}{suffix}{++count}"; // Note: The computer will have long since run out of memory before we exhaust the integers.
+                        if (BDArmorySettings.DEBUG_SPAWNING && vessel.vesselName != potentialName)
+                        {
+                            Debug.Log($"[BDArmory.SpawnUtils]: Renaming {vessel.vesselName} ({vessel.persistentId}) to {potentialName} due to naming conflict.");
+                            // Debug.Log($"DEBUG SpawnedVesselURLs: {string.Join(", ", SpawnedVesselURLs.Keys)}");
+                            // Debug.Log($"DEBUG Active FighterNames: {string.Join(", ", FighterNames.Where(name => FlightGlobals.Vessels.Where(v => v != null && v.loaded && v != vessel && v.ActiveController().WM != null).Select(v => v.vesselName).Contains(name)))}");
+                        }
+                        vessel.vesselName = potentialName;
+                    }
+                    FighterNames.Add(vessel.vesselName);
+                }
+                else
+                {
+                    if (SpawnedVesselURLs.ContainsKey(vessel.vesselName) || FighterNames.Contains(vessel.vesselName))
+                    {
+                        var potentialName = $"{vessel.vesselName}{suffix}{count}";
+                        while (SpawnedVesselURLs.ContainsKey(potentialName) || FighterNames.Contains(potentialName))
+                            potentialName = $"{vessel.vesselName}{suffix}{++count}"; // Note: The computer will have long since run out of memory before we exhaust the integers.
+                        if (BDArmorySettings.DEBUG_SPAWNING && vessel.vesselName != potentialName) Debug.Log($"[BDArmory.SpawnUtils]: Renaming {vessel.vesselName} ({vessel.persistentId}) to {potentialName} due to naming conflict.");
+                        vessel.vesselName = potentialName;
+                        DeconflictionSuffixes.Add(potentialName, $"{suffix}{count}");
+                        if (vesselNamingParts.Count > 0)
+                        {
+                            vesselNamingParts.First().vesselNaming.vesselName = potentialName; // Override the VESSELNAMING of the primary part that was originally used to set the name.
+                            foreach (var part in vesselNamingParts.Skip(1)) // Append the same suffix to fighters for consistency.
+                            {
+                                var oldName = part.vesselNaming.vesselName;
+                                part.vesselNaming.vesselName += DeconflictionSuffixes.GetValueOrDefault(potentialName);
+                                if (BDArmorySettings.DEBUG_SPAWNING && oldName != part.vesselNaming.vesselName) Debug.Log($"[BDArmory.SpawnUtils]: Renaming VESSELNAMING {oldName} on {part.partInfo.name} to {part.vesselNaming.vesselName} due to parent being renamed.");
+                            }
+                        }
+                    }
+                    SpawnedVesselURLs.Add(vessel.vesselName, craftURL); // Only add the URL for the originally spawned craft.
+                }
+            }
+
+            // Update the VesselName in the ActiveController to prevent KSP from messing with it.
+            ac.VesselName = vessel.vesselName;
+        }
+        /// <summary>
+        /// Deconflict VESSELNAMING by adding "_Fn" suffixes to conflicting names other than the highest priority one.
+        /// </summary>
+        /// <param name="vessel"></param>
+        /// <returns>A list of the parts with VESSELNAMING in order of descending priority with deconflicted names.</returns>
+        static List<Part> DeconflictPartVesselNaming(Vessel vessel)
+        {
+            if (vessel.Parts.Count == 0) { Debug.LogWarning($"[BDArmory.SpawnUtils]: {vessel.GetName()}'s parts list isn't loaded yet, unable to deconflict vessel naming."); return []; } // Nothing to do.
+
+            var partNamingPriority = vessel.Parts.Where(p => p.vesselNaming != null && !string.IsNullOrEmpty(p.vesselNaming.vesselName)).OrderByDescending(p => p.vesselNaming.namingPriority).ToList();
+            var partNamingNames = partNamingPriority.Select(p => p.vesselNaming.vesselName).ToList();
+            List<string> names = [];
+            foreach (var part in partNamingPriority)
+            {
+                int count = 0;
+                if (names.Contains(part.vesselNaming.vesselName) || partNamingNames.Count(name => name == part.vesselNaming.vesselName) > 1)
+                {
+                    var potentialName = $"{part.vesselNaming.vesselName}_F{++count}";
+                    while (names.Contains(potentialName)) { potentialName = $"{part.vesselNaming.vesselName}_F{++count}"; }
+                    if (BDArmorySettings.DEBUG_SPAWNING && part.vesselNaming.vesselName != potentialName) Debug.Log($"[BDArmory.SpawnUtils]: Renaming VESSELNAMING {part.vesselNaming.vesselName} on {part.partInfo.name} to {potentialName}");
+                    part.vesselNaming.vesselName = potentialName;
+                }
+                names.Add(part.vesselNaming.vesselName);
+            }
+            return partNamingPriority;
+        }
+        public static string GetNameOfFirstSpawnedVesselFrom(string craftURL)
+        {
+            // Find the first vesselName corresponding to the craft URL.
+            return SpawnedVesselURLs.Where(kvp => kvp.Value == craftURL).Select(kvp => kvp.Key).FirstOrDefault();
+        }
         #endregion
 
         #region Vessel Removal
@@ -245,9 +469,10 @@ namespace BDArmory.VesselSpawning
         public static bool CheckAIWMPlacement(Vessel vessel)
         {
             var message = "";
-            List<string> failureStrings = new List<string>();
-            var AI = VesselModuleRegistry.GetModule<BDGenericAIBase>(vessel, true);
-            var WM = VesselModuleRegistry.GetMissileFire(vessel, true);
+            List<string> failureStrings = [];
+
+            var AI = vessel.ActiveController().AI;
+            var WM = vessel.ActiveController().WM;
             if (AI == null) message = " has no AI";
             if (WM == null) message += (AI == null ? " or WM" : " has no WM");
             if (AI != null || WM != null)
@@ -514,7 +739,7 @@ namespace BDArmory.VesselSpawning
         /// <param name="recurse">State parameter for when we need to spawn a probe first.</param>
         public void ShowSpawnPoint(int worldIndex, double latitude, double longitude, double altitude = 0, float distance = 0, bool spawning = false, bool recurse = true)
         {
-            if (BDArmorySettings.DEBUG_SPAWNING) Debug.Log($"[BDArmory.SpawnUtils]: Showing spawn point ({latitude:G3}, {longitude:G3}, {altitude:G3}) on {FlightGlobals.Bodies[worldIndex].name}");
+            if (BDArmorySettings.DEBUG_SPAWNING) Debug.Log($"[BDArmory.SpawnUtils]: Showing spawn point ({latitude:G3}, {longitude:G3}, {altitude:G6}) on {FlightGlobals.Bodies[worldIndex].name}");
             if (BDArmorySettings.ASTEROID_RAIN) { AsteroidRain.Instance.Reset(); }
             if (BDArmorySettings.ASTEROID_FIELD) { AsteroidField.Instance.Reset(); }
             if (!spawning && (FlightGlobals.ActiveVessel == null || FlightGlobals.ActiveVessel.state == Vessel.State.DEAD))
@@ -774,7 +999,7 @@ namespace BDArmory.VesselSpawning
         {
             if (vessel == null || !vessel.loaded) return;
 
-            if (VesselModuleRegistry.GetMissileFire(vessel, true) != null && vessel.rootPart.FindModuleImplementing<ModuleSpaceFriction>() == null)
+            if (vessel.ActiveController().WM != null && vessel.rootPart.FindModuleImplementing<ModuleSpaceFriction>() == null)
             {
                 vessel.rootPart.AddModule("ModuleSpaceFriction");
             }
@@ -1073,6 +1298,10 @@ namespace BDArmory.VesselSpawning
                                 }
                             }
                         }
+                        if (BDArmorySettings.RUNWAY_PROJECT_ROUND == 78)
+                        {
+                            part.Current.sameVesselCollision = true;
+                        }
                     }
                 if (BDArmorySettings.RUNWAY_PROJECT_ROUND == 60)
                 {
@@ -1085,7 +1314,7 @@ namespace BDArmory.VesselSpawning
                         nuke.thermalRadius = 200;
                         if (BDArmorySettings.DEBUG_COMPETITION) Debug.Log($"[BDArmory.BDACompetitionMOde]: Adding Nuke Module to {vessel.GetName()}");
                     }
-                    BDModulePilotAI pilotAI = VesselModuleRegistry.GetBDModulePilotAI(vessel);
+                    BDModulePilotAI pilotAI = vessel.ActiveController().PilotAI;
                     if (pilotAI != null)
                     {
                         pilotAI.minAltitude = Mathf.Max(pilotAI.minAltitude, 750);
@@ -1108,12 +1337,15 @@ namespace BDArmory.VesselSpawning
                         }
                     }
                 }
-				if (BDArmorySettings.RUNWAY_PROJECT_ROUND == 74)
-				{
-					var wm = VesselModuleRegistry.GetMissileFire(vessel);
-					if (BDArmorySettings.DEBUG_COMPETITION && wm.targetWeightAttackVIP != 10) Debug.Log($"[BDArmory.SpawnUtils]: Overriding VIP target priority to 10 on {vessel.GetName()}");
-					if (wm != null) wm.targetWeightAttackVIP = 10;
-				}
+                if (BDArmorySettings.RUNWAY_PROJECT_ROUND == 74)
+                {
+                    var wm = vessel.ActiveController().WM;
+                    if (wm != null)
+                    {
+                        if (BDArmorySettings.DEBUG_COMPETITION && wm.targetWeightAttackVIP != 10) Debug.Log($"[BDArmory.SpawnUtils]: Overriding VIP target priority to 10 on {vessel.GetName()}");
+                        wm.targetWeightAttackVIP = 10;
+                    }
+                }
             }
         }
         #endregion
@@ -1157,23 +1389,23 @@ namespace BDArmory.VesselSpawning
                             if (part.Current.CrewCapacity > 0 && part.Current.CrewCapacity > cockpitSeatCount) cockpitSeatCount = part.Current.CrewCapacity;
                         }
                     }
-                var AI = VesselModuleRegistry.GetModule<BDModulePilotAI>(vessel);
-                if (AI != null)
+                var pilotAI = vessel.ActiveController().PilotAI;
+                if (pilotAI != null)
                 {
                     if (CompSettings.CompOverrides.TryGetValue("extendDistanceAirToAir", out float dATA) && dATA > 0)
-                        AI.extendDistanceAirToAir = Mathf.Min(AI.extendDistanceAirToAir, dATA);
+                        pilotAI.extendDistanceAirToAir = Mathf.Min(pilotAI.extendDistanceAirToAir, dATA);
                     if (CompSettings.CompOverrides.TryGetValue("collisionAvoidanceThreshold", out float cAT) && cAT >= 0)
-                        AI.collisionAvoidanceThreshold = Mathf.Max(AI.collisionAvoidanceThreshold, cAT);
+                        pilotAI.collisionAvoidanceThreshold = Mathf.Max(pilotAI.collisionAvoidanceThreshold, cAT);
                     if (CompSettings.CompOverrides.TryGetValue("vesselCollisionAvoidanceLookAheadPeriod", out float vCAL) && vCAL >= 0)
-                        AI.vesselCollisionAvoidanceLookAheadPeriod = Mathf.Max(AI.vesselCollisionAvoidanceLookAheadPeriod, vCAL);
+                        pilotAI.vesselCollisionAvoidanceLookAheadPeriod = Mathf.Max(pilotAI.vesselCollisionAvoidanceLookAheadPeriod, vCAL);
                     if (CompSettings.CompOverrides.TryGetValue("vesselCollisionAvoidanceStrength", out float vCAS) && vCAS >= 0)
-                        AI.vesselCollisionAvoidanceStrength = Mathf.Max(AI.vesselCollisionAvoidanceStrength, vCAS);
+                        pilotAI.vesselCollisionAvoidanceStrength = Mathf.Max(pilotAI.vesselCollisionAvoidanceStrength, vCAS);
                     if (CompSettings.CompOverrides.TryGetValue("idleSpeed", out float iS) && iS > 0)
-                        AI.idleSpeed = Mathf.Max(AI.idleSpeed, iS);
+                        pilotAI.idleSpeed = Mathf.Max(pilotAI.idleSpeed, iS);
                     if (CompSettings.CompOverrides.TryGetValue("extensionCutoffTime", out float eCT) && eCT > 0)
-                        AI.extensionCutoffTime = Mathf.Max(AI.extensionCutoffTime, eCT);
+                        pilotAI.extensionCutoffTime = Mathf.Max(pilotAI.extensionCutoffTime, eCT);
                 }
-                var WM = VesselModuleRegistry.GetModule<MissileFire>(vessel);
+                var WM = vessel.ActiveController().WM;
                 if (WM != null)
                 {
                     if (cockpitSeatCount == 1)

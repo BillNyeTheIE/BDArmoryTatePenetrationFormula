@@ -13,6 +13,7 @@ using BDArmory.Settings;
 using BDArmory.UI;
 using BDArmory.Utils;
 using static BDArmory.Bullets.PooledBullet;
+using BDArmory.Weapons.Missiles;
 
 namespace BDArmory.Bullets
 {
@@ -157,7 +158,7 @@ namespace BDArmory.Bullets
             transform.rotation = transform.parent.rotation;
             startTime = Time.time;
             armingTime = isSubProjectile ? 0 : BDAMath.Sqrt(4 * blastRadius * rocketMass / thrust); // d = a/2 * t^2 for initial 0 relative velocity
-            if (FlightGlobals.getAltitudeAtPos(currentPosition) < 0)
+            if (FlightGlobals.currentMainBody.ocean && FlightGlobals.getAltitudeAtPos(currentPosition) < 0)
             {
                 startUnderwater = true;
             }
@@ -313,12 +314,12 @@ namespace BDArmory.Bullets
 
             if (BDArmorySettings.BULLET_WATER_DRAG)
             {
-                if (FlightGlobals.getAltitudeAtPos(currentPosition) > 0 && startUnderwater)
+                if (FlightGlobals.currentMainBody.ocean && FlightGlobals.getAltitudeAtPos(currentPosition) > 0 && startUnderwater)
                 {
                     startUnderwater = false;
                     if (BDArmorySettings.waterHitEffect) FXMonger.Splash(currentPosition, caliber);
                 }
-                if (FlightGlobals.getAltitudeAtPos(currentPosition) <= 0 && !startUnderwater)
+                if (FlightGlobals.currentMainBody.ocean && FlightGlobals.getAltitudeAtPos(currentPosition) <= 0 && !startUnderwater)
                 {
                     if (tntMass > 0) //look into fuze options similar to bullets?
                     {
@@ -611,7 +612,7 @@ namespace BDArmory.Bullets
                 // since KSP vessels can easily be moving faster than rockets
                 impactVector = currentVelocity - (hitPart.rb.velocity + BDKrakensbane.FrameVelocityV3f);
 
-            float hitAngle = Vector3.Angle(impactVector, -hit.normal);
+            float hitAngle = VectorUtils.Angle(impactVector, -hit.normal);
 
             if (ProjectileUtils.CheckGroundHit(hitPart, hit, caliber))
             {
@@ -1034,14 +1035,16 @@ namespace BDArmory.Bullets
                                         {
                                             partHit.rb.AddForceAtPosition((partHit.transform.position - currentPosition).normalized * impulse, partHit.transform.position, ForceMode.Acceleration);
                                         }
-                                        if (EMP && !VesselModuleRegistry.ignoredVesselTypes.Contains(partHit.vesselType))
+                                        if (EMP && !VesselModuleRegistry.IgnoredVesselTypes.Contains(partHit.vesselType))
                                         {
                                             var MDEC = partHit.vessel.rootPart.FindModuleImplementing<ModuleDrainEC>();
                                             if (MDEC == null)
                                             {
                                                 MDEC = (ModuleDrainEC)partHit.vessel.rootPart.AddModule("ModuleDrainEC");
+                                                var MB = partHit.vessel.rootPart.FindModuleImplementing<MissileBase>();
+                                                if (MB != null) MDEC.isMissile = true;
                                             }
-                                            MDEC.incomingDamage = (25 - distance) * 5; //this way craft at edge of blast might only get disabled instead of bricked
+                                            MDEC.incomingDamage = (25 - distance) * 5 * BDArmorySettings.DMG_MULTIPLIER; //this way craft at edge of blast might only get disabled instead of bricked
                                             MDEC.softEMP = false; //can bypass EMP damage cap                                            
                                         }
                                         if (choker)
