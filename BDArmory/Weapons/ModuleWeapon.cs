@@ -2654,7 +2654,7 @@ namespace BDArmory.Weapons
                                             //Due to Electrolasers/lightning bolts being a point source, and no guarantee that a craft is homogeneous material for armor/hull, calculating 
                                             //the path electricity would take to get to craft electrics to affect them is going to be a mess one way or another
                                             /////////////////////////////////////////////////
-                                            if (!VesselModuleRegistry.ignoredVesselTypes.Contains(p.vessel.vesselType))
+                                            if (!VesselModuleRegistry.IgnoredVesselTypes.Contains(p.vessel.vesselType))
                                             {
                                                 float EMPDamage = laserDamage * (pulseLaser ? 1 : TimeWarp.fixedDeltaTime) * (BDArmorySettings.DMG_MULTIPLIER / 100);
                                                 Part closestCommand = null;
@@ -2965,14 +2965,14 @@ namespace BDArmory.Weapons
                 while (loadedvessels.MoveNext())
                 {
                     if (loadedvessels.Current == null || !loadedvessels.Current.loaded) continue;
-                    if (VesselModuleRegistry.ignoredVesselTypes.Contains(loadedvessels.Current.vesselType)) continue;
+                    if (VesselModuleRegistry.IgnoredVesselTypes.Contains(loadedvessels.Current.vesselType)) continue;
 
                     if (Vector3.Angle(loadedvessels.Current.CoM - fireTransforms[0].transform.position, fireTransforms[0].forward) > beamFOV / 2f) continue;
                     if (loadedvessels.Current.IsUnderwater()) continue; //would microwaves work underwater...?
                     if (!friendlyFire) //don't affect friendly targets. Something something phased array dynamic beam shaping
                     {
                         var wms = VesselModuleRegistry.GetModule<MissileFire>(loadedvessels.Current);
-                        if (wms == null || wms.Team == weaponManager.Team) continue;
+                        if (wms == null || wms.Team == WeaponManager.Team) continue;
                     }
                     if (!loadedvessels.Current.Splashed && vessel.IsUnderwater()) //not sure if a water transition should serve as a barrier, but easily commented out
                             continue;

@@ -341,7 +341,6 @@ namespace BDArmory.Settings
         [BDAPersistentSettingsField] public static bool VESSEL_SPAWN_SMART_REASSIGN_TEAMS = false; // Reassign teams on spawn, but don't override teams defined in the SPH. (Only for single-shot template spawning currently.)
         [BDAPersistentSettingsField] public static int VESSEL_SPAWN_CONCURRENT_VESSELS = 0;        // Maximum number of vessels to spawn in concurrently (continuous spawning mode).
         [BDAPersistentSettingsField] public static int VESSEL_SPAWN_LIVES_PER_VESSEL = 0;          // Maximum number of times to spawn a vessel (continuous spawning mode).
-        [BDAPersistentSettingsField] public static int CS_NPCS_PER_HEAT = 0;                       // NPCs to be added to Continuous Spawn scrimmages in addition to Concurrent Vessels count
         [BDAPersistentSettingsField] public static float OUT_OF_AMMO_KILL_TIME = -1f;              // Out of ammo kill timer for continuous spawn mode.
         [BDAPersistentSettingsField] public static int VESSEL_SPAWN_FILL_SEATS = 1;                // Fill seats: 0 - minimal, 1 - full cockpits or the first combat seat, 2 - all ModuleCommand and KerbalSeat parts, 3 - also cabins.
         [BDAPersistentSettingsField] public static bool VESSEL_SPAWN_CONTINUE_SINGLE_SPAWNING = false; // Spawn craft again after single spawn competition finishes.

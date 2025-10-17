@@ -448,7 +448,7 @@ namespace BDArmory.Control
                         while (vs.MoveNext())
                         {
                             if (vs.Current == null || vs.Current == vessel || vs.Current.GetTotalMass() < AvoidMass) continue; //expand for SrfAi ramming implementation?
-                            if (!VesselModuleRegistry.ignoredVesselTypes.Contains(vs.Current.vesselType))
+                            if (!VesselModuleRegistry.IgnoredVesselTypes.Contains(vs.Current.vesselType))
                             {
                                 var ibdaiControl = vs.Current.ActiveController().AI;
                                 if (!vs.Current.LandedOrSplashed || (ibdaiControl != null && ibdaiControl.commandLeader != null && ibdaiControl.commandLeader.vessel == vessel))

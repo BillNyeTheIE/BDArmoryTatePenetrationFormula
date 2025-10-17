@@ -616,7 +616,7 @@ namespace BDArmory.FX
             foreach (Vessel v in FlightGlobals.Vessels)
             {
                 if (v == null || !v.loaded || v.packed) continue;
-                if (VesselModuleRegistry.ignoredVesselTypes.Contains(v.vesselType)) continue;
+                if (VesselModuleRegistry.IgnoredVesselTypes.Contains(v.vesselType)) continue;
                 if (!v.HoldPhysics)
                 {
                     double targetDistance = Vector3d.Distance(Position, v.GetWorldPos3D());
