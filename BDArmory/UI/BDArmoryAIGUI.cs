@@ -22,6 +22,7 @@ namespace BDArmory.UI
         public static bool NumFieldsEnabled = false;
         public static bool windowBDAAIGUIEnabled;
         internal static bool resizingWindow = false;
+        internal static bool autoResizingWindow = true;
         internal static int _guiCheckIndex = -1;
 
         public static ApplicationLauncherButton button;
@@ -2309,14 +2310,31 @@ StringUtils.Localize("#LOC_BDArmory_AIWindow_DiveBomb"), AI.divebombing ? BDArmo
             GUI.DrawTexture(resizeRect, GUIUtils.resizeTexture, ScaleMode.StretchToFill, true);
             if (Event.current.type == EventType.MouseDown && resizeRect.Contains(Event.current.mousePosition))
             {
-                resizingWindow = true;
+                if (Event.current.button == 1)
+                {
+                    resizingWindow = false;
+                    autoResizingWindow = true;
+                }
+                else
+                {
+                    resizingWindow = true;
+                    autoResizingWindow = false;
+                }
             }
 
-            if (Event.current.type == EventType.Repaint && resizingWindow)
+            if (Event.current.type == EventType.Repaint)
             {
-                WindowHeight += Mouse.delta.y / BDArmorySettings.UI_SCALE_ACTUAL;
-                WindowHeight = Mathf.Max(WindowHeight, minHeight);
-                if (BDArmorySettings.DEBUG_OTHER) GUI.Label(new Rect(WindowWidth / 2, WindowHeight - 26, WindowWidth / 2 - 26, 26), $"Resizing: {Mathf.Round(WindowHeight * BDArmorySettings.UI_SCALE_ACTUAL)}", Label);
+                if (resizingWindow)
+                {
+                    WindowHeight += Mouse.delta.y / BDArmorySettings.UI_SCALE_ACTUAL;
+                    WindowHeight = Mathf.Max(WindowHeight, minHeight);
+                    if (BDArmorySettings.DEBUG_OTHER) GUI.Label(new Rect(WindowWidth / 2, WindowHeight - 26, WindowWidth / 2 - 26, 26), $"Resizing: {Mathf.Round(WindowHeight * BDArmorySettings.UI_SCALE_ACTUAL)}", Label);
+                }
+                else if (autoResizingWindow)
+                {
+                    WindowHeight = Mathf.Clamp((_windowMargin + _buttonSize) * 2 + contentHeight + 1, minHeight, (Screen.height - BDArmorySetup.WindowRectAI.yMin) / BDArmorySettings.UI_SCALE_ACTUAL);
+                    if (BDArmorySetup.WindowRectAI.height > WindowHeight) BDArmorySetup.WindowRectAI.height = WindowHeight; // Avoid sticking to bottom of screen during RepositionWindow.
+                }
             }
             #endregion
 

@@ -1788,12 +1788,12 @@ namespace BDArmory.Competition
                         tournamentState.RestoreDeconflictionData(); // Restore the deconfliction data to the most recently used in the tournament (to avoid outside interference).
                     while (!competitionStarted && attempts++ < 3) // 3 attempts is plenty
                     {
-                        SpawnUtils.ResetVesselNamingDeconfliction(fightersOnly: true);
+                        SpawnUtils.ResetVesselNamingDeconfliction(fightersOnly: !fullTeams);
                         tournamentStatus = TournamentStatus.Running;
                         if (BDArmorySettings.WAYPOINTS_MODE)
                             yield return ExecuteWaypointHeat(roundIndex, heatIndex);
                         else
-                            yield return ExecuteHeat(roundIndex, heatIndex, attempts == BDArmorySettings.TOURNAMENT_START_DESPITE_FAILURES_ON_ATTEMPT && BDArmorySettings.COMPETITION_START_DESPITE_FAILURES); // On the third attempt, start despite failures if the option is set.
+                            yield return ExecuteHeat(roundIndex, heatIndex, attempts == BDArmorySettings.TOURNAMENT_START_DESPITE_FAILURES_ON_ATTEMPT && BDArmorySettings.COMPETITION_START_DESPITE_FAILURES, firstRun); // On the third attempt, start despite failures if the option is set.
                         if (!competitionStarted)
                         {
                             switch (spawnerBase.spawnFailureReason)
@@ -1944,7 +1944,7 @@ namespace BDArmory.Competition
             yield return new WaitWhile(() => TournamentCoordinator.Instance.IsRunning);
         }
 
-        IEnumerator ExecuteHeat(int roundIndex, int heatIndex, bool startDespiteFailures = false)
+        IEnumerator ExecuteHeat(int roundIndex, int heatIndex, bool startDespiteFailures = false, bool firstRun = false)
         {
             if (tournamentState.tournamentStyle == TournamentStyle.TemplateRNG)
             {
@@ -1989,33 +1989,37 @@ namespace BDArmory.Competition
                 }
             }
             yield return new WaitForFixedUpdate();
-            // NOTE: runs in separate coroutine
-            if (BDArmorySettings.RUNWAY_PROJECT)
+            if (firstRun)
             {
-                switch (BDArmorySettings.RUNWAY_PROJECT_ROUND)
-                {
-                    case 33:
-                        BDACompetitionMode.Instance.StartRapidDeployment(0);
-                        break;
-                    case 44:
-                        BDACompetitionMode.Instance.StartRapidDeployment(0);
-                        break;
-                    case 53:
-                        BDACompetitionMode.Instance.StartRapidDeployment(0);
-                        break;
-                    case 67:
-                        BDACompetitionMode.Instance.StartRapidDeployment(0);
-                        break;
-                    case 77:
-                        BDACompetitionMode.Instance.StartRapidDeployment(0);
-                        break;
-                    default:
-                        BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE, startDespiteFailures);
-                        break;
-                }
+                if (!BDTISettings.STORE_TEAM_COLORS) BDTISetup.Instance.ResetColors(); // Get some good colours on the first run instead of random ones.
             }
-            else
-                BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE, startDespiteFailures);
+            // NOTE: runs in separate coroutine
+                if (BDArmorySettings.RUNWAY_PROJECT)
+                {
+                    switch (BDArmorySettings.RUNWAY_PROJECT_ROUND)
+                    {
+                        case 33:
+                            BDACompetitionMode.Instance.StartRapidDeployment(0);
+                            break;
+                        case 44:
+                            BDACompetitionMode.Instance.StartRapidDeployment(0);
+                            break;
+                        case 53:
+                            BDACompetitionMode.Instance.StartRapidDeployment(0);
+                            break;
+                        case 67:
+                            BDACompetitionMode.Instance.StartRapidDeployment(0);
+                            break;
+                        case 77:
+                            BDACompetitionMode.Instance.StartRapidDeployment(0);
+                            break;
+                        default:
+                            BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE, startDespiteFailures);
+                            break;
+                    }
+                }
+                else
+                    BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE, startDespiteFailures);
             yield return new WaitForFixedUpdate(); // Give the competition start a frame to get going.
 
             // start timer coroutine for the duration specified in settings UI

@@ -1,4 +1,13 @@
-﻿IMPROVEMETS / FIXES
+﻿IMPROVEMENTS / FIXES
+- General:
+	- Fix some compatibility issues with pre-KSP v1.12 versions.
+- UI:
+	- Make the AI GUI auto-resizing by default. Left clicking the resize handle switches to manual resizing, right clicking it switches to auto-resizing.
+- Competition:
+	- Fixes to include any newly detached fighters during competition start-up.
+	- Fix vessel name deconfliction for teams tournaments that use the "Re-use Craft To Fill Teams" option.
+		- Note: If this option is being used and two craft with the same name are used in multiple teams then the scoring will be messed up.
+	- If not storing Team Icon colours, reset the colours at the start of a tournament / continuous spawn.
 - Weapons:
 	- Add conical beam weapon implementation for creating microwave drone zappers, War of the Worlds heatrays, tractor beams, etc.
 		- Adds new weapon.cfg fields: 'conicAoE' = T/F to enable conic field of fire for Laser class weapons.
@@ -11,7 +20,7 @@
 	- Missiles:
 		- Fix Nuclear ordnance applying multiple stacks of EMP damage to a single vessel during detonation.
 
-﻿v1.11.0.0
+v1.11.0.0
 IMPROVEMENTS / FIXES
 - General:
 	- Fix the g-limit overrides from needing to save the persistent savegame, which was leaving spawned craft in play when reverting to the SPH.

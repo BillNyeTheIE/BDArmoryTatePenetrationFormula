@@ -981,6 +981,8 @@ namespace BDArmory.Competition
                         yield break;
                     }
             }
+            // Refresh teams (after the above checks) in case fighters have split off from their motherships and we now have more pilots.
+            leaderNames = RefreshPilots(out pilots, out leaders, true);
             if (BDATargetManager.LoadedVessels.Where(v => !VesselModuleRegistry.IgnoredVesselTypes.Contains(v.vesselType)).Any(v => VesselModuleRegistry.GetModuleCount<ModuleRadar>(v) > 0)) // Update RCS if any vessels have radars.
             {
                 try
@@ -1004,7 +1006,7 @@ namespace BDArmory.Competition
                 }
             }
             // Update attack point (necessary for orbit)
-            var allPilots = GetAllPilots().Where(pilot => pilot != null && pilot.vessel != null && gameObject != null).ToList();
+            var allPilots = pilots.Values.SelectMany(p => p).Where(pilot => pilot != null && pilot.vessel != null && gameObject != null).ToList();
             foreach (var pilot in allPilots) center += pilot.vessel.CoM;
             center /= allPilots.Count;
             centerGPS = VectorUtils.WorldPositionToGeoCoords(center, FlightGlobals.currentMainBody);
