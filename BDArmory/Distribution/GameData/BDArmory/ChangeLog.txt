@@ -1,4 +1,8 @@
-﻿v1.11.1.0
+﻿IMPROVEMENTS / FIXES
+- UI:
+	- Adjust the "Steel Equivalent Thickness" display in the armor GUI to show a more intuitive value.
+
+v1.11.1.0
 IMPROVEMENTS / FIXES
 - General:
 	- Fix some compatibility issues with pre-KSP v1.12 versions.
