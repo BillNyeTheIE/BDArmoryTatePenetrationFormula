@@ -126,6 +126,9 @@ namespace BDArmory.Radar
         public float radarMinTrackSCR = 1f;
 
         [KSPField]
+        public bool radarCanNotch = true;
+
+        [KSPField]
         public float radarGroundClutterFactor = 0.25f; //Factor defining how effective the radar is for look-down, compensating for ground clutter (0=ineffective, 1=fully effective)
                                                        //default to 0.25, so all cross sections of landed/splashed/submerged vessels are reduced to 1/4th, as these vessel usually a quite large
         [KSPField]

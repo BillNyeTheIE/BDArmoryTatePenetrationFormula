@@ -654,11 +654,18 @@ namespace BDArmory.Targeting
 
         void UpdateRadarLock()
         {
+            // If CoMLock disable radar lock
+            if (CoMLock && lockedVessel)
+            {
+                radarLock = false;
+                return;
+            }
+
             var weaponManager = WeaponManager;
             if (weaponManager && weaponManager.vesselRadarData && weaponManager.vesselRadarData.locked)
             {
                 RadarDisplayData tgt = weaponManager.vesselRadarData.lockedTargetData;
-                Vector3 radarTargetPos = tgt.targetData.predictedPosition;
+                Vector3 radarTargetPos = tgt.targetData.predictedPositionWithChaffFactor(tgt.detectedByRadar.radarChaffClutterFactor);
                 Vector3 targetDirection = radarTargetPos - cameraParentTransform.position;
 
                 //Quaternion lookRotation = Quaternion.LookRotation(radarTargetPos-cameraParentTransform.position, VectorUtils.GetUpDirection(cameraParentTransform.position));
@@ -1508,15 +1515,20 @@ namespace BDArmory.Targeting
                 yield break;
             }
             var wait = new WaitForFixedUpdate();
-            while (!stopPTPR && VectorUtils.Angle(cameraParentTransform.transform.forward, (tgtVessel != null ? tgtVessel.CoM : position) - (cameraParentTransform.transform.position)) > 0.1f)
+            Vector3 cameraPos;
+            Vector3 cameraForward;
+            while (!stopPTPR && VectorUtils.Angle((cameraForward = cameraParentTransform.transform.forward), (tgtVessel != null ? tgtVessel.CoM : position) - (cameraPos = cameraParentTransform.transform.position)) > 0.1f)
             {
                 if (tgtVessel != null)
                 {
                     position = tgtVessel.CoM + tgtVessel.Velocity() * Time.fixedDeltaTime;
-                    lockedVessel = tgtVessel;
+                    if ((tgtVessel.CoM - cameraPos).sqrMagnitude < maxRayDistance * maxRayDistance)
+                        lockedVessel = tgtVessel;
+                    else
+                        lockedVessel = null;
                 }
                 else lockedVessel = null;
-                Vector3 newForward = Vector3.RotateTowards(cameraParentTransform.transform.forward, position - cameraParentTransform.transform.position, traverseRate * Mathf.Deg2Rad * Time.fixedDeltaTime, 0);
+                Vector3 newForward = Vector3.RotateTowards(cameraForward, position - cameraPos, traverseRate * Mathf.Deg2Rad * Time.fixedDeltaTime, 0);
                 //cameraParentTransform.rotation = Quaternion.LookRotation(newForward, VectorUtils.GetUpDirection(transform.position));
                 PointCameraModel(newForward);
                 yield return wait;

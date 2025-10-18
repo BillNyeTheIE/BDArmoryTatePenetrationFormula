@@ -651,7 +651,7 @@ namespace BDArmory.UI
                         }
                         if (selectedArmor != "Mild Steel" && selectedArmor != "None")
                         {
-                            GUI.Label(new Rect(10, (line + armorLines + StatLines) * lineHeight, 300, lineHeight), $"{StringUtils.Localize("#LOC_BDArmory_EquivalentThickness")}: {relValue * Thickness} mm", style);
+                            GUI.Label(new Rect(10, (line + armorLines + StatLines) * lineHeight, 300, lineHeight), $"{StringUtils.Localize("#LOC_BDArmory_EquivalentThickness")}: {Thickness / relValue:G3} mm", style);
                             line++;
                         }
                     }

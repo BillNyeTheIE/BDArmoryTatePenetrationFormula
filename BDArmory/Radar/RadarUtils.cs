@@ -1487,11 +1487,12 @@ namespace BDArmory.Radar
                 // If radar, then check against water
                 if (BDArmorySettings.RADAR_NOTCHING && !surfaceTarget && radarMinRangeGate != float.MaxValue && radarMinVelocityGate != float.MaxValue)
                 {
+                    // Because radar curves are in km, we have to convert distance to km if it's not a missile
                     if (TerrainCheck(position, targetPosition, FlightGlobals.currentMainBody, (!isMissile ? 1000f * distance : distance) + radarMaxRangeGate, out terrainR, out terrainAngle, true))
                         return false;
                     notchMultiplier = CalculateRadarNotchingModifier(position, targetVessel.CoM, targetVessel.srf_velocity,
                         radarRangeGate, radarVelocityGate, radarMaxVelocityGate, radarMaxRangeGate, radarMinVelocityGate, radarMinRangeGate,
-                        terrainR, !isMissile ? 1000f * distance : distance, (float)targetVessel.radarAltitude, out notchMod);
+                         terrainR, !isMissile ? 1000f * distance : distance, (float)targetVessel.radarAltitude, out notchMod);
                 }
                 else
                 {
@@ -1579,8 +1580,9 @@ namespace BDArmory.Radar
                             signature = (BDArmorySettings.ASPECTED_RCS) ? GetVesselRadarSignatureAtAspect(ti, ray.origin, distance * 1000f) : ti.radarModifiedSignature;
                             signature *= GetRadarGroundClutterModifier(radar.radarGroundClutterFactor, ray.origin, directionToTarget, ti);
                             signature *= GetStandoffJammingModifier(radar.vessel, radar.WeaponManager.Team, ray.origin, loadedvessels.Current, signature);
-                            if (radar.vessel.Splashed && loadedvessels.Current.Splashed) signature *= GetVesselBubbleFactor(ray.origin, loadedvessels.Current);
-                            signature *= notchMultiplier;
+                            if (radar.sonarMode == ModuleRadar.SonarModes.Active && radar.vessel.Splashed && loadedvessels.Current.Splashed) signature *= GetVesselBubbleFactor(ray.origin, loadedvessels.Current);
+                            if (radar.radarCanNotch)
+                                signature *= notchMultiplier;
                         }
                         else
                         {
@@ -1706,26 +1708,22 @@ namespace BDArmory.Radar
                         if (missile.GetWeaponClass() == WeaponClasses.SLW) signature *= GetVesselBubbleFactor(missile.transform.position, loadedvessels.Current);
 
                         float baseSignature = signature;
-                        float SCR = -1f;
-
-                        signature *= notchMultiplier;
+                        // Does notching affect the notch mult?
+                        if (missile.activeRadarCanNotch)
+                            signature *= notchMultiplier;
 
                         // check SCR if we're checking notching, are not a torpedo, the target isn't splashed and the radar is active
                         // technically the notchMultiplier < 1f condition should account for the rest
                         // Note, since SCR behavior is only for locked radars ActiveRadar has to be true, hence why it's evaluated
                         // before notchMultiplier, otherwise we don't account for SCR
-                        if (BDArmorySettings.RADAR_NOTCHING && missile.ActiveRadar && (notchMultiplier < 1f) && missile.GetWeaponClass() != WeaponClasses.SLW && !loadedvessels.Current.Splashed)
-                        {
-                            SCR = GetRadarNotchingSCR(baseSignature, fov, distance * 0.001f, terrainR, terrainAngle);
-                        }
-
+                        bool SCRcheck = BDArmorySettings.RADAR_NOTCHING && missile.activeRadarCanNotch && (notchMultiplier < 1f) && missile.GetWeaponClass() != WeaponClasses.SLW && !loadedvessels.Current.Splashed;
 
                         if (distance < missile.activeRadarRange)
                         {
                             //evaluate if we can detect such a signature at that range
                             float minDetectSig = missile.activeRadarLockTrackCurve.Evaluate(distance * 0.001f);
 
-                            if (signature > minDetectSig || (SCR > missile.activeRadarMinTrackSCR))
+                            if (signature > minDetectSig || (SCRcheck && baseSignature > minDetectSig && GetRadarNotchingSCR(baseSignature, fov, distance * 0.001f, terrainR, terrainAngle) > missile.activeRadarMinTrackSCR))
                             {
                                 // detected by radar
                                 // fill attempted locks array for locking later:
@@ -1824,7 +1822,17 @@ namespace BDArmory.Radar
                     float targetAz = VectorUtils.GetAngleOnPlane(vectorToTarget, forwardVector, rightVector);
                     float targetEl = VectorUtils.GetElevation(vectorToTarget, upVector, distance, 1.0f);
 
-                    if (Mathf.Abs(targetAz - directionAngle) < azFov && Mathf.Abs(targetEl - elevationAngle) < elFov)
+                    // Correct for omnidirectional radars
+                    if (directionAngle > 180f)
+                        directionAngle -= 360f;
+
+                    // Since azimuth can go all the way around, if we get a
+                    // reflex angle, get the conjugate.
+                    float azDiff = Mathf.Abs(targetAz - directionAngle);
+                    if (azDiff > 180f)
+                        azDiff = 360f - azDiff;
+
+                    if (azDiff < azFov && Mathf.Abs(targetEl - elevationAngle) < elFov)
                     {
                         float terrainR = 0f, terrainAngle = 0f;
                         float notchMultiplier = 1f;
@@ -1849,8 +1857,10 @@ namespace BDArmory.Radar
                         {
                             signature = BDArmorySettings.ASPECTED_RCS ? GetVesselRadarSignatureAtAspect(ti, position, distance * 1000f) : ti.radarModifiedSignature;
                             signature *= GetRadarGroundClutterModifier(radar.radarGroundClutterFactor, position, directionToTarget, ti);
-                            if (radar.vessel.Splashed && loadedvessels.Current.Splashed) signature *= GetVesselBubbleFactor(position, loadedvessels.Current);
-                            signature *= notchMultiplier;
+                            if (radar.sonarMode == ModuleRadar.SonarModes.Active && radar.vessel.Splashed && loadedvessels.Current.Splashed) signature *= GetVesselBubbleFactor(position, loadedvessels.Current);
+
+                            if (radar.radarCanNotch)
+                                signature *= notchMultiplier;
                         }
                         else //passive sonar
                             signature = BDATargetManager.GetVesselAcousticSignature(loadedvessels.Current, position).Item1 - selfNoise;
@@ -2025,11 +2035,13 @@ namespace BDArmory.Radar
                 signature *= GetRadarGroundClutterModifier(radar.radarGroundClutterFactor, ray.origin, directionToTarget, ti);
                 signature *= ti.radarLockbreakFactor;    //multiply lockbreak factor from active ecm
                 if (radar.WeaponManager is not null) signature *= GetStandoffJammingModifier(radar.vessel, radar.WeaponManager.Team, ray.origin, lockedVessel, signature);
-                if (radar.vessel.Splashed && lockedVessel.Splashed) signature *= GetVesselBubbleFactor(radar.transform.position, lockedVessel);
+                if (radar.sonarMode == ModuleRadar.SonarModes.Active && radar.vessel.Splashed && lockedVessel.Splashed) signature *= GetVesselBubbleFactor(radar.transform.position, lockedVessel);
                 //do not multiply chaff factor here
 
                 float baseSignature = signature; // Kept for notching
-                signature *= notchMultiplier;
+                
+                if (radar.radarCanNotch)
+                    signature *= notchMultiplier;
 
                 if (distance > radar.radarMinDistanceLockTrack && distance < radar.radarMaxDistanceLockTrack)
                 {
@@ -2045,9 +2057,9 @@ namespace BDArmory.Radar
                     {
                         // cannot track, so unlock it, unless above SCR, note we only check SCR if we're checking for notching
                         // and the notchMultiplier < 1f, the rest of the conditions are a failsafe
-                        if (BDArmorySettings.RADAR_NOTCHING && (notchMultiplier < 1f) && radar.sonarMode == ModuleRadar.SonarModes.None && !(BDArmorySettings.RADAR_ALLOW_SURFACE_WARFARE && (lockedVessel.Landed || lockedVessel.Splashed) && (radar.vessel.Landed || radar.vessel.Splashed)) && radar.radarMinRangeGate != float.MaxValue && radar.radarMinVelocityGate != float.MaxValue)
+                        if (BDArmorySettings.RADAR_NOTCHING && radar.radarCanNotch && (notchMultiplier < 1f) && radar.sonarMode == ModuleRadar.SonarModes.None && !(BDArmorySettings.RADAR_ALLOW_SURFACE_WARFARE && (lockedVessel.Landed || lockedVessel.Splashed) && (radar.vessel.Landed || radar.vessel.Splashed)) && radar.radarMinRangeGate != float.MaxValue && radar.radarMinVelocityGate != float.MaxValue)
                         {
-                            if (GetRadarNotchingSCR(baseSignature, fov, distance, terrainR, terrainAngle) < radar.radarMinTrackSCR)
+                            if (baseSignature < minTrackSig || !RadarCanDetect(radar, baseSignature, distance) || (GetRadarNotchingSCR(baseSignature, fov, distance, terrainR, terrainAngle) < radar.radarMinTrackSCR))
                                 return false;
 
                             radar.ReceiveContactData(new TargetSignatureData(lockedVessel, signature, null, notchMod), locked);

@@ -1,13 +1,6 @@
 ﻿IMPROVEMENTS / FIXES
-- General:
-	- Fix some compatibility issues with pre-KSP v1.12 versions.
 - UI:
-	- Make the AI GUI auto-resizing by default. Left clicking the resize handle switches to manual resizing, right clicking it switches to auto-resizing.
-- Competition:
-	- Fixes to include any newly detached fighters during competition start-up.
-	- Fix vessel name deconfliction for teams tournaments that use the "Re-use Craft To Fill Teams" option.
-		- Note: If this option is being used and two craft with the same name are used in multiple teams then the scoring will be messed up.
-	- If not storing Team Icon colours, reset the colours at the start of a tournament / continuous spawn.
+	- Adjust the "Steel Equivalent Thickness" display in the armor GUI to show a more intuitive value.
 - Weapons:
 	- Add conical beam weapon implementation for creating microwave drone zappers, War of the Worlds heatrays, tractor beams, etc.
 		- Adds new weapon.cfg fields: 'conicAoE' = T/F to enable conic field of fire for Laser class weapons.
@@ -19,6 +12,42 @@
 		EMP buildup now causes increasing penalties/subsystem shutdowns as it accrues in a vessel receiving EMP damage.
 	- Missiles:
 		- Fix Nuclear ordnance applying multiple stacks of EMP damage to a single vessel during detonation.
+
+v1.11.1.0
+IMPROVEMENTS / FIXES
+- General:
+	- Fix some compatibility issues with pre-KSP v1.12 versions.
+- UI:
+	- Make the AI GUI auto-resizing by default. Left clicking the resize handle switches to manual resizing, right clicking it switches to auto-resizing.
+- AI / WM:
+	- Improved point-defense logic to better account for IR missiles, AI should no longer get stuck trying to fire an IR missile when it can't attain a lock.
+	- Add action group triggers for enabling/disabling guard mode on WMs instead of just toggling it.
+	- Add 'Full 3-Axis PID' as an option in the pilot AI for using separate PID values for each axis (without dynamic damping).
+- Sensors:
+	- Fixed omnidirectional radars failing to detect targets west of them.
+	- Fix IRST display issues for IRST parts with an irstTransform.
+	- Fix issues with notch calculations.
+	- Add "radarCanNotch" field to radars to allow for notch calculations to affect chaff effectiveness without affecting track/lock.
+	- Fix bubble decoys being able to affect radars in rare cases.
+	- Radar code optimizations.
+	- Targeting camera radar slaving now affected by chaff.
+- Weapons:
+	- Adjust weapon selection logic to account for craft spawned from the SPH not having their Landed state set.
+	- Missiles:
+		- Add "activeRadarCanNotch" field to missiles as a counterpart to "radarCanNotch".
+		- Missile RCS now correctly works until the end of the cruise stage even with cruiseRangeTrigger > 0.
+		- Added 4th value to maxTorque to allow for specifying a "coast" maxTorque for use when the missile is coasting between the boost and cruise stages (due to cruiseDelay or cruiseRangeTrigger).
+		- Allow for laser/targeting camera targeted CLOS missiles to use radar velocity data when radar slaved but not CoM locked.
+		- Fix 0 values for advanced (multiple value) maxTorque, liftArea, dragArea, maxTorqueAero and steerMult usage not being respected.
+		- Fix 0 values for terminalSeekerTimeout not being respected.
+		- Fix missing Cruise Popup menu for MMLs.
+- Competition:
+	- Fixes to include any newly detached fighters during competition start-up.
+	- Fix vessel name deconfliction for teams tournaments that use the "Re-use Craft To Fill Teams" option.
+		- Note: If this option is being used and two craft with the same name are used in multiple teams then the scoring will be messed up.
+	- If not storing Team Icon colours, reset the colours at the start of a tournament / continuous spawn.
+- Scripts:
+	- Fix default GLOBAL_LIFT_MULTIPLIER in BDArmoryMissileManeuverEnvelopePlotter.py.
 
 v1.11.0.0
 IMPROVEMENTS / FIXES
