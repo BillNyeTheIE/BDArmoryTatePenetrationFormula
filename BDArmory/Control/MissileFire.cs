@@ -9224,6 +9224,7 @@ namespace BDArmory.Control
 
         public bool GetNextPDMslTgt(int currIndex, int tgtCount)
         {
+            if (currIndex >= tgtCount) currIndex = 0;
             while (GetMissilesAway(PDMslTgts[currIndex])[0] >= maxMissilesOnTarget)
             {
                 currIndex++;
