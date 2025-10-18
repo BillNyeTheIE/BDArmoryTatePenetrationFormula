@@ -1206,7 +1206,7 @@ namespace BDArmory.Weapons.Missiles
                         if (CheckTargetEngagementEnvelope(scannedTargets[i].targetInfo))
                         {
                             if (hasIFF && Team.IsFriendly(scannedTargets[i].targetInfo.Team)) continue;//Don't lock friendlies
-                            
+
                             if (!useSoughtTarget)
                             {
                                 (tempDist, Vector3 currDir) = (scannedTargets[i].predictedPosition - soughtTarget).MagNorm();
@@ -1992,14 +1992,5 @@ namespace BDArmory.Weapons.Missiles
             }
             this.part.RefreshAssociatedWindows();
         }
-    }
-
-    internal class RaycastHitComparer : IComparer<RaycastHit>
-    {
-        int IComparer<RaycastHit>.Compare(RaycastHit left, RaycastHit right)
-        {
-            return left.distance.CompareTo(right.distance);
-        }
-        public static RaycastHitComparer raycastHitComparer = new RaycastHitComparer();
     }
 }

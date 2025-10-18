@@ -7266,12 +7266,4 @@ namespace BDArmory.Weapons
         }
     }
     #endregion UI //borrowing code from ModularMissile GUI
-    internal class RaycastHitComparer : IComparer<RaycastHit>
-    {
-        int IComparer<RaycastHit>.Compare(RaycastHit left, RaycastHit right)
-        {
-            return left.distance.CompareTo(right.distance);
-        }
-        public static RaycastHitComparer raycastHitComparer = new RaycastHitComparer();
-    }
 }
