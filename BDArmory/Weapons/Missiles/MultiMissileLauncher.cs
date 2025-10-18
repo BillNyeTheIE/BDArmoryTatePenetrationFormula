@@ -983,6 +983,11 @@ namespace BDArmory.Weapons.Missiles
                 }
 
                 //ml.decoupleSpeed = 5;
+
+                ml.decoupleForward = missileLauncher.decoupleForward;
+                ml.dropTime = missileLauncher.dropTime;
+                ml.decoupleSpeed = missileLauncher.decoupleSpeed;
+
                 if (missileLauncher.GuidanceMode == GuidanceModes.AGM)
                     ml.maxAltitude = missileLauncher.maxAltitude;
                 ml.terminalGuidanceShouldActivate = missileLauncher.terminalGuidanceShouldActivate;
