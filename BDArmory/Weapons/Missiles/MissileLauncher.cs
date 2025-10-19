@@ -3199,15 +3199,15 @@ namespace BDArmory.Weapons.Missiles
                         target = MissileGuidance.GetThreePointTarget(sensorPos, sensorVel, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
                         break;
                     case GuidanceModes.CLOSLead:
-                        target = MissileGuidance.GetCLOSLeadTarget(sensorPos, sensorVel, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, beamLeadFactor, out currgLimit);
+                        target = MissileGuidance.GetCLOSLeadTarget(sensorPos, sensorVel, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, beamLeadFactor, out currgLimit, this);
                         break;
 
                     default:
                         target = MissileGuidance.GetCLOSTarget(sensorPos, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
                         break;
                 }
-
-                DrawDebugLine(sensorPos, targetPos);
+                
+                if (!(GuidanceMode == GuidanceModes.CLOSLead)) DrawDebugLine(sensorPos, targetPos);
             }
             else
             {
