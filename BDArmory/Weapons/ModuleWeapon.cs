@@ -1885,7 +1885,8 @@ namespace BDArmory.Weapons
             {
                 for (int c = 0; c < beamCone.Length; c++)
                 {
-                    beamCone[c].SetActive(false);                    
+                    if (beamCone[c] != null)
+                        beamCone[c].SetActive(false);                    
                 }
             }
             BDArmorySetup.OnVolumeChange -= UpdateVolume;
@@ -3180,8 +3181,6 @@ namespace BDArmory.Weapons
                         r_cone[i].material.mainTexture = GameDatabase.Instance.GetTexture("BDArmory/Models/laser/laserTex", false);
                     }
                 }
-                var Tan = Mathf.Tan(beamFOV / 2);
-                var aTan = Mathf.Atan(beamFOV / 2);
             }
             else
             {
