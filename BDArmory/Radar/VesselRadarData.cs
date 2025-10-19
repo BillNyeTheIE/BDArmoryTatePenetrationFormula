@@ -215,9 +215,8 @@ namespace BDArmory.Radar
             }
         }
 
-        public TargetSignatureData detectedRadarTarget(Vessel desiredTarget, MissileFire mf) //passive sonar torpedoes, but could also be useful for LOAL missiles fired at detected but not locked targets, etc.
+        public int detectedRadarTargetIndex(Vessel desiredTarget, MissileFire mf) //passive sonar torpedoes, but could also be useful for LOAL missiles fired at detected but not locked targets, etc.
         {
-            TargetSignatureData data;
             float targetMagnitude = 0;
             int brightestTarget = 0;
             for (int i = 0; i < displayedTargets.Count; i++)
@@ -225,11 +224,7 @@ namespace BDArmory.Radar
                 if (desiredTarget != null)
                 {
                     if (displayedTargets[i].vessel == desiredTarget)
-                    {
-                        data = displayedTargets[i].targetData;
-                        data.lockedByRadar = displayedTargets[i].detectedByRadar;
-                        return data;
-                    }
+                        return i;
                 }
                 else
                 {
@@ -243,16 +238,40 @@ namespace BDArmory.Radar
                 }
             }
             if (targetMagnitude > 0)
+                return brightestTarget;
+            else
+                return -1;
+        }
+
+        public TargetSignatureData detectedRadarTarget(Vessel desiredTarget, MissileFire mf) //passive sonar torpedoes, but could also be useful for LOAL missiles fired at detected but not locked targets, etc.
+        {
+            int temp = detectedRadarTargetIndex(desiredTarget, mf);
+            if (temp >= 0)
+                return displayedTargets[temp].targetData;
+            else
+                return TargetSignatureData.noTarget;
+        }
+
+        public (TargetSignatureData, bool) detectedRadarTargetLock(Vessel desiredTarget, MissileFire mf) //passive sonar torpedoes, but could also be useful for LOAL missiles fired at detected but not locked targets, etc.
+        {
+            int temp = detectedRadarTargetIndex(desiredTarget, mf);
+            if (temp >= 0)
+                return (displayedTargets[temp].targetData, displayedTargets[temp].locked);
+            else
+                return (TargetSignatureData.noTarget, false);
+        }
+
+        public TargetSignatureData detectedRadarTargetGetRadar(Vessel desiredTarget, MissileFire mf) //passive sonar torpedoes, but could also be useful for LOAL missiles fired at detected but not locked targets, etc.
+        {
+            int temp = detectedRadarTargetIndex(desiredTarget, mf);
+            if (temp >= 0)
             {
-                data = displayedTargets[brightestTarget].targetData;
-                data.lockedByRadar = displayedTargets[brightestTarget].detectedByRadar;
-                return data;
+                TargetSignatureData tempData = displayedTargets[temp].targetData;
+                tempData.lockedByRadar = displayedTargets[temp].detectedByRadar;
+                return tempData;
             }
             else
-            {
-                data = TargetSignatureData.noTarget;
-                return data;
-            }
+                return TargetSignatureData.noTarget;
         }
 
         public TargetSignatureData detectedRadarTarget() //passive sonar torpedoes, but could also be useful for LOAL missiles fired at detected but not locked targets ,etc.

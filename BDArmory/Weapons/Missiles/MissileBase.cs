@@ -1437,20 +1437,10 @@ namespace BDArmory.Weapons.Missiles
                     bool radarLocked = false;
                     if (FiredByWM != null && FiredByWM.vesselRadarData)
                     {
-                        INStarget = FiredByWM._radarsEnabled || weaponClass == WeaponClasses.SLW && FiredByWM._sonarsEnabled ? FiredByWM.vesselRadarData.detectedRadarTarget(targetVessel.Vessel, FiredByWM) : TargetSignatureData.noTarget; //is the target tracked by radar or ISRT?
+                        if (FiredByWM._radarsEnabled || weaponClass == WeaponClasses.SLW && FiredByWM._sonarsEnabled)
+                            (INStarget, radarLocked) = FiredByWM.vesselRadarData.detectedRadarTargetLock(targetVessel.Vessel, FiredByWM); //is the target tracked by radar or ISRT?
                         if (INStarget.exists)
-                        {
                             detectedByRadar = true;
-                            List<TargetSignatureData> possibleTargets = FiredByWM.vesselRadarData.GetLockedTargets();
-                            for (int i = 0; i < possibleTargets.Count; i++)
-                            {
-                                if (possibleTargets[i].vessel == targetVessel.Vessel)
-                                {
-                                    radarLocked = true;
-                                    break;
-                                }
-                            }
-                        }
                         else
                             if (FiredByWM._irstsEnabled) INStarget = FiredByWM.vesselRadarData.activeIRTarget(targetVessel.Vessel, FiredByWM);
                     }

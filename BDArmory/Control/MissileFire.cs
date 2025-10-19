@@ -3143,6 +3143,9 @@ namespace BDArmory.Control
                                     //yield return new WaitForSecondsFixed(2f);
                                     if (vessel == null || targetVessel == null) break;
                                 }
+
+                                bool locked = false;
+
                                 if (ml.GetWeaponClass() == WeaponClasses.SLW)
                                 {
                                     if (_sonarsEnabled)
@@ -3151,30 +3154,39 @@ namespace BDArmory.Control
                                 else
                                 {
                                     if (_radarsEnabled)
-                                        INSTarget = vesselRadarData.detectedRadarTarget(targetVessel, this); //detected by radar scan?
+                                        (INSTarget, locked) = vesselRadarData.detectedRadarTargetLock(targetVessel, this); //detected by radar scan?
                                     if (!INSTarget.exists && _irstsEnabled)
                                         INSTarget = vesselRadarData.activeIRTarget(null, this); //how about IRST?
                                 }
 
                                 float attemptStartTime = Time.time;
-                                float attemptLockTime = Time.time;
-                                while (ml && vesselRadarData && (!vesselRadarData.locked || (vesselRadarData.lockedTargetData.vessel != targetVessel)) && Time.time - attemptLockTime < 2f)
+                                if (!locked)
                                 {
-                                    if (vesselRadarData.locked) //we got radar, can we get a lock for better datalink update rate?
+                                    float attemptLockTime = Time.time;
+                                    while (ml && vesselRadarData && (!vesselRadarData.locked || (vesselRadarData.lockedTargetData.vessel != targetVessel)) && Time.time - attemptLockTime < 2f)
                                     {
-                                        if (GuardCheckLock(targetVessel))
+                                        if (!vesselRadarData.locked) //we got radar, can we get a lock for better datalink update rate?
                                         {
-                                            vesselRadarData.SwitchActiveLockedTarget(targetVessel);
-                                            yield return wait;
+                                            if (GuardCheckLock(targetVessel))
+                                            {
+                                                vesselRadarData.SwitchActiveLockedTarget(targetVessel);
+                                                yield return wait;
+                                            }
+                                            else
+                                                vesselRadarData.TryLockTarget(targetVessel);
                                         }
                                         else
                                             vesselRadarData.TryLockTarget(targetVessel);
-                                    }
-                                    else
-                                        vesselRadarData.TryLockTarget(targetVessel);
 
-                                    yield return new WaitForSecondsFixed(tryLockTime);
+                                        yield return new WaitForSecondsFixed(tryLockTime);
+                                    }
                                 }
+                                else
+                                {
+                                    vesselRadarData.SwitchActiveLockedTarget(targetVessel);
+                                    yield return wait;
+                                }
+
                                 if (vessel && INSTarget.exists && INSTarget.vessel == targetVessel)
                                 {
                                     //targetData.targetGEOPos = VectorUtils.WorldPositionToGeoCoords(MissileGuidance.GetAirToAirFireSolution(ml, targetVessel, out float INStimetogo), targetVessel.mainBody);
@@ -6257,7 +6269,7 @@ namespace BDArmory.Control
                                             {
                                                 candidateTDPS *= 0.001f; //no radar/IRST, skip to something else unless nothing else available
                                             }
-                                            else if (!vesselRadarData.detectedRadarTarget(targetVessel, this).exists || !vesselRadarData.activeIRTarget(targetVessel, this).exists)
+                                            else if ((vesselRadarData.detectedRadarTargetIndex(targetVessel, this) < 0) || !vesselRadarData.activeIRTarget(targetVessel, this).exists)
                                             {
                                                 candidateTDPS *= 0.001f;
                                             }
