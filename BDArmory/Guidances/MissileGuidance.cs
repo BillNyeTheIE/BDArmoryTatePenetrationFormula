@@ -1781,7 +1781,7 @@ namespace BDArmory.Guidances
 
             // Divide out the dynamic pressure and CoLDist components of torque
             maxTorque /= q * CoLDist;
-            maxTorque *= 0.8f; // Let's only go up to 80% of maxTorque to leave some leeway
+            maxTorque *= 0.9f; // Let's only go up to 90% of maxTorque to leave some leeway
 
             int LHS = 0;
             int RHS = 7;

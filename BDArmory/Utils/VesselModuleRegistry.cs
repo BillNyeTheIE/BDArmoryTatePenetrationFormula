@@ -1170,7 +1170,7 @@ namespace BDArmory.Utils
                         }
                         else AI.DeactivatePilot();
                     }
-                    if (BDACompetitionMode.Instance.competitionIsActive)
+                    if (BDACompetitionMode.Instance.competitionIsActive || BDACompetitionMode.Instance.competitionStarting)
                         BDACompetitionMode.Instance.AddToCompetitionWhenReady(WM, false); // We've already set the AI/WM state, so don't go weapons-free when adding them to the competition.
                     IsFighter = true; // Detached craft are "fighters".
                     WM.CheckMissiles();

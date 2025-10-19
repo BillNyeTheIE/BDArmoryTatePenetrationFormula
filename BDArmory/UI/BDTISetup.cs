@@ -259,7 +259,7 @@ namespace BDArmory.UI
                     }
                 }
         }
-        private void ResetColors()
+        public void ResetColors()
         {
             ColorAssignments.Clear();
             UpdateList();

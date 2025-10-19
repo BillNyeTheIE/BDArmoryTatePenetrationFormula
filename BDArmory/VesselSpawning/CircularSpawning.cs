@@ -246,7 +246,7 @@ namespace BDArmory.VesselSpawning
                             pitch: spawnPitch,
                             airborne: true,
                             inOrbit: false,
-                            reuseURLVesselName: BDATournament.Instance.tournamentStatus == TournamentStatus.Running || TournamentCoordinator.Instance.IsRunning
+                            reuseURLVesselName: (BDATournament.Instance.tournamentStatus == TournamentStatus.Running && !BDATournament.Instance.fullTeams) || TournamentCoordinator.Instance.IsRunning
                         ));
                     else
                         vesselSpawnConfigs.Add(new VesselSpawnConfig(
@@ -257,7 +257,7 @@ namespace BDArmory.VesselSpawning
                             spawnPitch,
                             spawnAirborne,
                             spawnInOrbit,
-                            reuseURLVesselName: BDATournament.Instance.tournamentStatus == TournamentStatus.Running || TournamentCoordinator.Instance.IsRunning
+                            reuseURLVesselName: (BDATournament.Instance.tournamentStatus == TournamentStatus.Running && !BDATournament.Instance.fullTeams) || TournamentCoordinator.Instance.IsRunning
                         ));
                 }
             }
@@ -293,7 +293,7 @@ namespace BDArmory.VesselSpawning
                             spawnPitch,
                             spawnAirborne,
                             spawnInOrbit,
-                            reuseURLVesselName: BDATournament.Instance.tournamentStatus == TournamentStatus.Running || TournamentCoordinator.Instance.IsRunning
+                            reuseURLVesselName: (BDATournament.Instance.tournamentStatus == TournamentStatus.Running && !BDATournament.Instance.fullTeams) || TournamentCoordinator.Instance.IsRunning
                         ));
                         ++spawnedVesselCount;
                     }

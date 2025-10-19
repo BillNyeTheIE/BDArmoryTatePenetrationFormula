@@ -546,6 +546,34 @@ namespace BDArmory.Utils
         }
 
         /// <summary>
+        /// Get normalized difference between two vectors with given distance, useful for direction vectors.
+        /// </summary>
+        /// <param name="v1">First vector.</param>
+        /// <param name="v2">Second vector.</param>
+        /// <param name="dist">Distance.</param>
+        /// <returns>(v1 - v2).normalized.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 NormalizedDiff(Vector3 v1, Vector3 v2, float dist)
+        {
+            float x = v1.x - v2.x, y = v1.y - v2.y, z = v1.z - v2.z;
+            float normalizationFactor = 1f / dist;
+            return new Vector3(x * normalizationFactor, y * normalizationFactor, z * normalizationFactor);
+        }
+
+        /// <summary>
+        /// Get square distance between two vectors, in cases where the vector difference isn't needed.
+        /// </summary>
+        /// <param name="v1">First vector.</param>
+        /// <param name="v2">Second vector.</param>
+        /// <returns>(v1 - v2).sqrMagnitude.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float SqrDist(Vector3 v1, Vector3 v2)
+        {
+            float x = v1.x - v2.x, y = v1.y - v2.y, z = v1.z - v2.z;
+            return x * x + y * y + z * z;
+        }
+
+        /// <summary>
         /// Rotates a Vector2 in 2D about (0,0).
         /// </summary>
         /// <param name="v">Vector.</param>

@@ -624,6 +624,7 @@ namespace BDArmory.Weapons.Missiles
             //missileLauncher.LoftAltComp = LoftAltComp;
             missileLauncher.terminalHomingRange = MLConfig.terminalHomingRange;
             missileLauncher.maxCruiseSpeed = MLConfig.CruiseSpeed;
+            missileLauncher.CruisePopup = MLConfig.CruisePopup;
             if (!overrideReferenceTransform) missileLauncher.maxOffBoresight = MLConfig.maxOffBoresight; //don't overwrite e.g. VLS launcher boresights so they can launch, but still have normal boresight on fired missiles
 
             if (configurableSettings)
@@ -896,6 +897,7 @@ namespace BDArmory.Weapons.Missiles
                     ml.CruiseAltitude = missileLauncher.CruiseAltitude;
                     ml.CruiseSpeed = missileLauncher.CruiseSpeed;
                     ml.CruisePredictionTime = missileLauncher.CruisePredictionTime;
+                    ml.CruisePopup = missileLauncher.CruisePopup;
                 }
 
                 if (BDArmorySettings.DEBUG_MISSILES)

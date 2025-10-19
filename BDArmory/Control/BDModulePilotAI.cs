@@ -43,6 +43,11 @@ namespace BDArmory.Control
         public float steerDamping = 5f;
 
         #region Toggles for 3-axis and dynamic damping (before the sliders to keep them together)
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_3AxisPID", advancedTweakable = true, // 3-axis PID toggle
+            groupName = "pilotAI_PID", groupDisplayName = "#LOC_BDArmory_AI_PID", groupStartCollapsed = true),
+            UI_Toggle(scene = UI_Scene.All, disabledText = "#LOC_BDArmory_Disabled", enabledText = "#LOC_BDArmory_Enabled")]
+        public bool threeAxisPID = false;
+
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_3AxisSteerDamping", advancedTweakable = true, // 3-axis damping toggle
             groupName = "pilotAI_PID", groupDisplayName = "#LOC_BDArmory_AI_PID", groupStartCollapsed = true),
             UI_Toggle(scene = UI_Scene.All, disabledText = "#LOC_BDArmory_Disabled", enabledText = "#LOC_BDArmory_Enabled")]
@@ -171,6 +176,53 @@ namespace BDArmory.Control
         public float dynamicSteerDampingRollFactor = 8f;
         #endregion
 
+        #region 3-axis PID
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_3AxisPIDPitchMult",
+            groupName = "pilotAI_PID", groupDisplayName = "#LOC_BDArmory_AI_PID", groupStartCollapsed = true),
+            UI_FloatRange(minValue = 0.1f, maxValue = 20f, stepIncrement = 0.1f, scene = UI_Scene.All)]
+        public float threeAxisPIDPitchMult = 14f;
+
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_3AxisPIDPitchKi",
+            groupName = "pilotAI_PID", groupDisplayName = "#LOC_BDArmory_AI_PID", groupStartCollapsed = true),
+            UI_FloatRange(minValue = 0.01f, maxValue = 1f, stepIncrement = 0.01f, scene = UI_Scene.All)]
+        public float threeAxisPIDPitchKi = 0.4f;
+
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_3AxisPIDPitchDamping",
+            groupName = "pilotAI_PID", groupDisplayName = "#LOC_BDArmory_AI_PID", groupStartCollapsed = true),
+            UI_FloatRange(minValue = 0.1f, maxValue = 8f, stepIncrement = 0.1f, scene = UI_Scene.All)]
+        public float threeAxisPIDPitchDamping = 5f;
+
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_3AxisPIDYawMult",
+            groupName = "pilotAI_PID", groupDisplayName = "#LOC_BDArmory_AI_PID", groupStartCollapsed = true),
+            UI_FloatRange(minValue = 0.1f, maxValue = 20f, stepIncrement = 0.1f, scene = UI_Scene.All)]
+        public float threeAxisPIDYawMult = 14f;
+
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_3AxisPIDYawKi",
+            groupName = "pilotAI_PID", groupDisplayName = "#LOC_BDArmory_AI_PID", groupStartCollapsed = true),
+            UI_FloatRange(minValue = 0.01f, maxValue = 1f, stepIncrement = 0.01f, scene = UI_Scene.All)]
+        public float threeAxisPIDYawKi = 0.4f;
+
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_3AxisPIDYawDamping",
+            groupName = "pilotAI_PID", groupDisplayName = "#LOC_BDArmory_AI_PID", groupStartCollapsed = true),
+            UI_FloatRange(minValue = 0.1f, maxValue = 8f, stepIncrement = 0.1f, scene = UI_Scene.All)]
+        public float threeAxisPIDYawDamping = 5f;
+
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_3AxisPIDRollMult",
+            groupName = "pilotAI_PID", groupDisplayName = "#LOC_BDArmory_AI_PID", groupStartCollapsed = true),
+            UI_FloatRange(minValue = 0.1f, maxValue = 20f, stepIncrement = 0.1f, scene = UI_Scene.All)]
+        public float threeAxisPIDRollMult = 14f;
+
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_3AxisPIDRollKi",
+            groupName = "pilotAI_PID", groupDisplayName = "#LOC_BDArmory_AI_PID", groupStartCollapsed = true),
+            UI_FloatRange(minValue = 0.01f, maxValue = 1f, stepIncrement = 0.01f, scene = UI_Scene.All)]
+        public float threeAxisPIDRollKi = 0.4f;
+
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_3AxisPIDRollDamping",
+            groupName = "pilotAI_PID", groupDisplayName = "#LOC_BDArmory_AI_PID", groupStartCollapsed = true),
+            UI_FloatRange(minValue = 0.1f, maxValue = 8f, stepIncrement = 0.1f, scene = UI_Scene.All)]
+        public float threeAxisPIDRollDamping = 5f;
+        #endregion
+
         #region AutoTuning
         //Toggle AutoTuning
         [KSPField(isPersistant = false, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_PID_AutoTune", advancedTweakable = true,
@@ -250,6 +302,15 @@ namespace BDArmory.Control
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] public bool autoTuningOptionFixedDROff = false;
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] public bool autoTuningOptionFixedDROn = false;
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] public bool autoTuningOptionFixedDRF = false;
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] public bool autoTuningOptionFixedPp = false;
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] public bool autoTuningOptionFixedIp = false;
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] public bool autoTuningOptionFixedDp = false;
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] public bool autoTuningOptionFixedPy = false;
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] public bool autoTuningOptionFixedIy = false;
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] public bool autoTuningOptionFixedDy = false;
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] public bool autoTuningOptionFixedPr = false;
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] public bool autoTuningOptionFixedIr = false;
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] public bool autoTuningOptionFixedDr = false;
 
         //Clamp Maximums
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_AI_PID_AutoTuning_ClampMaximums", advancedTweakable = true,
@@ -652,6 +713,15 @@ namespace BDArmory.Control
             { nameof(DynamicDampingRollMin), 100f },
             { nameof(DynamicDampingRollMax), 100f },
             { nameof(dynamicSteerDampingRollFactor), 100f },
+            { nameof(threeAxisPIDPitchMult), 200f },
+            { nameof(threeAxisPIDPitchKi), 20f },
+            { nameof(threeAxisPIDPitchDamping), 100f },
+            { nameof(threeAxisPIDYawMult), 200f },
+            { nameof(threeAxisPIDYawKi), 20f },
+            { nameof(threeAxisPIDYawDamping), 100f },
+            { nameof(threeAxisPIDRollMult), 200f },
+            { nameof(threeAxisPIDRollKi), 20f },
+            { nameof(threeAxisPIDRollDamping), 100f },
             { nameof(autoTuningAltitude), 100000f },
             { nameof(autoTuningSpeed), 3000f }
         };
@@ -1434,31 +1504,32 @@ namespace BDArmory.Control
         }
         void SetOnDampingTogglesChanged()
         {
-            foreach (var fieldName in new List<string> { "dynamicSteerDamping", "threeAxisSteerDamping", "dynamicDampingPitch", "dynamicDampingRoll", "dynamicDampingYaw" })
+            foreach (var fieldName in new List<string> { "dynamicSteerDamping", "threeAxisSteerDamping", "dynamicDampingPitch", "dynamicDampingRoll", "dynamicDampingYaw", "threeAxisPID" })
             {
                 var field = (UI_Toggle)(HighLogic.LoadedSceneIsFlight ? Fields[fieldName].uiControlFlight : Fields[fieldName].uiControlEditor);
-                field.onFieldChanged = OnDampingTogglesChanged;
+                field.onFieldChanged = OnPIDTogglesChanged;
             }
-            OnDampingTogglesChanged();
+            OnPIDTogglesChanged();
         }
-        public void OnDampingTogglesChanged(BaseField field = null, object obj = null)
+        public void OnPIDTogglesChanged(BaseField field = null, object obj = null)
         {
-            ToggleDynamicDampingFields(); // Reconfigure the dynamic damping fields in the PAW.
+            ToggleDynamicPIDFields(); // Reconfigure the dynamic PID fields in the PAW.
         }
-        public void ToggleDynamicDampingFields()
+        public void ToggleDynamicPIDFields()
         {
             if (HighLogic.LoadedSceneIsFlight && AutoTune) pidAutoTuning.RevertPIDValues(); // Revert to the PID values to best/base values.
+
             // Static damping
             {
                 var field = Fields["steerDamping"];
-                field.guiActive = field.guiActiveEditor = !dynamicSteerDamping && !threeAxisSteerDamping;
+                field.guiActive = field.guiActiveEditor = !dynamicSteerDamping && !threeAxisSteerDamping && !threeAxisPID;
             }
 
             // 3-axis static damping
             foreach (var fieldName in new List<string> { "steerDampingPitch", "steerDampingYaw", "steerDampingRoll" })
             {
                 var field = Fields[fieldName];
-                field.guiActive = field.guiActiveEditor = threeAxisSteerDamping && (
+                field.guiActive = field.guiActiveEditor = !threeAxisPID && threeAxisSteerDamping && (
                     !dynamicSteerDamping || // 3-axis static damping
                     dynamicSteerDamping && ( // 3-axis mixed damping
                         !dynamicDampingPitch && fieldName == "steerDampingPitch"
@@ -1472,19 +1543,34 @@ namespace BDArmory.Control
             foreach (var fieldName in new List<string> { "DynamicDampingLabel", "DynamicDampingMin", "DynamicDampingMax", "dynamicSteerDampingFactor" })
             {
                 var field = Fields[fieldName];
-                field.guiActive = field.guiActiveEditor = dynamicSteerDamping && !threeAxisSteerDamping;
+                field.guiActive = field.guiActiveEditor = dynamicSteerDamping && !threeAxisSteerDamping && !threeAxisPID;
             }
 
             // 3-axis dynamic damping
             foreach (var axis in new List<string> { "Pitch", "Yaw", "Roll" })
             {
                 var axisField = Fields[$"dynamicDamping{axis}"];
-                axisField.guiActive = axisField.guiActiveEditor = dynamicSteerDamping && threeAxisSteerDamping;
+                axisField.guiActive = axisField.guiActiveEditor = dynamicSteerDamping && threeAxisSteerDamping && !threeAxisPID;
                 var enabled = (bool)axisField.GetValue(this);
                 foreach (var fieldName in new List<string> { $"{axis}Label", $"DynamicDamping{axis}Max", $"DynamicDamping{axis}Min", $"dynamicSteerDamping{axis}Factor" })
                 {
                     var field = Fields[fieldName];
-                    field.guiActive = field.guiActiveEditor = dynamicSteerDamping && threeAxisSteerDamping && enabled;
+                    field.guiActive = field.guiActiveEditor = dynamicSteerDamping && threeAxisSteerDamping && !threeAxisPID && enabled;
+                }
+            }
+
+            // Full 3-axis PID (overrides other modes)
+            foreach (var fieldName in new List<string> { "dynamicSteerDamping", "threeAxisSteerDamping", "steerMult", "steerKiAdjust" })
+            {
+                var field = Fields[fieldName];
+                field.guiActive = field.guiActiveEditor = !threeAxisPID;
+            }
+            foreach (var axis in new List<string> { "Pitch", "Yaw", "Roll" })
+            {
+                foreach (var pid in new List<string> { "Mult", "Ki", "Damping" })
+                {
+                    var field = Fields[$"threeAxisPID{axis}{pid}"];
+                    field.guiActive = field.guiActiveEditor = threeAxisPID;
                 }
             }
 
@@ -2845,9 +2931,9 @@ namespace BDArmory.Control
             float rollError;
             if (useVelRollTarget)
                 rollError = VectorUtils.SignedAngle(currentRoll, rollTarget, vesselRight);
-            else 
+            else
                 rollError = VectorUtils.GetAngleOnPlane(rollTarget, currentRoll, vesselRight);
-            
+
             if (BDArmorySettings.DEBUG_LINES)
             {
                 debugTargetPosition = vessel.transform.position + targetDirection * 1000; // The asked for target position's direction
@@ -2856,9 +2942,9 @@ namespace BDArmory.Control
 
             #region PID calculations
             // FIXME Why are there various constants in here that mess with the scaling of the PID in the various axes? Ratios between the axes are 1:0.33:0.1
-            float pitchProportional = 0.015f * steerMult * pitchError;
-            float yawProportional = 0.005f * steerMult * yawError;
-            float rollProportional = 0.0015f * steerMult * rollError;
+            float pitchProportional = 0.015f * SteerPower(Axis.Pitch) * pitchError;
+            float yawProportional = 0.005f * SteerPower(Axis.Yaw) * yawError;
+            float rollProportional = 0.0015f * SteerPower(Axis.Roll) * rollError;
 
             float pitchDamping = SteerDamping(Mathf.Abs(angleToTarget), angleToTarget, Axis.Pitch) * -localAngVel.x;
             float yawDamping = 0.33f * SteerDamping(Mathf.Abs(yawError * (steerMode == SteerModes.Aiming ? (180f / 25f) : 4f)), angleToTarget, Axis.Yaw) * -localAngVel.z;
@@ -2867,9 +2953,9 @@ namespace BDArmory.Control
             // For the integral, we track the vector of the pitch and yaw in the 2D plane of the vessel's forward pointing vector so that the pitch and yaw components translate between the axes when the vessel rolls.
             directionIntegral = (directionIntegral + (pitchError * -vesselForward + yawError * vesselRight) * Time.fixedDeltaTime).ProjectOnPlanePreNormalized(vesselUp);
             if (directionIntegral.sqrMagnitude > 1f) directionIntegral = directionIntegral.normalized;
-            pitchIntegral = steerKiAdjust * Vector3.Dot(directionIntegral, -vesselForward);
-            yawIntegral = 0.33f * steerKiAdjust * Vector3.Dot(directionIntegral, vesselRight);
-            rollIntegral = 0.1f * steerKiAdjust * Mathf.Clamp(rollIntegral + rollError * Time.fixedDeltaTime, -1f, 1f);
+            pitchIntegral = SteerCorrection(Axis.Pitch) * Vector3.Dot(directionIntegral, -vesselForward);
+            yawIntegral = 0.33f * SteerCorrection(Axis.Yaw) * Vector3.Dot(directionIntegral, vesselRight);
+            rollIntegral = 0.1f * SteerCorrection(Axis.Roll) * Mathf.Clamp(rollIntegral + rollError * Time.fixedDeltaTime, -1f, 1f);
 
             var steerPitch = pitchProportional + pitchIntegral - pitchDamping;
             var steerYaw = yawProportional + yawIntegral - yawDamping;
@@ -2963,7 +3049,7 @@ namespace BDArmory.Control
                             //missileAngleToTarget <= minOffBoresight ? -1 : (extendForMissile.transform.position - extendTarget.transform.position).sqrMagnitude < (extendForMissile.minStaticLaunchRange * extendForMissile.minStaticLaunchRange) ? 180 : -1
                             missileAngleToTarget <= minOffBoresight ? -1 : minOffBoresight
                         ).minLaunchRange;
-                        extendDistance = Mathf.Max(extendDistanceAirToAir, minDynamicLaunchRange); 
+                        extendDistance = Mathf.Max(extendDistanceAirToAir, minDynamicLaunchRange);
                         extendDesiredMinAltitude = Mathf.Min(finalBombingAlt, minAltitude);
                         //(weaponManager.currentTarget != null && weaponManager.currentTarget.Vessel != null && weaponManager.currentTarget.Vessel.LandedOrSplashed) ? (extendForMissile.GetWeaponClass() == WeaponClasses.SLW ? 10 : //drop to the deck for torpedo run
                         //Mathf.Max(defaultAltitude - 500f, minAltitude)) : //else commence level bombing
@@ -4446,6 +4532,30 @@ namespace BDArmory.Control
             return targetPosition + (newAlt - targetAlt) * upDirection;
         }
 
+        private float SteerPower(Axis axis)
+        {
+            if (threeAxisPID) return axis switch
+            {
+                Axis.Pitch => threeAxisPIDPitchMult,
+                Axis.Yaw => threeAxisPIDYawMult,
+                Axis.Roll => threeAxisPIDRollMult,
+                _ => steerMult // Default, shouldn't happen.
+            };
+            else return steerMult;
+        }
+
+        private float SteerCorrection(Axis axis)
+        {
+            if (threeAxisPID) return axis switch
+            {
+                Axis.Pitch => threeAxisPIDPitchKi,
+                Axis.Yaw => threeAxisPIDYawKi,
+                Axis.Roll => threeAxisPIDRollKi,
+                _ => steerKiAdjust // Default, shouldn't happen.
+            };
+            else return steerKiAdjust;
+        }
+
         private float SteerDamping(float angleToTarget, float defaultTargetPosition, Axis axis)
         {
             if (!dynamicSteerDamping)
@@ -5110,7 +5220,16 @@ namespace BDArmory.Control
                     (AI.autoTuningOptionFixedDYF && field.name == "dynamicSteerDampingYawFactor") ||
                     (AI.autoTuningOptionFixedDROff && field.name == "DynamicDampingRollMin") ||
                     (AI.autoTuningOptionFixedDROn && field.name == "DynamicDampingRollMax") ||
-                    (AI.autoTuningOptionFixedDRF && field.name == "dynamicSteerDampingRollFactor"))
+                    (AI.autoTuningOptionFixedDRF && field.name == "dynamicSteerDampingRollFactor") ||
+                    (AI.autoTuningOptionFixedPp && field.name == "threeAxisPIDPitchMult") ||
+                    (AI.autoTuningOptionFixedIp && field.name == "threeAxisPIDPitchKi") ||
+                    (AI.autoTuningOptionFixedDp && field.name == "threeAxisPIDPitchDamping") ||
+                    (AI.autoTuningOptionFixedPy && field.name == "threeAxisPIDYawMult") ||
+                    (AI.autoTuningOptionFixedIy && field.name == "threeAxisPIDYawKi") ||
+                    (AI.autoTuningOptionFixedDy && field.name == "threeAxisPIDYawDamping") ||
+                    (AI.autoTuningOptionFixedPr && field.name == "threeAxisPIDRollMult") ||
+                    (AI.autoTuningOptionFixedIr && field.name == "threeAxisPIDRollKi") ||
+                    (AI.autoTuningOptionFixedDr && field.name == "threeAxisPIDRollDamping"))
                 {
                     fixedFields.Add(field.name);
                     continue;

@@ -144,16 +144,32 @@ namespace BDArmory.Radar
         private int activeLockedTargetIndex;
         private List<int> lockedTargetIndexes;
 
+        public int numLockedTargets
+        {
+            get { return lockedTargetIndexes.Count; }
+        }
+
         public bool hasLoadedExternalVRDs = false;
+
+        private float lockedTargetsUpdateTime = -1f;
+        private float TimeSinceLockedTargetsUpdate => Time.fixedTime - lockedTargetsUpdateTime;
+
+        private List<TargetSignatureData> lockedTargetList;
 
         public List<TargetSignatureData> GetLockedTargets()
         {
-            List<TargetSignatureData> lockedTargets = new List<TargetSignatureData>(lockedTargetIndexes.Count);
-            for (int i = 0; i < lockedTargetIndexes.Count; i++)
+            if (TimeSinceLockedTargetsUpdate > Time.fixedDeltaTime)
             {
-                lockedTargets.Add(displayedTargets[lockedTargetIndexes[i]].targetData);
+                lockedTargetList.Clear();
+                for (int i = 0; i < lockedTargetIndexes.Count; i++)
+                {
+                    lockedTargetList.Add(displayedTargets[lockedTargetIndexes[i]].targetData);
+                }
+
+                lockedTargetsUpdateTime = Time.fixedTime;
             }
-            return lockedTargets;
+            
+            return lockedTargetList;
         }
 
         public RadarDisplayData lockedTargetData
@@ -322,6 +338,7 @@ namespace BDArmory.Radar
             externalRadars = new List<ModuleRadar>();
             myVessel = GetComponent<Vessel>();
             lockedTargetIndexes = new List<int>();
+            lockedTargetList = new List<TargetSignatureData>();
             availableExternalVRDs = new List<VesselRadarData>();
 
             distanceStyle = new GUIStyle
@@ -691,6 +708,9 @@ namespace BDArmory.Radar
                 locked = true;
                 lockedTargetIndexes.Add(i);
             }
+
+            // Redo lockedTargetList
+            lockedTargetsUpdateTime = -1f;
 
             activeLockedTargetIndex = locked
                 ? Mathf.Clamp(activeLockedTargetIndex, 0, lockedTargetIndexes.Count - 1)
@@ -1452,7 +1472,7 @@ namespace BDArmory.Radar
 
                     float currentAngle = availableIRSTs[i].currentAngle;
 
-                    float radarAngle = VectorUtils.SignedAngle(availableIRSTs[i].transform.up, projectedVesselFwd, left);
+                    float radarAngle = VectorUtils.SignedAngle(availableIRSTs[i].irstForward, projectedVesselFwd, left);
 
                     if (!availableIRSTs[i].omnidirectional)
                     {
