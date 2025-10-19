@@ -12,8 +12,6 @@ using BDArmory.Settings;
 using BDArmory.Utils;
 using BDArmory.UI;
 
-using static BDArmory.Competition.BDACompetitionMode;
-
 namespace BDArmory.VesselSpawning
 {
     /// <summary>
@@ -126,7 +124,6 @@ namespace BDArmory.VesselSpawning
                 spawnFailureReason = SpawnFailureReason.NoCraft;
                 yield break;
             }
-
             spawnConfig.craftFiles.Shuffle(); // Randomise the spawn order.
             spawnConfig.altitude = Math.Max(100, spawnConfig.altitude); // Don't spawn too low.
             var spawnBody = FlightGlobals.Bodies[spawnConfig.worldIndex];

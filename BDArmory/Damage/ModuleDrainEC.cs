@@ -29,10 +29,12 @@ namespace BDArmory.Damage
         public bool isMissile = false;
         private float rebootTimer = 15;
         //if for whatever reason players are manually firing EMPs at targets with AI/WM disabled, don't enable them when vessel reboots
-        private IBDAIControl activeAI = null;
-        private List<MissileFire> activeWMs = [];
-        enum EMPbuildupTiers
+        IBDAIControl activeAI = null;
+        List<MissileFire> activeWMs = [];
+        List<ModuleEngines> activeEngines = [];
+        public enum EMPbuildupTiers
         {
+            None = 0,
             Sensors = 1,
             Engines = 2,
             Controls = 3,
@@ -40,9 +42,9 @@ namespace BDArmory.Damage
             Electrics = 5,
             Command = 6
         }
-        EMPbuildupTiers currentEMPTier;
-        int totalEMPTiers = 6;
-        public int currentEMPBuildup = 0;
+        public static readonly EMPbuildupTiers EMPTierMax = Enum.GetValues(typeof(EMPbuildupTiers)).Cast<EMPbuildupTiers>().Max();
+        EMPbuildupTiers currentEMPBuildup = EMPbuildupTiers.None;
+        EMPbuildupTiers lastTierTriggered = EMPbuildupTiers.None;
         float EMPTierThreshold = 10;
         /// <summary>
         /// So. basic idea is EMP base threshold determined by seat count - more command seats, more flight comps, more redundancy.
@@ -63,8 +65,7 @@ namespace BDArmory.Damage
             }
             if (isMissile = vessel.IsMissile()) EMPThreshold = 5;
             BrickThreshold = EMPThreshold * 5;
-            totalEMPTiers = Enum.GetValues(typeof(EMPbuildupTiers)).Length;
-            EMPTierThreshold = EMPThreshold / totalEMPTiers;
+            EMPTierThreshold = EMPThreshold / (int)EMPTierMax;
             //EMPThreshold = (100 * (seatCount - ((1 - (vessel.GetTotalMass() / seatCount)) / 2));     
         }
 
@@ -74,10 +75,10 @@ namespace BDArmory.Damage
             if (BDArmorySetup.GameIsPaused) return;
             if (BDArmorySettings.PAINTBALL_MODE && !isMissile)
             {
-                EMPDamage = 0; 
+                EMPDamage = 0;
                 incomingDamage = 0;
-                if (disabled) EnableVessel((EMPbuildupTiers)Enum.ToObject(typeof(EMPbuildupTiers), totalEMPTiers));
-                return;                
+                if (disabled) EnableVessel(EMPbuildupTiers.None);
+                return;
             }
             if (!bricked)
             {
@@ -89,7 +90,6 @@ namespace BDArmory.Damage
 
         }
 
-        private int lastTierTriggered = 0;
         void UpdateEMPLevel()
         {
             if ((!disabled || (disabled && !softEMP)) && incomingDamage > 0)
@@ -137,20 +137,17 @@ namespace BDArmory.Damage
             //if (EMPDamage > EMPThreshold && !bricked && !disabled) //does the damage exceed the soft cap, but not the hard cap?
             if (!bricked && !disabled && EMPDamage > 0) //does the damage exceed the soft cap, but not the hard cap?
             {
-                currentEMPBuildup = Mathf.FloorToInt(EMPDamage / EMPTierThreshold);
-                currentEMPTier = (EMPbuildupTiers)Enum.ToObject(typeof(EMPbuildupTiers), currentEMPBuildup);
+                currentEMPBuildup = (EMPbuildupTiers)Math.Min(Mathf.FloorToInt(EMPDamage / EMPTierThreshold), (int)EMPTierMax);
                 //Debug.Log($"[BDArmory.ModuleDrainEC]: currentEMPBuildup Tier on {vessel.GetName()}: {currentEMPBuildup}. last Tier Triggered: {lastTierTriggered}");
                 if (currentEMPBuildup > lastTierTriggered)
                 {
-                    //Debug.Log($"[BDArmory.ModuleDrainEC]: Applying EMP Threshold {currentEMPBuildup} to {vessel.GetName()}");                    
-                    DisableVessel(currentEMPTier);
-                    lastTierTriggered = currentEMPBuildup;
+                    if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log($"[BDArmory.ModuleDrainEC]: Increasing EMP tier from {lastTierTriggered} to {currentEMPBuildup} on {vessel.GetName()}");
+                    DisableVessel(currentEMPBuildup);
                 }
                 if (currentEMPBuildup < lastTierTriggered)
-                {                    
-                    //Debug.Log($"[BDArmory.ModuleDrainEC]: Removing EMP Threshold {currentEMPBuildup} from {vessel.GetName()}");
-                    EnableVessel(currentEMPTier);
-                    lastTierTriggered = currentEMPBuildup;
+                {
+                    if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log($"[BDArmory.ModuleDrainEC]: Lowering EMP tier from {lastTierTriggered} to {currentEMPBuildup} on {vessel.GetName()}");
+                    EnableVessel(currentEMPBuildup);
                 }
             }
 
@@ -164,16 +161,16 @@ namespace BDArmory.Damage
             if (EMPDamage <= 0 && disabled && !bricked) //reset craft
             {
                 var message = "Rebooting " + vessel.vesselName;
-                if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log("[BDArmory.ModuleDrainEC]: " + message);
+                // if (BDArmorySettings.DEBUG_DAMAGE)
+                Debug.Log("[BDArmory.ModuleDrainEC]: " + message);
                 BDACompetitionMode.Instance.competitionStatus.Add(message);
-                EnableVessel((EMPbuildupTiers)Enum.ToObject(typeof(EMPbuildupTiers), totalEMPTiers));
+                EnableVessel(EMPbuildupTiers.None);
             }
         }
         private void DisableVessel(EMPbuildupTiers EMPbuildup)
         {
-            if ((EMPbuildup) >= EMPbuildupTiers.Sensors) //deactivate sensors
+            if (EMPbuildup >= EMPbuildupTiers.Sensors && lastTierTriggered < EMPbuildupTiers.Sensors) //deactivate sensors
             {
-                if ((int)EMPbuildup <= lastTierTriggered) return; //don't re-trigger effects from a previous DisableVessel proc.
                 foreach (var radar in VesselModuleRegistry.GetModules<ModuleRadar>(vessel))
                 {
                     if (radar.radarEnabled)
@@ -196,19 +193,19 @@ namespace BDArmory.Damage
                 }
                 if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log($"[BDArmory.ModuleDrainEC]: Disabling Sensors on {vessel.GetName()}");
             }
-            if ((EMPbuildup) >= EMPbuildupTiers.Engines) //deactivate Engines
+            if (EMPbuildup >= EMPbuildupTiers.Engines && lastTierTriggered < EMPbuildupTiers.Engines) //deactivate Engines
             {
-                if (((int)EMPbuildup) <= lastTierTriggered) return;
+                // Note: this ignores FireSpitter engines.
                 foreach (var engine in VesselModuleRegistry.GetModuleEngines(vessel))
                 {
                     engine.Shutdown();
                     engine.allowRestart = false;
+                    activeEngines.Add(engine);
                 }
                 if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log($"[BDArmory.ModuleDrainEC]: Disabling Engines on {vessel.GetName()}");
             }
-            if ((EMPbuildup) >= EMPbuildupTiers.Controls) //deactivate control surfaces and other hydraulics
+            if (EMPbuildup >= EMPbuildupTiers.Controls && lastTierTriggered < EMPbuildupTiers.Controls) //deactivate control surfaces and other hydraulics
             {
-                if (((int)EMPbuildup) <= lastTierTriggered) return;
                 foreach (var ctrl in VesselModuleRegistry.GetModules<ModuleControlSurface>(vessel))
                 {
                     ctrl.authorityLimiter /= 10; //simpler than having to store all control surface values in a list somewhere
@@ -221,9 +218,8 @@ namespace BDArmory.Damage
                 }
                 if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log($"[BDArmory.ModuleDrainEC]: Disabling ControlSurfaces on {vessel.GetName()}");
             }
-            if ((EMPbuildup) >= EMPbuildupTiers.Weapons) //deactivate Weapons
+            if (EMPbuildup >= EMPbuildupTiers.Weapons && lastTierTriggered < EMPbuildupTiers.Weapons) //deactivate Weapons
             {
-                if (((int)EMPbuildup) <= lastTierTriggered) return;
                 foreach (var weapon in VesselModuleRegistry.GetModuleWeapons(vessel))
                 {
                     weapon.weaponState = ModuleWeapon.WeaponStates.Locked; //prevent weapons from firing
@@ -234,9 +230,8 @@ namespace BDArmory.Damage
                 }
                 if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log($"[BDArmory.ModuleDrainEC]: Disabling Weapons on {vessel.GetName()}");
             }
-            if ((EMPbuildup) >= EMPbuildupTiers.Electrics) //drain electrics.
+            if (EMPbuildup >= EMPbuildupTiers.Electrics && lastTierTriggered < EMPbuildupTiers.Electrics) //drain electrics.
             {
-                if (((int)EMPbuildup) <= lastTierTriggered) return;
                 foreach (Part p in vessel.parts)
                 {
                     PartResource r = p.Resources.Where(pr => pr.resourceName == "ElectricCharge").FirstOrDefault();
@@ -251,15 +246,12 @@ namespace BDArmory.Damage
                 }
                 if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log($"[BDArmory.ModuleDrainEC]: Shorting Electrics on {vessel.GetName()}");
             }
-            if ((EMPbuildup) >= EMPbuildupTiers.Command) //deactivate control
+            if (EMPbuildup >= EMPbuildupTiers.Command && lastTierTriggered < EMPbuildupTiers.Command) //deactivate control
             {
-                if (((int)EMPbuildup) <= lastTierTriggered) return;
                 disabled = true;
                 foreach (var command in VesselModuleRegistry.GetModuleCommands(vessel))
                 {
-                    {
-                        command.minimumCrew *= 10; //disable vessel control
-                    }
+                    command.minimumCrew *= 10; //disable vessel control
                 }
                 // Store the active AI if there was one.
                 var AI = vessel.ActiveController().AI;
@@ -285,12 +277,12 @@ namespace BDArmory.Damage
                 empFX.transform.SetParent(vessel.rootPart.transform);
                 empFX.AddComponent<EMPShock>();
             }
+            lastTierTriggered = EMPbuildup;
         }
         private void EnableVessel(EMPbuildupTiers EMPbuildup)
         {
-            if ((EMPbuildup) >= EMPbuildupTiers.Sensors) //Reactivate sensors
+            if (EMPbuildup < EMPbuildupTiers.Sensors && lastTierTriggered >= EMPbuildupTiers.Sensors) //Reactivate sensors
             {
-                if ((int)EMPbuildup <= lastTierTriggered) return; //don't re-trigger effects from a previous DisableVessel proc.
                 foreach (var radar in VesselModuleRegistry.GetModules<ModuleRadar>(vessel))
                 {
                     if (!radar.radarEnabled)
@@ -312,18 +304,23 @@ namespace BDArmory.Damage
                         IRST.EnableIRST();
                 }
             }
-            if ((EMPbuildup) >= EMPbuildupTiers.Engines) //reactivate Engines
+            if (EMPbuildup < EMPbuildupTiers.Engines && lastTierTriggered >= EMPbuildupTiers.Engines) //reactivate Engines
             {
-                if ((int)EMPbuildup <= lastTierTriggered) return;
-                foreach (var engine in VesselModuleRegistry.GetModuleEngines(vessel))
+                foreach (var engine in activeEngines.Where(e => e != null))
                 {
                     engine.allowRestart = true;
+                    var mme = engine.part.FindModuleImplementing<MultiModeEngine>();
+                    if (mme == null) engine.Activate();
+                    else
+                    {
+                        if (mme.runningPrimary) mme.PrimaryEngine.Activate();
+                        else mme.SecondaryEngine.Activate();
+                    }
                 }
-                vessel.ActionGroups.ToggleGroup(KSPActionGroup.Custom10); // restart engines
+                activeEngines.Clear();
             }
-            if ((EMPbuildup) >= EMPbuildupTiers.Controls) //reactivate control surfaces
+            if (EMPbuildup < EMPbuildupTiers.Controls && lastTierTriggered >= EMPbuildupTiers.Controls) //reactivate control surfaces
             {
-                if ((int)EMPbuildup <= lastTierTriggered) return;
                 foreach (var ctrl in VesselModuleRegistry.GetModules<ModuleControlSurface>(vessel))
                 {
                     ctrl.authorityLimiter *= 10;
@@ -335,9 +332,8 @@ namespace BDArmory.Damage
                     turret.pitchSpeedDPS *= 100;
                 }
             }
-            if ((EMPbuildup) >= EMPbuildupTiers.Weapons) //reactivate Weapons
+            if (EMPbuildup < EMPbuildupTiers.Weapons && lastTierTriggered >= EMPbuildupTiers.Weapons) //reactivate Weapons
             {
-                if ((int)EMPbuildup <= lastTierTriggered) return;
                 foreach (var weapon in VesselModuleRegistry.GetModuleWeapons(vessel))
                 {
                     if (weapon.isAPS)
@@ -350,9 +346,8 @@ namespace BDArmory.Damage
                     missile.engageRangeMax *= 10000;
                 }
             }
-            if ((EMPbuildup) >= EMPbuildupTiers.Command) //reactivate control
+            if (EMPbuildup < EMPbuildupTiers.Command && lastTierTriggered >= EMPbuildupTiers.Command) //reactivate control
             {
-                if ((int)EMPbuildup <= lastTierTriggered) return;
                 foreach (var command in VesselModuleRegistry.GetModuleCommands(vessel))
                 {
                     {
@@ -370,6 +365,7 @@ namespace BDArmory.Damage
                 activeWMs.Clear();
             }
             disabled = false;
+            lastTierTriggered = EMPbuildup;
         }
     }
 

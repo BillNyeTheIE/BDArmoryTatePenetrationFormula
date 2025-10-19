@@ -1046,7 +1046,7 @@ namespace BDArmory.UI
                                     BDArmorySettings.VESSEL_SPAWN_GEOCOORDS.y, 
                                     BDArmorySettings.VESSEL_SPAWN_ALTITUDE_,
                                     killEverythingFirst: true,
-                                    assignTeams :BDArmorySettings.VESSEL_SPAWN_REASSIGN_TEAMS,
+                                    assignTeams: BDArmorySettings.VESSEL_SPAWN_REASSIGN_TEAMS,
                                     numberOfTeams: 1,
                                     teamCounts: null,
                                     teamsSpecific: null,
