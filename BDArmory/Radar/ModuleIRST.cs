@@ -35,6 +35,11 @@ namespace BDArmory.Radar
         public string irstTransformName = string.Empty;
         Transform irstTransform;
 
+        public Vector3 irstForward
+        {
+            get { return irstTransform.up; }
+        }
+
         #endregion General Configuration
 
         #region Capabilities

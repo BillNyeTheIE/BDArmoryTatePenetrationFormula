@@ -31,7 +31,7 @@ import configparser
 ## ---------------------------------------------------------------------------------- ##
 
 # These are BD Armory global settings, if you don't know what they are, don't change them
-GLOBAL_LIFT_MULTIPLIER = 0.5
+GLOBAL_LIFT_MULTIPLIER = 0.25
 GLOBAL_DRAG_MULTIPLIER = 6
 
 # Missile parameters

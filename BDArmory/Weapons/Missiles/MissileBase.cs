@@ -202,6 +202,11 @@ namespace BDArmory.Weapons.Missiles
             UI_Toggle(disabledText = "#LOC_BDArmory_false", enabledText = "#LOC_BDArmory_true", affectSymCounterparts = UI_Scene.All)]//False--True
         public bool inCargoBay = false;
 
+        // This previously was in both MissileLauncher and BDModular Guidance, transferred it here
+        [KSPField(advancedTweakable = true, isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_FiringPriority"),
+            UI_FloatRange(minValue = 0, maxValue = 10, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+        public float priority = 0; //per-weapon priority selection override
+
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_InCustomCargoBay"), // In custom/modded "cargo bay"
             UI_ChooseOption(
             options = new string[] {
@@ -273,6 +278,9 @@ namespace BDArmory.Weapons.Missiles
 
         [KSPField]
         public float activeRadarMinTrackSCR = 1f;
+
+        [KSPField]
+        public bool activeRadarCanNotch = true;
 
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_BallisticOvershootFactor"),//Ballistic Overshoot factor
          UI_FloatRange(minValue = 0.5f, maxValue = 1.5f, stepIncrement = 0.01f, scene = UI_Scene.Editor)]
