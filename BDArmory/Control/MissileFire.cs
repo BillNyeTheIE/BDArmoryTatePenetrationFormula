@@ -9176,7 +9176,8 @@ namespace BDArmory.Control
                             if (viableTarget && turreted ? TargetInTurretRange(mT.turret, mT.fireFOV, targetVessel.CoM) : GetLaunchAuthorization(targetVessel, this, currMissile))
                             {
                                 //missileTarget = targetVessel;
-                                //Debug.Log($"[BDArmory.MissileFire] firing interceptor missile at {targetVessel.name}");
+                                //if (logging)
+                                //    Debug.Log($"[BDArmory.MissileFire] firing interceptor missile: {currMissile.shortName} at {targetVessel.name}");
                                 StartCoroutine(GuardMissileRoutine(targetVessel, currMissile));
                                 break;
                             }
