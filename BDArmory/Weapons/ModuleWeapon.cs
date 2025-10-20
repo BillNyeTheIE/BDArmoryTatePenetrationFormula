@@ -3181,8 +3181,6 @@ namespace BDArmory.Weapons
                         r_cone[i].material.mainTexture = GameDatabase.Instance.GetTexture("BDArmory/Models/laser/laserTex", false);
                     }
                 }
-                var Tan = Mathf.Tan(beamFOV / 2);
-                var aTan = Mathf.Atan(beamFOV / 2);
             }
             else
             {
