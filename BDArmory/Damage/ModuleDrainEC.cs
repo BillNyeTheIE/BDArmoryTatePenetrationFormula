@@ -32,6 +32,7 @@ namespace BDArmory.Damage
         IBDAIControl activeAI = null;
         List<MissileFire> activeWMs = [];
         List<ModuleEngines> activeEngines = [];
+        List<PartModule> activeFSEngines = [];
         public enum EMPbuildupTiers
         {
             None = 0,
@@ -194,13 +195,14 @@ namespace BDArmory.Damage
             }
             if (EMPbuildup >= EMPbuildupTiers.Engines && lastTierTriggered < EMPbuildupTiers.Engines) //deactivate Engines
             {
-                // Note: this ignores FireSpitter engines.
                 foreach (var engine in VesselModuleRegistry.GetModuleEngines(vessel))
                 {
                     engine.Shutdown();
                     engine.allowRestart = false;
                     activeEngines.Add(engine);
                 }
+                activeFSEngines = FireSpitter.GetActiveEngines(vessel);
+                FireSpitter.SetActiveFSEngines(activeFSEngines, false);
                 if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log($"[BDArmory.ModuleDrainEC]: Disabling Engines on {vessel.GetName()}");
             }
             if (EMPbuildup >= EMPbuildupTiers.Controls && lastTierTriggered < EMPbuildupTiers.Controls) //deactivate control surfaces and other hydraulics
@@ -317,6 +319,7 @@ namespace BDArmory.Damage
                     }
                 }
                 activeEngines.Clear();
+                FireSpitter.SetActiveFSEngines(activeFSEngines, true);
             }
             if (EMPbuildup < EMPbuildupTiers.Controls && lastTierTriggered >= EMPbuildupTiers.Controls) //reactivate control surfaces
             {
