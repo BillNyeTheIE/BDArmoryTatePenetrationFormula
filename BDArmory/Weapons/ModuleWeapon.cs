@@ -1885,7 +1885,7 @@ namespace BDArmory.Weapons
             {
                 for (int c = 0; c < beamCone.Length; c++)
                 {
-                    if (beamCone[c] != null) // Apparently these can be null by the time this gets to here.
+                    if (beamCone[c] != null)
                         beamCone[c].SetActive(false);
                 }
             }
