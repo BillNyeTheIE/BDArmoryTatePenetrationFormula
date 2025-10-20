@@ -155,15 +155,13 @@ namespace BDArmory.Damage
             {
                 bricked = true; //if so brick the craft
                 var message = vessel.vesselName + " is bricked!";
-                // if (BDArmorySettings.DEBUG_DAMAGE)
-                Debug.Log("[BDArmory.ModuleDrainEC]: " + message);
+                if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log("[BDArmory.ModuleDrainEC]: " + message);
                 BDACompetitionMode.Instance.competitionStatus.Add(message);
             }
             if (EMPDamage <= 0 && disabled && !bricked) //reset craft
             {
                 var message = "Rebooting " + vessel.vesselName;
-                // if (BDArmorySettings.DEBUG_DAMAGE)
-                Debug.Log("[BDArmory.ModuleDrainEC]: " + message);
+                if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log("[BDArmory.ModuleDrainEC]: " + message);
                 BDACompetitionMode.Instance.competitionStatus.Add(message);
                 EnableVessel(EMPbuildupTiers.None);
             }
