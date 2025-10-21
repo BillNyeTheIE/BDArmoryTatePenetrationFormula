@@ -3391,7 +3391,7 @@ namespace BDArmory.Control
                         float attemptDuration = targetScanInterval * 0.75f;
                         while (Time.time - attemptStartTime < attemptDuration && (!laserPointDetected || (foundCam && (foundCam.groundTargetPosition - guardTarget.CoM).sqrMagnitude > targetToleranceSqr)))
                         {
-                            yield return new WaitForFixedUpdate();
+                            yield return wait;
                         }
 
                         if (guardTarget && (foundCam && (foundCam.groundTargetPosition - guardTarget.CoM).sqrMagnitude <= targetToleranceSqr))
@@ -9961,8 +9961,8 @@ namespace BDArmory.Control
             lr = GetComponent<LineRenderer>();
             if (!lr) { lr = gameObject.AddComponent<LineRenderer>(); }
             lr.enabled = true;
-            lr.startWidth = .1f;
-            lr.endWidth = .1f;
+            lr.startWidth = 1f;
+            lr.endWidth = 1f;
             lr.positionCount = bombAimerTrajectory.Count;
             int i = 0;
             foreach (var point in bombAimerTrajectory)
