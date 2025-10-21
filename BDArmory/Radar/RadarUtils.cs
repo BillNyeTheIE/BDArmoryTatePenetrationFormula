@@ -2266,7 +2266,7 @@ namespace BDArmory.Radar
                         TargetInfo tInfo;
                         if ((tInfo = loadedvessels.Current.gameObject.GetComponent<TargetInfo>()))
                         {
-                            if (TerrainCheck(referenceTransform.position, loadedvessels.Current.transform.position))
+                            if (TerrainCheck(position, loadedvessels.Current.CoM, loadedvessels.Current.mainBody))
                             {
                                 continue; //blocked by terrain
                             }
