@@ -72,7 +72,7 @@ namespace BDArmory.Control
         bool pointDefenseMissileHasInertial = false;
         bool pointDefenseMissileHasLaser = false;
         bool pointDefenseMissileHasRadar = false;
-        float maxLaserRange = -1;
+        float maxTargetingLaserRange = -1;
 
         // extension for feature_engagementenvelope: specific lists by weapon engagement type
         private List<IBDWeapon> weaponTypesAir = [];
@@ -5146,13 +5146,13 @@ namespace BDArmory.Control
             _cloaks = VesselModuleRegistry.GetModules<ModuleCloakingDevice>(vessel);
             _targetingPods = VesselModuleRegistry.GetModules<ModuleTargetingCamera>(vessel);
 
-            maxLaserRange = -1f;
+            maxTargetingLaserRange = -1f;
 
             if (_targetingPods != null)
             {
                 foreach (ModuleTargetingCamera targetingPod in _targetingPods)
-                    if (targetingPod.maxRayDistance > maxLaserRange)
-                        maxLaserRange = targetingPod.maxRayDistance;
+                    if (targetingPod.maxRayDistance > maxTargetingLaserRange)
+                        maxTargetingLaserRange = targetingPod.maxRayDistance;
             }
             _wmModules = VesselModuleRegistry.GetModules<IBDWMModule>(vessel);
         }
@@ -9175,7 +9175,7 @@ namespace BDArmory.Control
 
                         // Technically should be relative to the missile, but relative to CoM is close enough
                         targetDist = Vector3.Distance(vessel.CoM, targetVessel.CoM);
-                        inLaserRange = maxLaserRange > targetDist;
+                        inLaserRange = maxTargetingLaserRange > targetDist;
                         inARHRange = pointDefenseMissileMaxARH > targetDist;
                     }
 
@@ -9526,7 +9526,7 @@ namespace BDArmory.Control
                     {
                         if (targetingPods.Count > 0)
                         {
-                            float maxPodRange = maxLaserRange;
+                            float maxPodRange = maxTargetingLaserRange;
                             //using (List<ModuleTargetingCamera>.Enumerator tgp = targetingPods.GetEnumerator())
                             //    while (tgp.MoveNext())
                             //    {
