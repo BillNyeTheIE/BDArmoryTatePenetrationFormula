@@ -2567,12 +2567,12 @@ namespace BDArmory.Control
                                 float attemptLockTime = Time.time;
                                 while (ml && (!vesselRadarData.locked || (vesselRadarData.lockedTargetData.vessel != targetVessel)) && Time.time - attemptLockTime < 2)
                                 {
+                                    bool lockSuccess = false;
                                     if (vesselRadarData.locked)
                                     {
                                         if (GuardCheckLock(targetVessel))
                                         {
-                                            vesselRadarData.SwitchActiveLockedTarget(targetVessel);
-                                            yield return wait;
+                                            lockSuccess = vesselRadarData.SwitchActiveLockedTarget(targetVessel);
                                         }
                                         else
                                         {
@@ -2605,7 +2605,7 @@ namespace BDArmory.Control
                                                 }
                                                 vesselRadarData.TryLockTarget(targetVessel);
                                             }*/
-                                            vesselRadarData.TryLockTarget(targetVessel);
+                                            lockSuccess = vesselRadarData.TryLockTarget(targetVessel);
 
                                             /*if (!vesselRadarData.TryLockTarget(targetVessel))
                                             {
@@ -2617,9 +2617,17 @@ namespace BDArmory.Control
                                         }
                                     }
                                     else
-                                        vesselRadarData.TryLockTarget(targetVessel);
+                                        lockSuccess = vesselRadarData.TryLockTarget(targetVessel);
 
-                                    yield return new WaitForSecondsFixed(tryLockTime);
+                                    // If not successful, wait for `tryLockTime` before making another lock attempt
+                                    if (!lockSuccess)
+                                        yield return new WaitForSecondsFixed(tryLockTime);
+                                    else
+                                    {
+                                        // If successful, wait for a FixedUpdate while `UpdateLockedTargets` runs
+                                        yield return wait;
+                                        break;
+                                    }
                                 }
                                 // if (ml && AIMightDirectFire() && vesselRadarData.locked)
                                 // {
@@ -2888,16 +2896,16 @@ namespace BDArmory.Control
                                         float attemptLockTime = Time.time;
                                         while (ml && (!vesselRadarData.locked || (vesselRadarData.lockedTargetData.vessel != targetVessel)) && Time.time - attemptLockTime < 2)
                                         {
+                                            bool lockSuccess = false;
                                             if (vesselRadarData.locked)
                                             {
                                                 if (GuardCheckLock(targetVessel))
                                                 {
-                                                    vesselRadarData.SwitchActiveLockedTarget(targetVessel);
-                                                    yield return wait;
+                                                    lockSuccess = vesselRadarData.SwitchActiveLockedTarget(targetVessel);
                                                 }
                                                 else
                                                 {
-                                                    vesselRadarData.TryLockTarget(targetVessel);
+                                                    lockSuccess = vesselRadarData.TryLockTarget(targetVessel);
                                                     /*if (!vesselRadarData.TryLockTarget(targetVessel))
                                                     {
                                                         if (BDArmorySettings.DEBUG_MISSILES)
@@ -2907,8 +2915,17 @@ namespace BDArmory.Control
                                                 }
                                             }
                                             else
-                                                vesselRadarData.TryLockTarget(targetVessel);
-                                            yield return new WaitForSecondsFixed(tryLockTime);
+                                                lockSuccess = vesselRadarData.TryLockTarget(targetVessel);
+
+                                            // If not successful, wait for `tryLockTime` before making another lock attempt
+                                            if (!lockSuccess)
+                                                yield return new WaitForSecondsFixed(tryLockTime);
+                                            else
+                                            {
+                                                // If successful, wait for a FixedUpdate while `UpdateLockedTargets` runs
+                                                yield return wait;
+                                                break;
+                                            }
                                         }
                                         if (vesselRadarData && vesselRadarData.locked && vesselRadarData.lockedTargetData.vessel == targetVessel) //no GPS coords, missile is now expensive rocket
                                         {
@@ -3172,20 +3189,26 @@ namespace BDArmory.Control
                                     float attemptLockTime = Time.time;
                                     while (ml && vesselRadarData && (!vesselRadarData.locked || (vesselRadarData.lockedTargetData.vessel != targetVessel)) && Time.time - attemptLockTime < 2f)
                                     {
+                                        bool lockSuccess = false;
                                         if (!vesselRadarData.locked) //we got radar, can we get a lock for better datalink update rate?
                                         {
                                             if (GuardCheckLock(targetVessel))
-                                            {
-                                                vesselRadarData.SwitchActiveLockedTarget(targetVessel);
-                                                yield return wait;
-                                            }
+                                                lockSuccess = vesselRadarData.SwitchActiveLockedTarget(targetVessel);
                                             else
-                                                vesselRadarData.TryLockTarget(targetVessel);
+                                                lockSuccess = vesselRadarData.TryLockTarget(targetVessel);
                                         }
                                         else
-                                            vesselRadarData.TryLockTarget(targetVessel);
+                                            lockSuccess = vesselRadarData.TryLockTarget(targetVessel);
 
-                                        yield return new WaitForSecondsFixed(tryLockTime);
+                                        // If not successful, wait for `tryLockTime` before making another lock attempt
+                                        if (!lockSuccess)
+                                            yield return new WaitForSecondsFixed(tryLockTime);
+                                        else
+                                        {
+                                            // If successful, wait for a FixedUpdate while `UpdateLockedTargets` runs
+                                            yield return wait;
+                                            break;
+                                        }
                                     }
                                 }
                                 else
