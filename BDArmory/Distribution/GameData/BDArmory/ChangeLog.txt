@@ -1,5 +1,16 @@
 ﻿v1.11.1.0
 IMPROVEMENTS / FIXES
+- Sensors:
+	- Radar code optimizations.
+- AI / WM:
+	- Further improved point-defense logic, should behave slightly better against mixed barrages of missiles, some of which it cannot engage with missiles (like stealthy missiles)
+	- AI can no longer see incoming missiles through water
+- Weapons:
+	- Missiles:
+		- Improve "CLOSlead" debug visualization, now shows the proper, lead-adjusted beam, for easier debugging.
+
+v1.11.1.0
+IMPROVEMENTS / FIXES
 - General:
 	- Fix some compatibility issues with pre-KSP v1.12 versions.
 - UI:
