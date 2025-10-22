@@ -838,7 +838,7 @@ namespace BDArmory.Radar
 
             lockedTargetData.detectedByRadar.SetActiveLock(lockedTargetData.targetData);
 
-            UpdateLockedTargets();
+            //UpdateLockedTargets();
         }
 
         public void SetMaxRange()
@@ -914,7 +914,7 @@ namespace BDArmory.Radar
             {
                 return acquiredLock;
             }
-            UpdateLockedTargets();
+            //UpdateLockedTargets();
             StartCoroutine(UpdateLocksAfterFrame());
             return false;
         }
@@ -2047,19 +2047,30 @@ namespace BDArmory.Radar
                 radar.UpdateLockedTargetInfo(contactData);
             }
 
+            // Are we receiving data about a target potentially locked by another radar?
             bool dontOverwrite = false;
+
+            bool updateLock = true;
 
             int replaceIndex = -1;
             for (int i = 0; i < displayedTargets.Count; i++)
             {
                 if (displayedTargets[i].vessel == rData.vessel)
                 {
-                    if (displayedTargets[i].locked && !_locked)
+                    // If the target we're looking for is already locked...
+                    if (displayedTargets[i].locked)
                     {
-                        dontOverwrite = true;
-                        break;
-                    }
+                        // If we're locked on to a target via a different radar, don't overwrite the
+                        // locked data if our own data is not locked!
+                        if (!_locked)
+                        {
+                            dontOverwrite = true;
+                            break;
+                        }
 
+                        // Otherwise, we can overwrite the data, but don't update locks
+                        updateLock = false;
+                    }
                     replaceIndex = i;
                     break;
                 }
@@ -2067,8 +2078,11 @@ namespace BDArmory.Radar
 
             if (replaceIndex >= 0)
             {
+                // If it is an existing target, replace the data
                 displayedTargets[replaceIndex] = rData;
-                //UpdateLockedTargets();
+                // And if we should update our locks, update them
+                if (updateLock)
+                    UpdateLockedTargets();
                 return;
             }
             else if (dontOverwrite)
@@ -2078,6 +2092,7 @@ namespace BDArmory.Radar
             }
             else
             {
+                // We're adding new data
                 displayedTargets.Add(rData);
                 UpdateLockedTargets();
                 return;
@@ -2113,8 +2128,8 @@ namespace BDArmory.Radar
                 if (displayedTargets.Count == 0) return;
                 displayedTargetIndex = 0;
                 TryLockTarget(displayedTargets[displayedTargetIndex]);
-                lockedTargetIndexes.Add(displayedTargetIndex);
-                UpdateLockedTargets();
+                //lockedTargetIndexes.Add(displayedTargetIndex);
+                //UpdateLockedTargets();
                 return;
             }
             // We have locked target(s)  Lets see if we can select the next one in the list (if it exists)
@@ -2130,7 +2145,7 @@ namespace BDArmory.Radar
                 {
                     activeLockedTargetIndex = 0;
                 }
-                UpdateLockedTargets();
+                //UpdateLockedTargets();
             }
             else
             {
@@ -2151,7 +2166,7 @@ namespace BDArmory.Radar
                 // We have a good lock.  Lets update the indexes and locks
                 lockedTargetIndexes.Add(displayedTargetIndex);
                 rad.UnlockTargetAt(rad.currentLockIndex);
-                UpdateLockedTargets();
+                //UpdateLockedTargets();
             }
         }
 
@@ -2167,8 +2182,8 @@ namespace BDArmory.Radar
                 if (displayedTargets.Count == 0) return;
                 displayedTargetIndex = displayedTargets.Count - 1;
                 TryLockTarget(displayedTargets[displayedTargetIndex]);
-                lockedTargetIndexes.Add(displayedTargetIndex);
-                UpdateLockedTargets();
+                //lockedTargetIndexes.Add(displayedTargetIndex);
+                //UpdateLockedTargets();
                 return;
             }
             // We have locked target(s)  Lets see if we can select the previous one in the list (if it exists)
@@ -2184,7 +2199,7 @@ namespace BDArmory.Radar
                 {
                     activeLockedTargetIndex = lockedTargetIndexes.Count - 1;
                 }
-                UpdateLockedTargets();
+                //UpdateLockedTargets();
             }
             else
             {
@@ -2203,9 +2218,9 @@ namespace BDArmory.Radar
                 TryLockTarget(displayedTargets[displayedTargetIndex]);
                 if (!displayedTargets[displayedTargetIndex].detectedByRadar) return;
                 // We got a good lock.  Lets update the indexes and locks
-                lockedTargetIndexes.Add(displayedTargetIndex);
+                //lockedTargetIndexes.Add(displayedTargetIndex);
                 rad.UnlockTargetAt(rad.currentLockIndex);
-                UpdateLockedTargets();
+                //UpdateLockedTargets();
             }
         }
 
@@ -2215,7 +2230,7 @@ namespace BDArmory.Radar
             if (vesselIndex != -1)
             {
                 activeLockedTargetIndex = lockedTargetIndexes.IndexOf(vesselIndex);
-                UpdateLockedTargets();
+                //UpdateLockedTargets();
                 return true;
             }
             return false;
@@ -2531,7 +2546,7 @@ namespace BDArmory.Radar
                             //UnlockTarget(displayedTargets[i].detectedByRadar);
                             //displayedTargets[i].detectedByRadar.UnlockTargetAtPosition(displayedTargets[i].targetData.position);
                             displayedTargets[i].detectedByRadar.UnlockTargetVessel(displayedTargets[i].vessel);
-                            UpdateLockedTargets();
+                            //UpdateLockedTargets();
                             lockDirty = true;
                         }
                         else
@@ -2547,7 +2562,7 @@ namespace BDArmory.Radar
 
                             displayedTargets[i].detectedByRadar.SetActiveLock(displayedTargets[i].targetData);
 
-                            UpdateLockedTargets();
+                            //UpdateLockedTargets();
                         }
                     }
 
