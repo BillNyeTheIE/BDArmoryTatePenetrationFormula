@@ -447,7 +447,7 @@ namespace BDArmory.Control
                         using var vs = BDATargetManager.LoadedVessels.GetEnumerator();
                         while (vs.MoveNext())
                         {
-                            if (vs.Current == null || vs.Current == vessel || vs.Current.GetTotalMass() < AvoidMass) continue;
+                            if (vs.Current == null || vs.Current == vessel || vs.Current.GetTotalMass() < AvoidMass) continue; //expand for SrfAi ramming implementation?
                             if (!VesselModuleRegistry.IgnoredVesselTypes.Contains(vs.Current.vesselType))
                             {
                                 var ibdaiControl = vs.Current.ActiveController().AI;

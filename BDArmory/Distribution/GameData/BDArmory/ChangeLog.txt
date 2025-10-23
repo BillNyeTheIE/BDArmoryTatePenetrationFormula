@@ -1,4 +1,19 @@
-﻿v1.11.1.0
+﻿IMPROVEMENTS / FIXES
+- UI:
+	- Adjust the "Steel Equivalent Thickness" display in the armor GUI to show a more intuitive value.
+- Weapons:
+	- Add conical beam weapon implementation for creating microwave drone zappers, War of the Worlds heatrays, tractor beams, etc.
+		- Adds new weapon.cfg fields: 'conicAoE' = T/F to enable conic field of fire for Laser class weapons.
+									'beamFOV' = n to set width of beam.
+									'friendlyFire' = T/F to set of conic weapons affect ally craft in AoE, if firing into a melee.
+	- Reworks EMP weapons. Craft EMP threshold before getting disabled is now dependent on cockpit seat quantity/drone core SAS level.
+	    EMP damage received now adjusted by craft armor/hull type and craft bulk. Electrolaser/lightning weapons resisted by non-conductive armor and hull material (e.g. not metal)
+		EMP missile/Nuke EMP burst/conicAoE EMP lasers resisted by craft bulk and conductive armor occluding cockpits from emission source.
+		EMP buildup now causes increasing penalties/subsystem shutdowns as it accrues in a vessel receiving EMP damage.
+	- Missiles:
+		- Fix Nuclear ordnance applying multiple stacks of EMP damage to a single vessel during detonation.
+
+v1.11.1.0
 IMPROVEMENTS / FIXES
 - Sensors:
 	- Radar code optimizations.
