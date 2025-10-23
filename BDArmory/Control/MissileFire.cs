@@ -8190,7 +8190,7 @@ namespace BDArmory.Control
                                     {
                                         //designatedGPSInfo = new GPSTargetInfo(VectorUtils.WorldPositionToGeoCoords(ml.MissileReferenceTransform.position + ml.MissileReferenceTransform.forward * 10000, vessel.mainBody), "null target");
                                         designatedINSCoords = VectorUtils.WorldPositionToGeoCoords(ml.MissileReferenceTransform.position + ml.MissileReferenceTransform.forward * 10000, vessel.mainBody);
-                                        ml.TargetAcquired = false;
+                                        ml.TargetAcquired = true;
                                     }
                                 }
                             }
