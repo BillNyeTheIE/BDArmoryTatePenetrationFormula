@@ -8358,9 +8358,9 @@ namespace BDArmory.Control
                                 {
                                     if (targetDistance < vessel.horizontalSrfSpeed * bombFlightTime) launchAuthorized = false; //too close, dropped torp will overshoot
                                 }
-                                if (!vessel.Splashed && !guardTarget.Splashed)
+                                if (CurrentMissile.GuidanceMode != MissileBase.GuidanceModes.Cruise || CurrentMissile.GuidanceMode != MissileBase.GuidanceModes.Kappa || CurrentMissile.GuidanceMode != MissileBase.GuidanceModes.AAMLoft || CurrentMissile.GuidanceMode != MissileBase.GuidanceModes.AGMBallistic)
                                 {
-                                    if (RadarUtils.TerrainCheck(guardTarget.CoM, CurrentMissile.transform.position)) //vessel behind terrain. exception for ships where curvature of Kerbin comes into play
+                                    if (RadarUtils.TerrainCheck(guardTarget.CoM, missileReferencePosition)) //vessel behind terrain. exception for missiles which can (probably) sort that out
                                     {
                                         launchAuthorized = false;
                                         if (BDArmorySettings.DEBUG_MISSILES) Debug.Log("[BDArmory.MissileFire] target behind terrain");
