@@ -430,30 +430,24 @@ namespace BDArmory.Radar
                 MissileBase missile = ti.MissileBaseModule;
                 if (missile != null)
                 {
-                    bool updateJammers = false;
+                    if (!missile.updateRadarCS)
+                        return ti;
 
-                    if (missile.ActiveRadar)
+                    if (missile.ActiveRadar || missile.radarLOALSearching)
                     {
-                        // Slightly inefficient... look for a better way to do this?
-                        if (ti.radarBaseSignature != RCS_MISSILES)
-                        {
-                            ti.radarBaseSignature = RCS_MISSILES;
-                            updateJammers = true;
-                        }
+                        ti.radarBaseSignature = RCS_MISSILES;
                     }
                     else
                         ti.radarBaseSignature = missile.missileRadarCrossSection;
 
                     ti.radarBaseSignatureNeedsUpdate = false;
                     ti.radarSignatureMatrixNeedsUpdate = false;
+                    missile.updateRadarCS = false;
 
-                    if (updateJammers)
-                    {
-                        // Update ECM impact on RCS if base RCS is modified
-                        VesselECMJInfo jammer = v.gameObject.GetComponent<VesselECMJInfo>();
-                        if (jammer != null)
-                            jammer.UpdateJammerStrength();
-                    }
+                    // Update ECM impact on RCS if base RCS is modified
+                    VesselECMJInfo jammer = v.gameObject.GetComponent<VesselECMJInfo>();
+                    if (jammer != null)
+                        jammer.UpdateJammerStrength();
 
                     return ti;
                 }

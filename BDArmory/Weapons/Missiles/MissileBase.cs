@@ -447,6 +447,8 @@ namespace BDArmory.Weapons.Missiles
 
         public bool ActiveRadar { get; set; }
 
+        public bool updateRadarCS = false;
+
         public Vessel SourceVessel
         {
             get { return _sourceVessel; }
@@ -569,7 +571,7 @@ namespace BDArmory.Weapons.Missiles
         [KSPField] public float terminalSeekerTimeout = -1;
         private float lastRWRPing = 0;
         public RadarWarningReceiver.RWRThreatTypes[] antiradTargets;
-        protected bool radarLOALSearching = false;
+        public bool radarLOALSearching { get; protected set; } = false;
         private bool hasLostLock = false;
         protected bool checkMiss = false;
         public StringBuilder debugString = new StringBuilder();
@@ -702,6 +704,7 @@ namespace BDArmory.Weapons.Missiles
             info.Team = Team;
             info.isMissile = true;
             info.MissileBaseModule = this;
+            updateRadarCS = true;
         }
 
         [KSPEvent(guiActive = true, guiActiveEditor = false, guiName = "#LOC_BDArmory_GPSTarget", active = true, name = "GPSTarget")]//GPS Target
@@ -1127,6 +1130,7 @@ namespace BDArmory.Weapons.Missiles
                                             locksCount++;
                                         }
                                         ActiveRadar = true;
+                                        updateRadarCS = true;
                                         return;
                                     }
                                 }
@@ -1140,9 +1144,10 @@ namespace BDArmory.Weapons.Missiles
                         if (radarLOAL)
                         {
                             // Lost track of target, but we can re-acquire set radarLOALSearching = true and try to re-acquire using existing target information
-                            if (radarLOALSearching)
+                            if (!radarLOALSearching)
                             {
                                 radarLOALSearching = true;
+                                updateRadarCS = true;
                                 startDirection = GetForwardTransform();
                             }
                             TargetAcquired = true;
@@ -1164,6 +1169,7 @@ namespace BDArmory.Weapons.Missiles
                             radarLOAL = false;
                             TargetAcquired = false;
                             ActiveRadar = false;
+                            updateRadarCS = true;
                         }
                     }
                 }
@@ -1236,6 +1242,7 @@ namespace BDArmory.Weapons.Missiles
                                 smallestDist = currDist;
                                 lockedTarget = scannedTargets[i];
                                 ActiveRadar = true;
+                                updateRadarCS = true;
                                 //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileBase][Radar LOAL]: Target: {scannedTargets[i].vessel.name} selected.");
                             }
                             //return;
@@ -1279,9 +1286,10 @@ namespace BDArmory.Weapons.Missiles
                     TargetPosition = transform.position + (startDirection * 5000);
                     TargetVelocity = vessel.Velocity(); // Set the relative target velocity to 0.
                     TargetAcceleration = Vector3.zero;
-                    if (radarLOALSearching)
+                    if (!radarLOALSearching)
                     {
                         radarLOALSearching = true;
+                        updateRadarCS = true;
                         startDirection = GetForwardTransform();
                     }
                     _radarFailTimer += Time.fixedDeltaTime;
@@ -1293,6 +1301,7 @@ namespace BDArmory.Weapons.Missiles
                         radarLOALSearching = false;
                         TargetAcquired = false;
                         ActiveRadar = false;
+                        updateRadarCS = true;
                     }
                     return;
                 }
@@ -1307,6 +1316,7 @@ namespace BDArmory.Weapons.Missiles
                         if (!radarLOALSearching)
                         {
                             radarLOALSearching = true;
+                            updateRadarCS = true;
                             TargetAcquired = true;
                             startDirection = GetForwardTransform();
                         }
