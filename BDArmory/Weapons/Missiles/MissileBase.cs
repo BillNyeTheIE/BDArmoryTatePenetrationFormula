@@ -447,6 +447,8 @@ namespace BDArmory.Weapons.Missiles
 
         public bool ActiveRadar { get; set; }
 
+        // Boolean, used to determine whether or not to update the missile's TargetInfo, should be set
+        // to true whenever a change is to be made to the missile's RCS, like ActiveRadar or radarLOALSearching
         public bool updateRadarCS = false;
 
         public Vessel SourceVessel
