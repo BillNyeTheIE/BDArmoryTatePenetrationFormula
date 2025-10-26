@@ -438,11 +438,6 @@ namespace BDArmory.Radar
                     ti.radarBaseSignatureNeedsUpdate = false;
                     ti.radarSignatureMatrixNeedsUpdate = false;
 
-                    // Update ECM impact on RCS if base RCS is modified
-                    VesselECMJInfo jammer = v.gameObject.GetComponent<VesselECMJInfo>();
-                    if (jammer != null)
-                        jammer.UpdateJammerStrength();
-
                     return ti;
                 }
             }
