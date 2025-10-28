@@ -2367,6 +2367,7 @@ namespace BDArmory.Weapons.Missiles
 
                         // Missile's radar has gone active
                         ActiveRadar = true;
+                        updateRadarCS = true;
 
                         //RadarUtils.UpdateRadarLock(ray, maxOffBoresight, activeRadarMinThresh, ref scannedTargets, 0.4f, true, RadarWarningReceiver.RWRThreatTypes.MissileLock, true);
                         RadarUtils.RadarUpdateMissileLock(ray, maxOffBoresight, ref scannedTargets, 0.4f, this);
@@ -2465,7 +2466,11 @@ namespace BDArmory.Weapons.Missiles
                 {
                     // De-activate active radar if it's active
                     if (TargetingMode == TargetingModes.Radar && TargetingModeTerminal != TargetingModes.Radar)
+                    {
                         ActiveRadar = false;
+                        radarLOALSearching = false;
+                        updateRadarCS = true;
+                    }
 
                     TargetingMode = TargetingModeTerminal;
                     if (terminalSeekerTimeout >= 0)

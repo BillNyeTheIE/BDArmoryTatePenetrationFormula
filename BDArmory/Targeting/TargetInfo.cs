@@ -220,7 +220,7 @@ namespace BDArmory.Targeting
             {
                 Team = mf.Team; // While the primary WM may change, the Team shouldn't.
             }
-            else
+            else if (vessel.IsMissile())
             {
                 var ml = VesselModuleRegistry.GetMissileBase(vessel, true);
                 if (ml != null)
