@@ -920,7 +920,7 @@ namespace BDArmory.Control
             }
             else if (
                 (SurfaceType & AIUtils.VehicleMovementType.Land) != 0 && vessel.Landed //land Vee on land
-                && (weaponManager.guardMode && targetVessel != null) //and under AI control 
+                && (weaponManager!= null && weaponManager.guardMode && targetVessel != null) //and under AI control 
                 && (
                     currentStatusMode == StatusMode.RammingSpeed || !weaponManager.HasWeaponsAndAmmo() //and have been told to ram or doesn't have weapons
                     || !WeaponCanEngage(weaponManager.currentGun) //or have no guns, or only fixed guns/turrets unable to traverse to target, or out of range
@@ -970,7 +970,6 @@ namespace BDArmory.Control
 
         void AdjustThrottle(float targetSpeed)
         {
-            targetVelocity = Mathf.Clamp(targetVelocity, doReverse ? -MaxSpeed : 0, MaxSpeed);
             targetSpeed = Mathf.Clamp(targetSpeed, doReverse ? -MaxSpeed : 0, MaxSpeed);
             float velocitySignedSrfSpeed = VectorUtils.Angle(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(upDir), vesselTransform.up) < 110 ? (float)vessel.srfSpeed : -(float)vessel.srfSpeed;
 
