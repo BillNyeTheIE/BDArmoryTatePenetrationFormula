@@ -998,18 +998,21 @@ namespace BDArmory.Control
 
             Vector3 yawTarget = targetDirection.ProjectOnPlanePreNormalized(vesselTransform.forward);
 
+            bool invertCtrlPoint = SurfaceType != AIUtils.VehicleMovementType.Stationary && VectorUtils.Angle(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(vessel.up), vesselTransform.up) > 90 && Math.Round(vessel.srfSpeed, 1) > 1; //need to flip vessel 'forward' when reversing for proper steerage
+
             // limit "aoa" if we're moving
             float driftMult = 1;
             if (SurfaceType != AIUtils.VehicleMovementType.Stationary && vessel.horizontalSrfSpeed * 10 > CruiseSpeed)
             {
-                driftMult = Mathf.Max(VectorUtils.Angle(vessel.srf_velocity, yawTarget) / MaxDrift, 1);
-                yawTarget = Vector3.RotateTowards(vessel.srf_velocity, yawTarget, MaxDrift * Mathf.Deg2Rad, 0);
+                Vector3d tempSrfVel = invertCtrlPoint ? -vessel.srf_velocity : vessel.srf_velocity;
+                driftMult = Mathf.Max(VectorUtils.Angle(tempSrfVel, yawTarget) / MaxDrift, 1);
+                yawTarget = Vector3.RotateTowards(tempSrfVel, yawTarget, MaxDrift * Mathf.Deg2Rad, 0);
             }
-            bool invertCtrlPoint = SurfaceType != AIUtils.VehicleMovementType.Stationary && VectorUtils.Angle(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(vessel.up), vesselTransform.up) > 90 && Math.Round(vessel.srfSpeed, 1) > 1; //need to flip vessel 'forward' when reversing for proper steerage
+            // Reverse the angle if we're going backwards
             float yawError = VectorUtils.GetAngleOnPlane(yawTarget, vesselTransform.up, invertCtrlPoint ? -vesselTransform.right : vesselTransform.right) + (aimingMode ? 0 : weaveAdjustment);
             if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI)
             {
-                DebugLine($"yaw target: {yawTarget}, yaw error: {yawError}");
+                DebugLine($"yaw target: {yawTarget}, yaw error: {yawError}, invertCtrlPoint: {invertCtrlPoint}");
                 DebugLine($"drift multiplier: {driftMult}");
             }
 
