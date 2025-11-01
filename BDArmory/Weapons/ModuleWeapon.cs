@@ -5625,7 +5625,7 @@ namespace BDArmory.Weapons
                 if (weaponManager.vesselRadarData && weaponManager.vesselRadarData.locked) // && weaponManager.slavedPosition != Vector3.zero)
                 {
                     TargetSignatureData targetData = TargetSignatureData.noTarget;
-                    if (weaponManager.multiTargetNum > 1 && (turret && (maxPitch != minPitch || yawRange > 0))) //if multi target turrets, get relevant lock
+                    if (weaponManager.multiTargetNum > 1 && turret && (maxPitch != minPitch || yawRange > 0)) //if multi target turrets, get relevant lock
                     {
                         List<TargetSignatureData> possibleTargets = weaponManager.vesselRadarData.GetLockedTargets();
                         for (int i = 0; i < possibleTargets.Count; i++)

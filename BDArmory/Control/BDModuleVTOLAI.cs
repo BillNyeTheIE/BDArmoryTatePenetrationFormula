@@ -30,7 +30,8 @@ namespace BDArmory.Control
         float targetLatVelocity; // the left/right velocity the craft should target, not the velocity of its target
         float targetAltitude; // the altitude the craft should hold, not the altitude of its target
         Vector3 rollTarget;
-        bool aimingMode = false;
+        enum AimingMode { Off = 0, Yaw = 1, Pitch = 2, Direct = Yaw | Pitch }
+        AimingMode aimingMode = AimingMode.Off;
 
         int collisionDetectionTicker = 0;
         Vector3? dodgeVector;
@@ -353,7 +354,7 @@ UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_fals
             targetLatVelocity = 0;
             targetDirection = vesselTransform.up;
             targetAltitude = defaultAltitude;
-            aimingMode = false;
+            aimingMode = AimingMode.Off;
             upDir = vessel.up;
             if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine("");
             if (IsRunningWaypoints) UpdateWaypoint(); // Update the waypoint state.
@@ -520,15 +521,15 @@ UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_fals
                                             if (missile.TargetingMode == MissileBase.TargetingModes.Heat && !weaponManager.heatTarget.exists)
                                             {
                                                 if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine($"Attempting heat lock");
-                                                aimingMode = true;
-                                                targetDirection = (MissileGuidance.GetAirToAirFireSolution(missile, targetVessel) - vessel.CoM);
+                                                aimingMode = AimingMode.Direct;
+                                                targetDirection = MissileGuidance.GetAirToAirFireSolution(missile, targetVessel) - vessel.CoM;
                                             }
                                             else
                                             {
                                                 if (!weaponManager.GetLaunchAuthorization(targetVessel, weaponManager, missile) && (Vector3.SqrMagnitude(targetVessel.vesselTransform.position - vesselTransform.position) < (missile.engageRangeMax * missile.engageRangeMax)))
                                                 {
-                                                    aimingMode = true;
-                                                    targetDirection = (MissileGuidance.GetAirToAirFireSolution(missile, targetVessel) - vessel.CoM);
+                                                    aimingMode = AimingMode.Direct;
+                                                    targetDirection = MissileGuidance.GetAirToAirFireSolution(missile, targetVessel) - vessel.CoM;
                                                 }
                                             }
                                         }
@@ -539,7 +540,7 @@ UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_fals
                                             targetAltitude = bombingAltitude;
 
                                             targetDirection = (AIUtils.PredictPosition(targetVessel, weaponManager.bombAirTime) - vessel.CoM).ProjectOnPlanePreNormalized(upDir);
-                                            aimingMode = true;
+                                            aimingMode = AimingMode.Yaw;
                                         }
                                         break;
                                     case WeaponClasses.SLW:
@@ -553,7 +554,7 @@ UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_fals
                                                     if (weaponManager.firedMissiles < weaponManager.maxMissilesOnTarget)
                                                         targetVelocity = CombatSpeed; //slow to drop speed
 
-                                                    aimingMode = true;
+                                                    aimingMode = AimingMode.Yaw;
                                                     targetDirection = (MissileGuidance.GetAirToAirFireSolution(torpedo, targetVessel) - vessel.CoM).ProjectOnPlanePreNormalized(upDir);
                                                 }
                                                 if (weaponManager.firedMissiles >= weaponManager.maxMissilesOnTarget)
@@ -572,14 +573,15 @@ UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_fals
                                         orderedToExtend = false;
                                         if (gun != null && (gun.yawRange == 0 || gun.maxPitch == gun.minPitch) && gun.FiringSolutionVector != null)
                                         {
-                                            aimingMode = true;
+                                            if (gun.yawRange == 0) aimingMode |= AimingMode.Yaw;
+                                            if (gun.maxPitch == gun.minPitch) aimingMode |= AimingMode.Pitch;
                                             if (VectorUtils.Angle(vesselTransform.up, ((Vector3)gun.FiringSolutionVector).ProjectOnPlanePreNormalized(vesselTransform.right)) < MaxPitchAngle)
                                                 targetDirection = (Vector3)gun.FiringSolutionVector;
                                         }
                                         break;
                                 }
                                 if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine($"Target combat alt: {targetAltitude}");
-                                if (aimingMode)
+                                if ((aimingMode & AimingMode.Yaw) > 0)
                                 {
                                     targetLatVelocity = Vector3.Dot(vessel.Velocity(), vesselTransform.right.ProjectOnPlanePreNormalized(upDir).normalized) * 4; //Zero out sideslip if aiming so torps/bombs don't go sideways
                                     //Investigate using sidestrafe capability to adjust aim if target moving perpendicularly?
@@ -716,7 +718,7 @@ UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_fals
         {
             Vector3 yawTarget = targetDirection.ProjectOnPlanePreNormalized(vesselTransform.forward);
 
-            float yawError = VectorUtils.GetAngleOnPlane(yawTarget, vesselTransform.up, vesselTransform.right) + (aimingMode ? 0 : weaveAdjustment);
+            float yawError = VectorUtils.GetAngleOnPlane(yawTarget, vesselTransform.up, vesselTransform.right) + ((aimingMode & AimingMode.Yaw) > 0 ? 0 : weaveAdjustment);
             if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine($"yaw target: {yawTarget}, yaw error: {yawError}");
 
             float forwardVel = Vector3.Dot(vessel.Velocity(), vesselTransform.up.ProjectOnPlanePreNormalized(upDir).normalized);
@@ -724,7 +726,7 @@ UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_fals
             float velError = targetVelocity - forwardVel;
             float pitchAngle = Mathf.Clamp(0.015f * -steerMult * velError - 0.33f * -steerDamping * forwardAccel, -MaxPitchAngle, MaxPitchAngle); //Adjust pitchAngle for desired speed
 
-            if (aimingMode)
+            if ((aimingMode & AimingMode.Pitch) > 0)
                 pitchAngle = -VectorUtils.GetAngleOnPlane(targetDirection, vesselTransform.up, vesselTransform.forward);
             else if (belowMinAltitude || targetVelocity == 0f)
                 pitchAngle = 0f;
