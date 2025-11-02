@@ -235,6 +235,7 @@ namespace BDArmory.Control
                 motorControl = gameObject.AddComponent<BDLandSpeedControl>();
                 motorControl.vessel = vessel;
             }
+            speedController.Deactivate();
             motorControl.Activate();
 
             if (BroadsideAttack && sideSlipDirection == 0)

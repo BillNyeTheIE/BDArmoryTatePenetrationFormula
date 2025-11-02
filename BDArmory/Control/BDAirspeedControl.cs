@@ -338,6 +338,7 @@ namespace BDArmory.Control
         /// <param name="value">The throttle value</param>
         public void SetThrottle(FlightCtrlState s, float value)
         {
+            s.mainThrottle = value;
             s.wheelThrottle = value;
             if (hasAxisGroupsModule)
             {
