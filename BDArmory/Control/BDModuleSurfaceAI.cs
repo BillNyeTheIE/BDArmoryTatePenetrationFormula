@@ -638,7 +638,7 @@ namespace BDArmory.Control
                 // check for enemy targets and engage
                 // not checking for guard mode, because if guard mode is off now you can select a target manually and if it is of opposing team, the AI will try to engage while you can man the turrets
                 var weaponManager = WeaponManager;
-                if (weaponManager && targetVessel != null && !BDArmorySettings.PEACE_MODE)
+                if (weaponManager != null && targetVessel != null && !BDArmorySettings.PEACE_MODE)
                 {
                     leftPath = true;
                     if (collisionDetectionTicker == 5)
@@ -648,7 +648,7 @@ namespace BDArmory.Control
                     float distance = vecToTarget.magnitude;
                     // lead the target a bit, where 1km/s is a ballpark estimate of the average bullet velocity
                     float shotSpeed = 1000f;
-                    if ((weaponManager != null ? weaponManager.selectedWeapon : null) is ModuleWeapon wep)
+                    if (weaponManager.selectedWeapon is ModuleWeapon wep)
                         shotSpeed = wep.bulletVelocity;
                     var timeToCPA = targetVessel.TimeToCPA(vessel.CoM, vessel.Velocity() + vesselTransform.up * shotSpeed, FlightGlobals.getGeeForceAtPosition(vessel.CoM), MaxEngagementRange / shotSpeed);
                     vecToTarget = targetVessel.PredictPosition(timeToCPA) - vessel.CoM;
@@ -703,7 +703,7 @@ namespace BDArmory.Control
                             if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine($"velAngle: {VectorUtils.Angle(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(vessel.up), vesselTransform.up)}");
                             extendingTarget = null;
                             targetDirection = vecToTarget.ProjectOnPlanePreNormalized(upDir);
-                            if (weaponManager != null && weaponManager.selectedWeapon != null)
+                            if (weaponManager.selectedWeapon != null)
                             {
                                 switch (weaponManager.selectedWeapon.GetWeaponClass())
                                 {
@@ -782,7 +782,7 @@ namespace BDArmory.Control
                                     else
                                     {
                                         targetVelocity = MaxSpeed;
-                                        if (weaponManager != null && weaponManager.selectedWeapon != null && (weaponManager.selectedWeapon.GetWeaponClass() == WeaponClasses.Bomb
+                                        if (weaponManager.selectedWeapon != null && (weaponManager.selectedWeapon.GetWeaponClass() == WeaponClasses.Bomb
                                             || weaponManager.selectedWeapon.GetWeaponClass() == WeaponClasses.SLW))
                                             orderedToExtend = true;
                                     }
@@ -874,13 +874,13 @@ namespace BDArmory.Control
         {
             var weaponManager = WeaponManager;
             // enable RCS if we're in combat
-            vessel.ActionGroups.SetGroup(KSPActionGroup.RCS, weaponManager && (
+            vessel.ActionGroups.SetGroup(KSPActionGroup.RCS, weaponManager != null && (
                 targetVessel && !BDArmorySettings.PEACE_MODE && (
                     weaponManager.selectedWeapon != null || (vessel.CoM - targetVessel.CoM).sqrMagnitude < MaxEngagementRange * MaxEngagementRange
                 ) || weaponManager.underFire || weaponManager.missileIsIncoming));
 
             // if weaponManager thinks we're under fire, do the evasive dance
-            if (SurfaceType != AIUtils.VehicleMovementType.Stationary && (weaponManager.underFire || weaponManager.missileIsIncoming))
+            if (SurfaceType != AIUtils.VehicleMovementType.Stationary && weaponManager != null && (weaponManager.underFire || weaponManager.missileIsIncoming))
             {
                 if (!maintainMinRange) targetVelocity = doReverse ? -MaxSpeed : MaxSpeed;
                 if (weaponManager.underFire || weaponManager.incomingMissileDistance < 2500)
@@ -920,7 +920,7 @@ namespace BDArmory.Control
             }
             else if (
                 (SurfaceType & AIUtils.VehicleMovementType.Land) != 0 && vessel.Landed //land Vee on land
-                && (weaponManager!= null && weaponManager.guardMode && targetVessel != null) //and under AI control 
+                && weaponManager != null && weaponManager.guardMode && targetVessel != null //and under AI control 
                 && (
                     currentStatusMode == StatusMode.RammingSpeed || !weaponManager.HasWeaponsAndAmmo() //and have been told to ram or doesn't have weapons
                     || !WeaponCanEngage(weaponManager.currentGun) //or have no guns, or only fixed guns/turrets unable to traverse to target, or out of range
@@ -1219,7 +1219,7 @@ namespace BDArmory.Control
         {
             //evasive will handle avoiding missiles
             var weaponManager = WeaponManager;
-            if ((weaponManager && v == weaponManager.incomingMissileVessel)
+            if ((weaponManager != null && v == weaponManager.incomingMissileVessel)
                 || v.rootPart.FindModuleImplementing<MissileBase>() != null)
                 return Vector3.zero;
 
