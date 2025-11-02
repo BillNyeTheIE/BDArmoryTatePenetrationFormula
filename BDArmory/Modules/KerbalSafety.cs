@@ -253,7 +253,8 @@ namespace BDArmory.Modules
             {
                 try
                 {
-                    foreach (var part in vessel.Parts.ToList()) part.OnJustAboutToBeDestroyed?.Invoke(); // Invoke any OnJustAboutToBeDestroyed events since RecoverVesselFromFlight calls DestroyImmediate, skipping the FX detachment triggers.
+                    if (vessel != null)
+                        foreach (var part in vessel.Parts.Where(p => p != null).ToList()) part.OnJustAboutToBeDestroyed?.Invoke(); // Invoke any OnJustAboutToBeDestroyed events since RecoverVesselFromFlight calls DestroyImmediate, skipping the FX detachment triggers.
                     ShipConstruction.RecoverVesselFromFlight(vessel.protoVessel, HighLogic.CurrentGame.flightState, true);
                 }
                 catch (Exception e)
