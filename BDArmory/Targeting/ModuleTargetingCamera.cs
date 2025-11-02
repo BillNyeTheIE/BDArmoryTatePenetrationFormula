@@ -1187,9 +1187,9 @@ namespace BDArmory.Targeting
             if (weaponManager)
             {
                 weaponManager.slavingTurrets = false;
+                weaponManager.slavedPosition = Vector3.zero;
+                weaponManager.slavedTarget = TargetSignatureData.noTarget; //reset and null these so hitting the slave target button on a weapon later doesn't lock it to a legacy position/target
             }
-            weaponManager.slavedPosition = Vector3.zero;
-            weaponManager.slavedTarget = TargetSignatureData.noTarget; //reset and null these so hitting the slave target button on a weapon later doesn't lock it to a legacy position/target
         }
 
         void UpdateSlaveData()
