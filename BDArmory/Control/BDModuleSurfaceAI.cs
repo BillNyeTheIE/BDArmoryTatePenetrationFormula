@@ -897,7 +897,7 @@ namespace BDArmory.Control
             {
                 weaveAdjustment = 0;
             }
-            if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine($"underFire {weaponManager.underFire}, weaveAdjustment {weaveAdjustment}");
+            if ((BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) && weaponManager) DebugLine($"underFire {weaponManager.underFire}, weaveAdjustment {weaveAdjustment}");
         }
 
         bool PanicModes()
