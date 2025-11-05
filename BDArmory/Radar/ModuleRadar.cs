@@ -528,10 +528,29 @@ namespace BDArmory.Radar
 
         public void ParseRadarLimits(in string radarLimitString, out float radarOffset, out float radarFOV, out float[] radarLimits, out float[] radarMinMaxLimits, bool elevationLimits = false)
         {
-            radarLimits = elevationLimits ? [radarAzLimits[0], radarAzLimits[1]] : [-45f, 45f];
-            radarMinMaxLimits = elevationLimits ? [radarMinMaxAzLimits[0], radarMinMaxAzLimits[1]] : [45f, 45f];
+            // If we're parsing elevation limits
+            if (elevationLimits)
+            {
+                // Then consider if it's omnidirectional or not, by default, omni radars are allowed +/- 90° FoV
+                // Otherwise the default is a square radar scan area (based on radarAZLimits)
+                radarLimits = omnidirectional ? [-90f, 90f] : [radarAzLimits[0], radarAzLimits[1]];
+                //radarMinMaxLimits = omnidirectional ? [90f, 90f] : [radarMinMaxAzLimits[0], radarMinMaxAzLimits[1]];
+                // Even if the azimuth is offset, we should start with no offset for elevation
+                radarMinMaxLimits = omnidirectional ? [90f, 90f] : [0.5f * radarAzFOV, 0.5f * radarAzFOV];
+                // Default omnidirectional FoV is 180°
+                radarFOV = omnidirectional ? 180f : radarAzFOV;
+            }
+            else
+            {
+                // If we're not parsing elevation limits, then default to a +/- 45° FoV
+                radarLimits = [-45f, 45f];
+                radarMinMaxLimits = [45f, 45f];
+                radarFOV = 90f;
+            }
+            
+            // For both az/el the dfault is 0 offset
             radarOffset = 0f;
-            radarFOV = elevationLimits ? radarAzFOV : 90f;
+            
             string[] limitStrings = radarLimitString.Split([',']);
             if (limitStrings.Length > 0)
             {
