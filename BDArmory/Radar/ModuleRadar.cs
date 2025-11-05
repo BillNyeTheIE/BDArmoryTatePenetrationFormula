@@ -1514,7 +1514,8 @@ namespace BDArmory.Radar
             output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000021", resourceDrain));
             if (!isLinkOnly)
             {
-                output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000022", radarAzLimits[0], radarAzLimits[1]));
+                if (!omnidirectional)
+                    output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000022", radarAzLimits[0], radarAzLimits[1]));
                 output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000041", radarElLimits[0], radarElLimits[1]));
                 output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000023", getRWRType(rwrThreatType)));
 
