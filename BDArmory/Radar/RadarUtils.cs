@@ -1727,7 +1727,7 @@ namespace BDArmory.Radar
                         if (distance < missile.activeRadarRange)
                         {
                             //evaluate if we can detect such a signature at that range
-                            float minDetectSig = missile.activeRadarLockTrackCurve.Evaluate(distance * 0.001f);
+                            float minDetectSig = missile.activeRadarLockTrackCurve.Evaluate(distance);
 
                             if (signature > minDetectSig || (SCRcheck && baseSignature > minDetectSig && GetRadarNotchingSCR(baseSignature, fov, distance * 0.001f, terrainR, terrainAngle) > missile.activeRadarMinTrackSCR))
                             {
