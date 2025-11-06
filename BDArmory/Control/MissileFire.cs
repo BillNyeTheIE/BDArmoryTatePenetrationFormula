@@ -3057,7 +3057,7 @@ namespace BDArmory.Control
                             }
                             if (ml && antiRadTargetAcquired && AntiRadDistanceCheck())
                             {
-                                FireCurrentMissile(ml, true);
+                                FireCurrentMissile(ml, true, guardTarget);
                                 //StartCoroutine(MissileAwayRoutine(ml));
                                 if (BDArmorySettings.DEBUG_MISSILES)
                                 {
