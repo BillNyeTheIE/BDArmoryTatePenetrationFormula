@@ -6318,8 +6318,8 @@ namespace BDArmory.Control
                                         {
                                             // Note this doesn't consider flares...
                                             if (targetHeatSignature < 0)
-                                                BDATargetManager.GetVesselHeatSignature(targetVessel, targetDir * 50f + vessel.CoM);
-                                            if (targetHeatSignature * ((BDArmorySettings.ASPECTED_IR_SEEKERS && Vector3.Dot(guardTarget.vesselTransform.up, mlauncher.transform.forward) > 0.25f) ? mlauncher.frontAspectHeatModifier : 1) < heatThresh)
+                                                (targetHeatSignature, Part tempPart) = BDATargetManager.GetVesselHeatSignature(targetVessel, targetDir * 50f + vessel.CoM);
+                                            if (targetHeatSignature * ((BDArmorySettings.ASPECTED_IR_SEEKERS && Vector3.Dot(targetVessel.vesselTransform.up, mlauncher.GetForwardTransform()) > 0.25f) ? mlauncher.frontAspectHeatModifier : 1) < heatThresh)
                                                 candidateTDPS *= 0.0001f; //Heatseeker, but IR sig is below missile threshold, skip to something else unless nothing else available
                                             //candidateTDPS *= 0.0001f; //Heatseeker, but IR sig is below missile threshold, skip to something else unless nothing else available
                                             //if (mlauncher.frontAspectHeatModifier < 0.15f) continue;
