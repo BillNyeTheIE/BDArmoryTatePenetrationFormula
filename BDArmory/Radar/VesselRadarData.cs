@@ -819,6 +819,9 @@ namespace BDArmory.Radar
             if (queueLinks && canReceiveRadarData)
                 LinkAllRadars();
 
+            if (externalLockCapabilityDirty)
+                CountExternalRadarMaxLocks();
+
             if (!vessel.loaded && (radarCount + irstCount == 0))
             {
                 Destroy(this);
@@ -1844,6 +1847,8 @@ namespace BDArmory.Radar
             {
                 externalRadars.RemoveAll(r => r == null);
             }
+
+            externalLockCapabilityDirty = true;
         }
 
         private void RemoveEmptyVRDs()
@@ -1868,12 +1873,14 @@ namespace BDArmory.Radar
                 externalVRDs.Remove(vrdr.Current);
             }
             vrdr.Dispose();
+            externalLockCapabilityDirty = true;
         }
 
         public void UnlinkDisabledRadar(ModuleRadar mr)
         {
             RemoveRadar(mr);
             externalRadars.Remove(mr);
+            externalLockCapabilityDirty = true;
             SaveExternalVRDVessels();
         }
 
@@ -1941,7 +1948,33 @@ namespace BDArmory.Radar
             availableIRSTs.RemoveAll(r => r == null);
             availableIRSTs.RemoveAll(r => r.vessel != vessel);
             iCount = availableIRSTs.Count;
+            MaxradarLocksExternal = 0;
             RefreshAvailableLinks();
+        }
+
+        bool externalLockCapabilityDirty = false;
+        public int MaxradarLocksExternal
+        {
+            get 
+            {
+                if (externalLockCapabilityDirty)
+                    CountExternalRadarMaxLocks();
+                return field;
+            }
+            private set;
+        }
+            = 0;
+
+        private void CountExternalRadarMaxLocks()
+        {
+            int tempMaxRadarLocksExternal = 0;
+            foreach (ModuleRadar radar in externalRadars)
+            {
+                if (radar == null) continue;
+                tempMaxRadarLocksExternal += radar.maxLocks;
+            }
+            MaxradarLocksExternal = tempMaxRadarLocksExternal;
+            externalLockCapabilityDirty = false;
         }
 
         private void OpenLinkRadarWindow()
@@ -1995,6 +2028,7 @@ namespace BDArmory.Radar
                 LinkToRadar(mr.Current);
             }
             mr.Dispose();
+            externalLockCapabilityDirty = true;
             SaveExternalVRDVessels();
             StartCoroutine(UpdateLocksAfterFrame());
         }
