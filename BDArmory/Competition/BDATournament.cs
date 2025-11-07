@@ -1994,32 +1994,32 @@ namespace BDArmory.Competition
                 if (!BDTISettings.STORE_TEAM_COLORS) BDTISetup.Instance.ResetColors(); // Get some good colours on the first run instead of random ones.
             }
             // NOTE: runs in separate coroutine
-                if (BDArmorySettings.RUNWAY_PROJECT)
+            if (BDArmorySettings.RUNWAY_PROJECT)
+            {
+                switch (BDArmorySettings.RUNWAY_PROJECT_ROUND)
                 {
-                    switch (BDArmorySettings.RUNWAY_PROJECT_ROUND)
-                    {
-                        case 33:
-                            BDACompetitionMode.Instance.StartRapidDeployment(0);
-                            break;
-                        case 44:
-                            BDACompetitionMode.Instance.StartRapidDeployment(0);
-                            break;
-                        case 53:
-                            BDACompetitionMode.Instance.StartRapidDeployment(0);
-                            break;
-                        case 67:
-                            BDACompetitionMode.Instance.StartRapidDeployment(0);
-                            break;
-                        case 77:
-                            BDACompetitionMode.Instance.StartRapidDeployment(0);
-                            break;
-                        default:
-                            BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE, startDespiteFailures);
-                            break;
-                    }
+                    case 33:
+                        BDACompetitionMode.Instance.StartRapidDeployment(0);
+                        break;
+                    case 44:
+                        BDACompetitionMode.Instance.StartRapidDeployment(0);
+                        break;
+                    case 53:
+                        BDACompetitionMode.Instance.StartRapidDeployment(0);
+                        break;
+                    case 67:
+                        BDACompetitionMode.Instance.StartRapidDeployment(0);
+                        break;
+                    case 77:
+                        BDACompetitionMode.Instance.StartRapidDeployment(0);
+                        break;
+                    default:
+                        BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE, startDespiteFailures);
+                        break;
                 }
-                else
-                    BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE, startDespiteFailures);
+            }
+            else
+                BDACompetitionMode.Instance.StartCompetitionMode(BDArmorySettings.COMPETITION_DISTANCE, startDespiteFailures);
             yield return new WaitForFixedUpdate(); // Give the competition start a frame to get going.
 
             // start timer coroutine for the duration specified in settings UI
@@ -2208,6 +2208,25 @@ namespace BDArmory.Competition
             {
                 if (body.isStar) return 0.5;
                 return ((lon - body.GetLongitude(sun.position - body.position, true)) % 360 / 360.0 + 1.5) % 1.0;
+            }
+        }
+
+        public IEnumerator WarpIfNeeded(SpawnConfig spawnConfig)
+        {
+            if (BDArmorySettings.TOURNAMENT_TIMEWARP_BETWEEN_ROUNDS < 0)
+            {
+                var body = FlightGlobals.Bodies[spawnConfig.worldIndex];
+                if (!EarlyBird.IsDayTime(spawnConfig.latitude, spawnConfig.longitude, body, 10))
+                {
+                    SpawnUtils.ShowSpawnPoint(spawnConfig.worldIndex, spawnConfig.latitude, spawnConfig.longitude, spawnConfig.altitude);
+                    BDACompetitionMode.Instance.competitionStatus.Add($"Warping ahead to morning, then running the next round.");
+                    yield return WarpAhead(EarlyBird.TimeToDaylight(
+                        spawnConfig.latitude,
+                        spawnConfig.longitude,
+                        body,
+                        10
+                    )); // Warp to morning +10mins.
+                }
             }
         }
         #endregion
