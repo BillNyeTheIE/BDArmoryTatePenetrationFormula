@@ -2500,9 +2500,7 @@ namespace BDArmory.Control
 
                         if (vesselRadarData.locked)
                         {
-                            if (GuardCheckLock(guardTarget))
-                                vesselRadarData.SwitchActiveLockedTarget(guardTarget);
-                            else
+                            if (!vesselRadarData.SwitchActiveLockedTarget(guardTarget))
                                 vesselRadarData.TryLockTarget(guardTarget);
                         }
                         else
@@ -2570,10 +2568,8 @@ namespace BDArmory.Control
                                     bool lockSuccess = false;
                                     if (vesselRadarData.locked)
                                     {
-                                        if (GuardCheckLock(targetVessel))
-                                        {
-                                            lockSuccess = vesselRadarData.SwitchActiveLockedTarget(targetVessel);
-                                        }
+                                        if (vesselRadarData.SwitchActiveLockedTarget(targetVessel))
+                                            lockSuccess = true;
                                         else
                                         {
                                             // if a low lock capacity radar, and it already has a lock on another target, TLT will return false, because the radar already at lock cap
@@ -2742,9 +2738,7 @@ namespace BDArmory.Control
                                         {
                                             if ((vesselRadarData.lockedTargetData.targetData.predictedPosition - targetVessel.CoM).sqrMagnitude > 40 * 40)
                                             {
-                                                if (GuardCheckLock(targetVessel))
-                                                    vesselRadarData.SwitchActiveLockedTarget(targetVessel);
-                                                else
+                                                if (!vesselRadarData.SwitchActiveLockedTarget(targetVessel))
                                                     vesselRadarData.TryLockTarget(targetVessel);
                                                 yield return new WaitForSecondsFixed(Mathf.Min(1, (targetScanInterval * tryLockTime)));
                                             }
@@ -2899,10 +2893,8 @@ namespace BDArmory.Control
                                             bool lockSuccess = false;
                                             if (vesselRadarData.locked)
                                             {
-                                                if (GuardCheckLock(targetVessel))
-                                                {
-                                                    lockSuccess = vesselRadarData.SwitchActiveLockedTarget(targetVessel);
-                                                }
+                                                if (vesselRadarData.SwitchActiveLockedTarget(targetVessel))
+                                                    lockSuccess = true;
                                                 else
                                                 {
                                                     lockSuccess = vesselRadarData.TryLockTarget(targetVessel);
@@ -3192,8 +3184,8 @@ namespace BDArmory.Control
                                         bool lockSuccess = false;
                                         if (!vesselRadarData.locked) //we got radar, can we get a lock for better datalink update rate?
                                         {
-                                            if (GuardCheckLock(targetVessel))
-                                                lockSuccess = vesselRadarData.SwitchActiveLockedTarget(targetVessel);
+                                            if (vesselRadarData.SwitchActiveLockedTarget(targetVessel))
+                                                lockSuccess = true;
                                             else
                                                 lockSuccess = vesselRadarData.TryLockTarget(targetVessel);
                                         }
@@ -3516,6 +3508,7 @@ namespace BDArmory.Control
             guardFiringMissile = false;
         }
 
+        // DEPRECATED -> SwitchActiveLockedTarget now does this, but better
         private bool GuardCheckLock(Vessel targetVessel)
         {
             List<TargetSignatureData> possibleTargets = vesselRadarData.GetLockedTargets();
@@ -7636,9 +7629,7 @@ namespace BDArmory.Control
                         }
                         */
 
-                        if (GuardCheckLock(guardTarget))
-                            vesselRadarData.SwitchActiveLockedTarget(guardTarget);
-                        else
+                        if (!vesselRadarData.SwitchActiveLockedTarget(guardTarget))
                             vesselRadarData.TryLockTarget(guardTarget);
                     }
                 }
@@ -9231,8 +9222,8 @@ namespace BDArmory.Control
                                         radarLocked = true;
                                     else
                                     {
-                                        if (GuardCheckLock(targetVessel))
-                                            radarLocked = vesselRadarData.SwitchActiveLockedTarget(targetVessel);
+                                        if (vesselRadarData.SwitchActiveLockedTarget(targetVessel))
+                                            radarLocked = true;
                                         else
                                             radarLocked = vesselRadarData.TryLockTarget(targetVessel);
                                     }
