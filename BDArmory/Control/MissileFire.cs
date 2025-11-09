@@ -5719,6 +5719,20 @@ namespace BDArmory.Control
             return false;
         }
 
+        bool CheckAntiRadStatus(Vessel targetVessel, in bool[] RWRThreatTypes)
+        {
+            bool foundTarget = false;
+            for (int i = 0; i < rwr.pingsData.Length; i++)
+            {
+                if ((rwr.pingsData[i].position - targetVessel.CoM).sqrMagnitude < 20f * 20f) //is current target a hostile radar source?
+                {
+                    RWRThreatTypes[(int)rwr.pingsData[i].signalType] = true;
+                    foundTarget = true;
+                }
+            }
+            return foundTarget;
+        }
+
         // extension for feature_engagementenvelope: new smartpickweapon method
         bool SmartPickWeapon_EngagementEnvelope(TargetInfo target)
         {
@@ -6349,9 +6363,11 @@ namespace BDArmory.Control
                                         candidateTurning = mlauncher.maxTurnRateDPS; //for anti-aircraft, prioritize detonation dist and turn capability. Rejigger to use kinematic missile perf. based on missile maxAoA/maxG/optimalAirspeed instead of arbitrary static value?
                                         candidatePriority = Mathf.RoundToInt(mlauncher.priority);
                                         bool EMP = mlauncher.warheadType == MissileBase.WarheadTypes.EMP;
+                                        // Should probably turn this into a switch
                                         bool heat = mlauncher.TargetingMode == MissileBase.TargetingModes.Heat;
                                         bool radar = mlauncher.TargetingMode == MissileBase.TargetingModes.Radar;
                                         bool inertial = mlauncher.TargetingMode == MissileBase.TargetingModes.Inertial;
+                                        bool antiRad = mlauncher.TargetingMode == MissileBase.TargetingModes.AntiRad;
                                         float heatThresh = mlauncher.heatThreshold;
                                         if (EMP && target.isDebilitated) continue;
                                         if (vessel.Splashed && (!surfaceAI || surfaceAI.SurfaceType != AIUtils.VehicleMovementType.Submarine) && (BDArmorySettings.BULLET_WATER_DRAG && FlightGlobals.getAltitudeAtPos(mlauncher.transform.position) < -10)) continue; //allow submarine-mounted missiles; new launch depth check in launchAuth 
@@ -6410,6 +6426,26 @@ namespace BDArmory.Control
                                             {
                                                 candidateTDPS *= 0.001f;
                                             }
+                                        }
+                                        if (antiRad && rwr && rwr.enabled)
+                                        { 
+                                            if (!skipRWRCheck)
+                                            {
+                                                CheckAntiRadStatus(targetVessel, RWRTypes);
+                                                skipRWRCheck = true;
+                                            }
+
+                                            bool foundAntiRad = false;
+                                            foreach (RadarWarningReceiver.RWRThreatTypes type in mlauncher.antiradTargets)
+                                            {
+                                                if (RWRTypes[(int)type])
+                                                {
+                                                    foundAntiRad = true;
+                                                    break;
+                                                }
+                                            }
+
+                                            if (!foundAntiRad) candidateTDPS *= 0.001f;
                                         }
                                         if (mlauncher.TargetingMode == MissileBase.TargetingModes.Laser && targetingPods.Count <= 0)
                                         {
@@ -6520,17 +6556,13 @@ namespace BDArmory.Control
                                                                              //if(firedMissiles >= maxMissilesOnTarget) continue;// Max missiles are fired, try another weapon
                                     if (SLW.TargetingMode == MissileBase.TargetingModes.Heat && SLW.activeRadarRange < 0 && (rwr && rwr.rwrEnabled)) //we have passive acoustic homing? see if anything has active sonar
                                     {
-                                        for (int i = 0; i < rwr.pingsData.Length; i++)
+                                        if (!skipRWRCheck)
                                         {
-                                            if (rwr.pingsData[i].signalStrength == 6) //Sonar
-                                            {
-                                                if ((rwr.pingsData[i].position - targetVessel.CoM).sqrMagnitude < 20f * 20f) //is current target a hostile radar source?
-                                                {
-                                                    candidateYield *= 1.5f; // Prioritize PAH Torps for hostile sonar sources
-                                                    break;
-                                                }
-                                            }
+                                            CheckAntiRadStatus(targetVessel, in RWRTypes);
+                                            skipRWRCheck = true;
                                         }
+
+                                        if (RWRTypes[6]) candidateYield *= 1.5f; // Prioritize PAH Torps for hostile sonar sources
                                     }
 
                                     if (candidateTurning + candidateYield > targetWeaponTDPS)
@@ -6564,7 +6596,13 @@ namespace BDArmory.Control
                                     }
                                     if (inertial)
                                     {
-                                        if (!_sonarsEnabled)
+                                        if (!skipRadarDetectionCheck)
+                                        {
+                                            radarDetected = CheckDetectionStatus(targetVessel, false, ref radarLocked, ref skipRadarLockCheck);
+                                            skipRadarDetectionCheck = true;
+                                        }
+
+                                        if (!radarDetected)
                                         {
                                             candidateTDPS *= 0.001f; //no radar/sonar, skip to something else unless nothing else available
                                         }
@@ -7046,17 +7084,22 @@ namespace BDArmory.Control
                                         }
                                         if (Missile.TargetingMode == MissileBase.TargetingModes.AntiRad && (rwr && rwr.rwrEnabled))
                                         {// make it so this only selects antirad when hostile radar
-                                            for (int i = 0; i < rwr.pingsData.Length; i++)
+                                            if (!skipRWRCheck)
                                             {
-                                                if (Missile.antiradTargets.Contains(rwr.pingsData[i].signalType))
+                                                CheckAntiRadStatus(targetVessel, RWRTypes);
+                                                skipRWRCheck = true;
+                                            }
+
+                                            foreach (RadarWarningReceiver.RWRThreatTypes type in Missile.antiradTargets)
+                                            {
+                                                if (RWRTypes[(int)type])
                                                 {
-                                                    if ((rwr.pingsData[i].position - targetVessel.CoM).sqrMagnitude < 20f * 20f) //is current target a hostile radar source?
-                                                    {
-                                                        candidateAntiRad = true;
-                                                        candidateYield *= 2; // Prioritize anti-rad missiles for hostile radar sources
-                                                    }
+                                                    candidateAntiRad = true;
+                                                    candidateYield *= 2; // Prioritize anti-rad missiles for hostile radar sources
+                                                    break;
                                                 }
                                             }
+
                                             if (candidateAntiRad)
                                             {
                                                 if (targetWeapon != null && targetYield > candidateYield) continue; //prioritize biggest Boom
@@ -7239,17 +7282,13 @@ namespace BDArmory.Control
 
                                     if (SLW.TargetingMode == MissileBase.TargetingModes.Heat && SLW.activeRadarRange < 0 && (rwr && rwr.rwrEnabled)) //we have passive acoustic homing? see if anything has active sonar
                                     {
-                                        for (int i = 0; i < rwr.pingsData.Length; i++)
+                                        if (!skipRWRCheck)
                                         {
-                                            if (rwr.pingsData[i].signalStrength == 6) //Sonar
-                                            {
-                                                if ((rwr.pingsData[i].position - targetVessel.CoM).sqrMagnitude < 20f * 20f) //is current target a hostile radar source?
-                                                {
-                                                    candidateYield *= 2; // Prioritize PAH Torps for hostile sonar sources
-                                                    break;
-                                                }
-                                            }
+                                            CheckAntiRadStatus(targetVessel, in RWRTypes);
+                                            skipRWRCheck = true;
                                         }
+
+                                        if (RWRTypes[6]) candidateYield *= 2; // Prioritize PAH Torps for hostile sonar sources
                                     }
 
                                     if (distance < ((EngageableWeapon)item.Current).engageRangeMin || firedMissiles >= maxMissilesOnTarget || ((unguidedWeapon && vessel.Splashed) && distance > ((EngageableWeapon)item.Current).engageRangeMax / 10)) //don't penalize air-dropped unguided torps
