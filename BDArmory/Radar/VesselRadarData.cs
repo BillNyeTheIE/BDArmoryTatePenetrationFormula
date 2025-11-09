@@ -882,7 +882,7 @@ namespace BDArmory.Radar
                 }
         }
 
-        private bool TryLockTarget(RadarDisplayData radarTarget)
+        private bool TryLockTarget(RadarDisplayData radarTarget, bool priorityLock = false)
         {
             if (radarTarget.locked) return false;
 
@@ -891,7 +891,7 @@ namespace BDArmory.Radar
             bool acquiredLock = false;
             if (radarTarget.detectedByRadar)
             {
-                if (CheckRadarForLock(radarTarget.detectedByRadar, radarTarget))
+                if (CheckRadarForLock(radarTarget.detectedByRadar, radarTarget, priorityLock))
                 {
                     lockingRadar = radarTarget.detectedByRadar;
                     acquiredLock = lockingRadar.TryLockTarget(radarTarget.targetData.predictedPosition, radarTarget.vessel);
@@ -904,7 +904,7 @@ namespace BDArmory.Radar
                     {
                         if (radar.Current == null) continue;
                         // If the radar is external
-                        if (!CheckRadarForLock(radar.Current, radarTarget)) continue;
+                        if (!CheckRadarForLock(radar.Current, radarTarget, priorityLock)) continue;
                         lockingRadar = radar.Current;
                         if (lockingRadar.TryLockTarget(radarTarget.targetData.predictedPosition, radarTarget.vessel))
                         {
@@ -942,7 +942,7 @@ namespace BDArmory.Radar
             return;
         }
 
-        public bool TryLockTarget(Vessel v)
+        public bool TryLockTarget(Vessel v, bool priorityLock = false)
         {
             if (v == null || v.packed) return false;
 
@@ -967,7 +967,7 @@ namespace BDArmory.Radar
             //return false;
         }
 
-        private bool CheckRadarForLock(ModuleRadar radar, RadarDisplayData radarTarget)
+        private bool CheckRadarForLock(ModuleRadar radar, RadarDisplayData radarTarget, bool priorityLock)
         {
             // Technically all instances of this are now gated by a null check so this is no longer necessary
             //if (!radar) return false;
@@ -987,7 +987,9 @@ namespace BDArmory.Radar
             (
                 RadarUtils.RadarCanDetect(radar, radarTarget.targetData.signalStrength, dist)
                 && radarTarget.targetData.signalStrength >= radar.radarLockTrackCurve.Evaluate(dist)
-                && (radar.CheckFOV(radarTarget.targetData.predictedPosition))
+                && (radar.CheckFOV(radarTarget.targetData.predictedPosition)
+                && (!radar.locked || !priorityLock ||
+                    radar.lockedTarget.targetInfo.isMissile || VectorUtils.Angle(relativePos, radar.lockedTarget.position - radar.currPosition) < radar.multiLockFOV * 0.5f))
             );
         }
 

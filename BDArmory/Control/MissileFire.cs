@@ -9216,7 +9216,7 @@ namespace BDArmory.Control
                                 {
                                     if (!vesselRadarData.locked)
                                     {
-                                        radarLocked = vesselRadarData.TryLockTarget(targetVessel);
+                                        radarLocked = vesselRadarData.TryLockTarget(targetVessel, true);
                                     }
                                     else if (vesselRadarData.lockedTargetData.vessel == targetVessel)
                                         radarLocked = true;
@@ -9225,7 +9225,7 @@ namespace BDArmory.Control
                                         if (vesselRadarData.SwitchActiveLockedTarget(targetVessel))
                                             radarLocked = true;
                                         else
-                                            radarLocked = vesselRadarData.TryLockTarget(targetVessel);
+                                            radarLocked = vesselRadarData.TryLockTarget(targetVessel, true);
                                     }
 
                                     // Once we've performed the check we can skip it
