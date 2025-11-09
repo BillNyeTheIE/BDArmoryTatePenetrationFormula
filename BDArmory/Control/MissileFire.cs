@@ -5666,6 +5666,59 @@ namespace BDArmory.Control
             TargetLabel = target.Vessel.GetName();
         }
 
+        bool CheckLockStatus(Vessel targetVessel, bool radar, ref bool radarDetected, ref bool skipRadarDetectionCheck)
+        {
+            // If radars/sonars are not enabled, or VRD is null or we don't have a lock
+            if ((radar ? !_radarsEnabled : !_sonarsEnabled) || vesselRadarData == null || !vesselRadarData.locked)
+            {
+                radarDetected = false;
+                skipRadarDetectionCheck = true;
+                return false;
+            }
+            
+            if ((vesselRadarData.lockedTargetData.vessel == targetVessel) || vesselRadarData.SwitchActiveLockedTarget(targetVessel))
+            {
+                radarDetected = true;
+                skipRadarDetectionCheck = true;
+                return true;
+            }
+
+            return false;
+        }
+
+        bool CheckDetectionStatus(Vessel targetVessel, bool radar, ref bool radarLocked, ref bool skipRadarLockCheck)
+        {
+            if (!vesselRadarData)
+            {
+                skipRadarLockCheck = true;
+                return false;
+            }
+
+            if (radar ? !_radarsEnabled : !_sonarsEnabled)
+            {
+                (TargetSignatureData tempData, bool tempLocked) = vesselRadarData.detectedRadarTargetLock(targetVessel, this);
+                if (tempData.exists)
+                {
+                    if (tempLocked)
+                    {
+                        radarLocked = true;
+                        skipRadarLockCheck = true;
+                    }
+                    return true;
+                }
+            }
+            else
+            {
+                skipRadarLockCheck = true;
+                // Technically IRST detected, but this is the only use case for this bool
+                // For sonars we don't need to check IRSTs (I think?)
+                if (radar && _irstsEnabled && vesselRadarData.activeIRTarget(targetVessel, this).exists)
+                    return true;
+            }
+
+            return false;
+        }
+
         // extension for feature_engagementenvelope: new smartpickweapon method
         bool SmartPickWeapon_EngagementEnvelope(TargetInfo target)
         {
@@ -5700,6 +5753,15 @@ namespace BDArmory.Control
             bool candidateAGM = false;
             bool candidateAntiRad = false;
             var surfaceAI = SurfaceAI;
+
+            bool skipRadarLockCheck = false;
+            bool radarLocked = false;
+            bool skipRadarDetectionCheck = false;
+            bool radarDetected = false;
+
+            bool skipRWRCheck = false;
+            bool[] RWRTypes = new bool[10];
+
             Vessel targetVessel = target.Vessel;
             if (target.isMissile)
             {
@@ -6320,7 +6382,13 @@ namespace BDArmory.Control
                                         }
                                         if (radar)
                                         {
-                                            if (!_radarsEnabled || (vesselRadarData != null && !vesselRadarData.locked))
+                                            if (!skipRadarLockCheck)
+                                            {
+                                                radarLocked = CheckLockStatus(targetVessel, true, ref radarDetected, ref skipRadarDetectionCheck);
+                                                skipRadarLockCheck = true;
+                                            }
+
+                                            if (!radarLocked)
                                             {
                                                 if (!mlauncher.radarLOAL) candidateTDPS *= 0.001f; //no radar lock, skip to something else unless nothing else available
                                                 else
@@ -6331,11 +6399,14 @@ namespace BDArmory.Control
                                         }
                                         if (inertial)
                                         {
-                                            if (!(_radarsEnabled || _irstsEnabled) || vesselRadarData == null)
+                                            if (!skipRadarDetectionCheck)
                                             {
-                                                candidateTDPS *= 0.001f; //no radar/IRST, skip to something else unless nothing else available
+                                                radarDetected = CheckDetectionStatus(targetVessel, true, ref radarLocked, ref skipRadarLockCheck);
+
+                                                skipRadarDetectionCheck = true;
                                             }
-                                            else if ((vesselRadarData.detectedRadarTargetIndex(targetVessel, this) < 0) || !vesselRadarData.activeIRTarget(targetVessel, this).exists)
+
+                                            if (!radarDetected)
                                             {
                                                 candidateTDPS *= 0.001f;
                                             }
@@ -6476,7 +6547,13 @@ namespace BDArmory.Control
                                     }
                                     if (radar)
                                     {
-                                        if (!_sonarsEnabled || (vesselRadarData != null && !vesselRadarData.locked))
+                                        if (!skipRadarLockCheck)
+                                        {
+                                            radarLocked = CheckLockStatus(targetVessel, false, ref radarDetected, ref skipRadarDetectionCheck);
+                                            skipRadarDetectionCheck = true;
+                                        }
+
+                                        if (!radarLocked)
                                         {
                                             if (!SLW.radarLOAL) candidateTDPS *= 0.001f; //no radar/sonar lock, skip to something else unless nothing else available
                                             else
@@ -7004,8 +7081,37 @@ namespace BDArmory.Control
                                         {
                                             if (!candidateAGM)
                                             {
-                                                if (Missile.TargetingMode == MissileBase.TargetingModes.Radar && (!_radarsEnabled || (vesselRadarData != null && !vesselRadarData.locked)) && !Missile.radarLOAL) candidateYield *= 0.1f;
-                                                if (Missile.TargetingMode == MissileBase.TargetingModes.Inertial && !(_radarsEnabled || _irstsEnabled)) candidateYield *= 0.1f;
+                                                if (Missile.TargetingMode == MissileBase.TargetingModes.Radar)
+                                                {
+                                                    if (!skipRadarLockCheck)
+                                                    {
+                                                        radarLocked = CheckLockStatus(targetVessel, true, ref radarDetected, ref skipRadarDetectionCheck);
+                                                        skipRadarLockCheck = true;
+                                                    }
+
+                                                    if (!radarLocked)
+                                                    {
+                                                        if (!Missile.radarLOAL) candidateYield *= 0.1f; //no radar lock, skip to something else unless nothing else available
+                                                        else
+                                                        {
+                                                            if (Missile.seekerTimeout < ((distance - Missile.activeRadarRange) / Missile.optimumAirspeed)) candidateYield *= 0.5f; //outside missile self-lock zone 
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                if (Missile.TargetingMode == MissileBase.TargetingModes.Inertial)
+                                                {
+                                                    if (!skipRadarDetectionCheck)
+                                                    {
+                                                        radarDetected = CheckDetectionStatus(targetVessel, true, ref radarLocked, ref skipRadarLockCheck);
+                                                        skipRadarDetectionCheck = true;
+                                                    }
+
+                                                    if (!radarDetected)
+                                                    {
+                                                        candidateYield *= 0.1f;
+                                                    }
+                                                }
                                                 if (targetWeapon != null && targetYield > candidateYield) continue;
                                                 //targetYield = candidateYield;
                                                 //targetWeapon = item.Current;
