@@ -988,8 +988,9 @@ namespace BDArmory.Radar
                 RadarUtils.RadarCanDetect(radar, radarTarget.targetData.signalStrength, dist)
                 && radarTarget.targetData.signalStrength >= radar.radarLockTrackCurve.Evaluate(dist)
                 && (radar.CheckFOV(radarTarget.targetData.predictedPosition)
-                && (!radar.locked || !priorityLock ||
-                    radar.lockedTarget.targetInfo.isMissile || VectorUtils.Angle(relativePos, radar.lockedTarget.position - radar.currPosition) < radar.multiLockFOV * 0.5f))
+                && (!radar.locked ||
+                    (priorityLock && !radar.lockedTarget.targetInfo.isMissile) ||
+                    VectorUtils.Angle(relativePos, radar.lockedTarget.position - radar.currPosition) < radar.multiLockFOV * 0.5f))
             );
         }
 
