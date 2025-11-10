@@ -1274,13 +1274,13 @@ namespace BDArmory.Radar
             if (vesselRadarData)
             {
                 //vesselRadarData.UnlockTargetAtPosition(position);
-                vesselRadarData.RemoveVesselFromTargets(rVess);
+                vesselRadarData.RemoveVesselFromLockedTargets(rVess);
             }
             if (linkedToVessels.Count > 0)
                 foreach (VesselRadarData vrd in linkedToVessels)
                 {
                     if (vrd)
-                        vrd.RemoveVesselFromTargets(rVess);
+                        vrd.RemoveVesselFromLockedTargets(rVess);
                 }
         }
 

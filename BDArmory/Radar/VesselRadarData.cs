@@ -2274,19 +2274,40 @@ namespace BDArmory.Radar
             return false;
         }
 
+        // NOTE: Both this method and RemoveVesselFromLockedTargets could be improved by accounting for other
+        // radars locking on to the target in question, as well as improved AddRadarContact behavior, primarily
+        // by adding a counter to RadarDisplayTarget to account for the number of radars locked on, and to have
+        // detectedByRadar be filled by the most capable radar of the ones reporting a lock-on. Granted, currently
+        // such multi-radar locks aren't a thing, and as such this hasn't been implemented.
         public void UnlockAllTargetsOfRadar(ModuleRadar radar)
         {
             //radar.UnlockTarget();
-            displayedTargets.RemoveAll(t => t.detectedByRadar == radar);
+            //displayedTargets.RemoveAll(t => t.detectedByRadar == radar); -> THIS IS PRETTY EXPENSIVE, INVOLVES A LOT OF COPYING
+            // Instead, just set locked to false, which has the added benefit of not deleting the contact...
+            for (int i = 0; i < displayedTargets.Count; i++)
+            {
+                // Get local copy (since we're gonna be using it for a comparison anyways, which will create a local copy)
+                    displayedTargets[i] = t;
             UpdateLockedTargets();
         }
 
         public void RemoveVesselFromTargets(Vessel _vessel)
         {
+            // WARNING - THIS DOES A LOT OF MOVING THINGS AROUND, ONLY USE IF NECESSARY!
             displayedTargets.RemoveAll(t => t.vessel == _vessel);
             UpdateLockedTargets();
         }
 
+        public void RemoveVesselFromLockedTargets(Vessel _vessel)
+        {
+            for (int i = 0; i < displayedTargets.Count; i++)
+            {
+                // Get local copy (since we're gonna be using it for a comparison anyways, which will create a local copy)
+                RadarDisplayData t = displayedTargets[i];
+                if (t.vessel == vessel)
+                {
+                    // Set locked to false
+                    t.locked = false;
         public void UnlockAllTargets(bool unlockDatalinkedRadars = true)
         {
             List<ModuleRadar>.Enumerator radar = weaponManager.radars.GetEnumerator();
