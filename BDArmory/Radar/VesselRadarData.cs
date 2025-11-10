@@ -928,14 +928,14 @@ namespace BDArmory.Radar
             UpdateLockedTargets();
         }
 
-        public void TryLockTarget(Vector3 worldPosition)
+        public void TryLockTarget(Vector3 worldPosition, bool priorityLock = false)
         {
             List<RadarDisplayData>.Enumerator displayData = displayedTargets.GetEnumerator();
             while (displayData.MoveNext())
             {
                 if (!(Vector3.SqrMagnitude(worldPosition - displayData.Current.targetData.predictedPosition) <
                       40 * 40)) continue;
-                TryLockTarget(displayData.Current);
+                TryLockTarget(displayData.Current, priorityLock);
                 return;
             }
             displayData.Dispose();
@@ -2778,7 +2778,7 @@ namespace BDArmory.Radar
                         Time.time - guiInputTime > guiInputCooldown)
                     {
                         guiInputTime = Time.time;
-                        TryLockTarget(displayedTargets[i]);
+                        TryLockTarget(displayedTargets[i], true);
                     }
 
                     if (BDArmorySettings.DEBUG_RADAR)
@@ -3040,7 +3040,7 @@ namespace BDArmory.Radar
 
             if (found)
             {
-                TryLockTarget(closestPos);
+                TryLockTarget(closestPos, true);
             }
             else if (closestSqrMag > (40 * 40))
             {
