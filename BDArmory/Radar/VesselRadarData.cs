@@ -987,7 +987,9 @@ namespace BDArmory.Radar
 
             if (!radar.canLock) return false;
 
-            if ((!weaponManager || !weaponManager.guardMode) && (radar.locked && (radar.currentLocks == radar.maxLocks))) return false;
+            bool guardModeActive = weaponManager && weaponManager.guardMode;
+
+            if (!guardModeActive && (radar.locked && (radar.currentLocks == radar.maxLocks))) return false;
 
             // Ensure the radar's referenceTransform and related vectors are all updated...
             radar.UpdateReferenceTransform();
@@ -1002,9 +1004,11 @@ namespace BDArmory.Radar
                 RadarUtils.RadarCanDetect(radar, tData.signalStrength, dist)
                 && tData.signalStrength >= radar.radarLockTrackCurve.Evaluate(dist)
                 && (radar.CheckFOV(tData.predictedPosition)
-                && (!radar.locked ||
-                    (priorityLock && !radar.lockedTarget.targetInfo.isMissile) ||
-                    VectorUtils.Angle(relativePos, radar.lockedTarget.position - radar.currPosition) < radar.multiLockFOV * 0.5f))
+                && (!guardModeActive || // If not in Guard Mode
+                    !radar.locked || // Or the radar isn't locked
+                    (priorityLock && !radar.lockedTarget.targetInfo.isMissile) || // Or we're a priority lock
+                    weaponManager.GetMissilesAway(radar.lockedTarget.targetInfo)[1] == 0 || // Or we're not guiding a missile
+                    VectorUtils.Angle(relativePos, radar.lockedTarget.position - radar.currPosition) < radar.multiLockFOV * 0.5f)) // Or we're within the multiLockFOV
             );
         }
 
