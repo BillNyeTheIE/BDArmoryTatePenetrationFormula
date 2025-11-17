@@ -7,9 +7,12 @@ using UniLinq;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine;
+using BDArmory.Extensions;
+using KSP.UI;
 
 namespace BDArmory.Utils
 {
+    #region FloatLogRange
     /// <summary>
     /// Logarithmic FloatRange slider.
     /// Gives ranges with values of the form: 0.01, 0.0316, 0.1, 0.316, 1.
@@ -314,7 +317,9 @@ namespace BDArmory.Utils
             isRunning = false;
         }
     }
+    #endregion
 
+    #region FloatSemiLogRange
     /// <summary>
     /// Semi-Logarithmic FloatRange slider.
     /// Gives ranges where the values are of the form: 0.9, 1, 2, ..., 9, 10, 20, ..., 90, 100, 200, ..., 900, 1000, 2000.
@@ -694,7 +699,9 @@ namespace BDArmory.Utils
             isRunning = false;
         }
     }
+    #endregion
 
+    #region FloatPowerRange
     /// <summary>
     /// Power-scaling FloatRange slider.
     /// Specify minValue, maxValue, power and sigFig. The stepIncrement is automatically calculated.
@@ -1025,4 +1032,246 @@ namespace BDArmory.Utils
             isRunning = false;
         }
     }
+    #endregion
+
+    #region ActionGroup
+    /// <summary>
+    /// Action group slider.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Property | AttributeTargets.Field)]
+    public class UI_ActionGroup : UI_ChooseOption
+    {
+        private const string UIControlName = "ActionGroup";
+        public UI_ActionGroup()
+        {
+            options = [.. ActionGroups.Values.Select(ag => ag.ToString()).Select(ag => ag.StartsWith("Custom") ? $"AG{ag.Substring(6)}" : ag)];
+        }
+        public static readonly Dictionary<int, KSPActionGroup> ActionGroups = new() {
+            { 0,  KSPActionGroup.None },
+            { 1,  KSPActionGroup.Custom01 },
+            { 2,  KSPActionGroup.Custom02 },
+            { 3,  KSPActionGroup.Custom03 },
+            { 4,  KSPActionGroup.Custom04 },
+            { 5,  KSPActionGroup.Custom05 },
+            { 6,  KSPActionGroup.Custom06 },
+            { 7,  KSPActionGroup.Custom07 },
+            { 8,  KSPActionGroup.Custom08 },
+            { 9,  KSPActionGroup.Custom09 },
+            { 10, KSPActionGroup.Custom10 },
+            { 11, KSPActionGroup.Gear },
+            { 12, KSPActionGroup.Light },
+            { 13, KSPActionGroup.RCS },
+            { 14, KSPActionGroup.SAS },
+            { 15, KSPActionGroup.Brakes },
+            { 16, KSPActionGroup.Abort }
+        };
+    }
+
+    [UI_ActionGroup]
+    public class UIPartActionActionGroup : UIPartActionFieldItem
+    {
+        protected UI_ActionGroup actionGroup { get { return (UI_ActionGroup)control; } }
+        public TextMeshProUGUI fieldName;
+        public TextMeshProUGUI fieldValue;
+        public Slider slider;
+        public UIButtonToggle inc;
+        public UIButtonToggle dec;
+        private bool blockSliderUpdate;
+
+        public static Type VersionTaggedType(Type baseClass)
+        {
+            var ass = baseClass.Assembly;
+            // FIXME The below works to prevent ReflectionTypeLoadException on KSP 1.9, there might be a better way other than OtherUtils.GetLoadableTypes though?
+            Type tagged = OtherUtils.GetLoadableTypes(ass).Where(t => t.BaseType == baseClass).Where(t => t.FullName.StartsWith(baseClass.FullName)).FirstOrDefault();
+            if (tagged != null)
+                return tagged;
+            return baseClass;
+        }
+
+        internal static T GetTaggedComponent<T>(GameObject gameObject) where T : Component
+        {
+            return (T)gameObject.GetComponent(VersionTaggedType(typeof(T)));
+        }
+
+        public static void InstantiateRecursive2(GameObject go, GameObject goc, ref Dictionary<GameObject, GameObject> list)
+        {
+            for (int i = 0; i < go.transform.childCount; i++)
+            {
+                list.Add(go.transform.GetChild(i).gameObject, goc.transform.GetChild(i).gameObject);
+                InstantiateRecursive2(go.transform.GetChild(i).gameObject, goc.transform.GetChild(i).gameObject, ref list);
+            }
+        }
+
+        public static void InstantiateRecursive(GameObject go, Transform trfp, ref Dictionary<GameObject, GameObject> list)
+        {
+            for (int i = 0; i < go.transform.childCount; i++)
+            {
+                GameObject goc = Instantiate(go.transform.GetChild(i).gameObject);
+                goc.transform.parent = trfp;
+                goc.transform.localPosition = go.transform.GetChild(i).localPosition;
+                if ((goc.transform is RectTransform) && (go.transform.GetChild(i) is RectTransform))
+                {
+                    RectTransform rtc = goc.transform as RectTransform;
+                    RectTransform rt = go.transform.GetChild(i) as RectTransform;
+
+                    rtc.offsetMax = rt.offsetMax;
+                    rtc.offsetMin = rt.offsetMin;
+                }
+                list.Add(go.transform.GetChild(i).gameObject, goc);
+                InstantiateRecursive2(go.transform.GetChild(i).gameObject, goc, ref list);
+            }
+        }
+
+        public static UIPartActionActionGroup CreateTemplate()
+        {
+            // Create the control
+            GameObject gameObject = new GameObject("UIPartActionActionGroup", VersionTaggedType(typeof(UIPartActionActionGroup)));
+            UIPartActionActionGroup partActionActionGroup = GetTaggedComponent<UIPartActionActionGroup>(gameObject);
+            gameObject.SetActive(false);
+
+            // Find the template for FloatRange
+            UIPartActionChooseOption partActionChooseOption = (UIPartActionChooseOption)UIPartActionController.Instance.fieldPrefabs.Find(cls => cls.GetType() == typeof(UIPartActionChooseOption));
+
+            // Copy UI elements
+            RectTransform rtc = gameObject.AddComponent<RectTransform>();
+            RectTransform rt = partActionChooseOption.transform as RectTransform;
+            rtc.offsetMin = rt.offsetMin;
+            rtc.offsetMax = rt.offsetMax;
+            rtc.anchorMin = rt.anchorMin;
+            rtc.anchorMax = rt.anchorMax;
+            LayoutElement lec = gameObject.AddComponent<LayoutElement>();
+            LayoutElement le = partActionChooseOption.GetComponent<LayoutElement>();
+            lec.flexibleHeight = le.flexibleHeight;
+            lec.flexibleWidth = le.flexibleWidth;
+            lec.minHeight = le.minHeight;
+            lec.minWidth = le.minWidth;
+            lec.preferredHeight = le.preferredHeight;
+            lec.preferredWidth = le.preferredWidth;
+            lec.layoutPriority = le.layoutPriority;
+
+            // Copy control elements
+            Dictionary<GameObject, GameObject> list = new Dictionary<GameObject, GameObject>();
+            InstantiateRecursive(partActionChooseOption.gameObject, gameObject.transform, ref list);
+            list.TryGetValue(partActionChooseOption.fieldName.gameObject, out GameObject fieldNameGO);
+            partActionActionGroup.fieldName = fieldNameGO.GetComponent<TextMeshProUGUI>();
+            list.TryGetValue(partActionChooseOption.fieldValue.gameObject, out GameObject fieldValueGO);
+            partActionActionGroup.fieldValue = fieldValueGO.GetComponent<TextMeshProUGUI>();
+            list.TryGetValue(partActionChooseOption.slider.gameObject, out GameObject sliderGO);
+            partActionActionGroup.slider = sliderGO.GetComponent<Slider>();
+            list.TryGetValue(partActionChooseOption.inc.gameObject, out GameObject incGO);
+            partActionActionGroup.inc = incGO.GetComponent<UIButtonToggle>();
+            list.TryGetValue(partActionChooseOption.dec.gameObject, out GameObject decGO);
+            partActionActionGroup.dec = decGO.GetComponent<UIButtonToggle>();
+
+            return partActionActionGroup;
+        }
+
+        public override void Setup(UIPartActionWindow window, Part part, PartModule partModule, UI_Scene scene, UI_Control control, BaseField field)
+        {
+            base.Setup(window, part, partModule, scene, control, field);
+            slider.minValue = UI_ActionGroup.ActionGroups.Keys.Min();
+            slider.maxValue = UI_ActionGroup.ActionGroups.Keys.Max();
+            fieldName.text = field.guiName;
+            var (index, value) = GetValueFromField();
+            SetFieldValue(value);
+            UpdateDisplay(index);
+            slider.onValueChanged.AddListener(OnValueChanged);
+            inc.onToggle.AddListener(OnTap_inc);
+            dec.onToggle.AddListener(OnTap_dec);
+        }
+
+        private (int, int) GetValueFromField()
+        {
+            var value = (KSPActionGroup)field.GetValue<int>(field.host);
+            var index = UI_ActionGroup.ActionGroups.ToDictionary(kvp => kvp.Value, kvp => kvp.Key).GetValueOrDefault(value, 0); // Filter out bitwise combinations, e.g., Gear | Brakes.
+            return (index, (int)UI_ActionGroup.ActionGroups.GetValueOrDefault(index, KSPActionGroup.None));
+        }
+        private void UpdateDisplay(int index)
+        {
+            blockSliderUpdate = true;
+            fieldValue.text = actionGroup.options[index];
+            slider.value = index;
+            blockSliderUpdate = false;
+        }
+        private void OnValueChanged(float obj)
+        {
+            if (blockSliderUpdate) return;
+            if (control is not null && control.requireFullControl)
+            { if (!InputLockManager.IsUnlocked(ControlTypes.TWEAKABLES_FULLONLY)) return; }
+            else
+            { if (!InputLockManager.IsUnlocked(ControlTypes.TWEAKABLES_ANYCONTROL)) return; }
+            int index = Mathf.RoundToInt(slider.value);
+            int value = (int)UI_ActionGroup.ActionGroups.GetValueOrDefault(index, KSPActionGroup.None);
+            SetFieldValue(value);
+            UpdateDisplay(index);
+        }
+        private void OnTap_dec()
+        {
+            var index = Mathf.RoundToInt(slider.value);
+            if (index <= slider.minValue) return;
+            --index;
+            int value = (int)UI_ActionGroup.ActionGroups.GetValueOrDefault(index, KSPActionGroup.None);
+            SetFieldValue(value);
+            UpdateDisplay(index);
+        }
+        private void OnTap_inc()
+        {
+            var index = Mathf.RoundToInt(slider.value);
+            if (index >= slider.maxValue) return;
+            ++index;
+            int value = (int)UI_ActionGroup.ActionGroups.GetValueOrDefault(index, KSPActionGroup.None);
+            SetFieldValue(value);
+            UpdateDisplay(index);
+        }
+    }
+
+    [KSPAddon(KSPAddon.Startup.Instantly, true)]
+    internal class UIPartActionActionGroupRegistration : MonoBehaviour
+    {
+        private static bool loaded = false;
+        private static bool isRunning = false;
+        private Coroutine register = null;
+        public void Start()
+        {
+            if (loaded)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            loaded = true;
+            DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += OnLevelFinishedLoading;
+        }
+
+        public void OnLevelFinishedLoading(Scene scene, LoadSceneMode mode)
+        {
+            if (isRunning) StopCoroutine(register);
+            if (!(HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)) return;
+            isRunning = true;
+            register = StartCoroutine(Register());
+        }
+
+        internal IEnumerator Register()
+        {
+            UIPartActionController controller;
+            while ((controller = UIPartActionController.Instance) is null) yield return null;
+
+            FieldInfo typesField = (from fld in controller.GetType().GetFields(BindingFlags.NonPublic | BindingFlags.Instance)
+                                    where fld.FieldType == typeof(List<Type>)
+                                    select fld).First();
+
+            List<Type> fieldPrefabTypes;
+            while ((fieldPrefabTypes = (List<Type>)typesField.GetValue(controller)) == null
+                || fieldPrefabTypes.Count == 0
+                || !UIPartActionController.Instance.fieldPrefabs.Find(cls => cls.GetType() == typeof(UIPartActionChooseOption)))
+                yield return false;
+
+            // Register prefabs
+            controller.fieldPrefabs.Add(UIPartActionActionGroup.CreateTemplate());
+            fieldPrefabTypes.Add(typeof(UI_ActionGroup));
+
+            isRunning = false;
+        }
+    }
+    #endregion
 }

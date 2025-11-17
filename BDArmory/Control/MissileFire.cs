@@ -905,6 +905,10 @@ namespace BDArmory.Control
             vesselRadarData.SetMaxRange();
         }
 
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_UnderAttackAG", advancedTweakable = true),
+            UI_ActionGroup(scene = UI_Scene.All)]
+        KSPActionGroup underAttackAG = KSPActionGroup.None;
+
         [KSPAction("Toggle Guard Mode")]
         public void AGToggleGuardMode(KSPActionParam param)
         {
@@ -2426,8 +2430,10 @@ namespace BDArmory.Control
             if (underAttack) yield break; // Already under attack, we only want 1 timer.
             underAttack = true;
             if (BDArmorySettings.DEBUG_AI) { Debug.Log($"[BDArmory.MissileFire]: Triggering under attack warning on {vessel.vesselName} by {incomingThreatVessel.vesselName}"); }
+            if (underAttackAG != KSPActionGroup.None) vessel.ActionGroups.SetGroup(underAttackAG, true);
             yield return new WaitUntilFixed(() => Time.time - underAttackLastNotified > 1f); // Wait until 3s after being under attack.
             if (BDArmorySettings.DEBUG_AI) { Debug.Log($"[BDArmory.MissileFire]: Silencing under attack warning on {vessel.vesselName}"); }
+            if (underAttackAG != KSPActionGroup.None) vessel.ActionGroups.SetGroup(underAttackAG, false);
             underAttack = false;
         }
 
@@ -4346,7 +4352,7 @@ namespace BDArmory.Control
 
                             if (mb.engageMissile)
                             {
-                                switch(mb.TargetingMode)
+                                switch (mb.TargetingMode)
                                 {
                                     case MissileBase.TargetingModes.Radar:
                                         {
@@ -9173,7 +9179,7 @@ namespace BDArmory.Control
 
                             targetVessel = PDMslTgts[MissileID].Vessel;
                         }
-                        
+
                         // If current target > max range
                         if (targetDist > pointDefenseMissileMaxRange)
                         {
@@ -9266,8 +9272,8 @@ namespace BDArmory.Control
                                             radarLocked = true;
                                             skipRadarCheck = true;
                                         }
-                                    else if (_irstsEnabled)
-                                        INSTarget = vesselRadarData.activeIRTarget(null, this); //how about IRST?
+                                        else if (_irstsEnabled)
+                                            INSTarget = vesselRadarData.activeIRTarget(null, this); //how about IRST?
 
                                     skipDetectionCheck = true;
 
@@ -9341,7 +9347,7 @@ namespace BDArmory.Control
                     else
                         // If we can't fire at the current target, swap to a different missile. We assume later missiles are more capable than previous missiles
                         continue;
-                    
+
                 }
                 // Move to the next target for the next scan...
                 if (changeTargets)
