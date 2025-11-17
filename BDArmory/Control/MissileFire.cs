@@ -907,7 +907,7 @@ namespace BDArmory.Control
 
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_UnderAttackAG", advancedTweakable = true),
             UI_ActionGroup(scene = UI_Scene.All)]
-        KSPActionGroup underAttackAG = KSPActionGroup.None;
+        public KSPActionGroup underAttackAG = KSPActionGroup.None;
 
         [KSPAction("Toggle Guard Mode")]
         public void AGToggleGuardMode(KSPActionParam param)
