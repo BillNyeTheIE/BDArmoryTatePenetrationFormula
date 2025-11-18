@@ -5,6 +5,7 @@
 	- Further improved point-defense logic, should behave slightly better against mixed barrages of missiles, some of which it cannot engage with missiles (like stealthy missiles).
 	- AI can no longer see incoming missiles through water.
 	- AI will fire missiles that can (probably) clear any terrain in front of them without LoS to the target.
+	- Add an action group trigger for when the vessel comes under attack.
 - Sensors:
 	- Radar code optimizations.
 - Weapons:
