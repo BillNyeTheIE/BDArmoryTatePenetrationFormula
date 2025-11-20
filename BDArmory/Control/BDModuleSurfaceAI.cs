@@ -235,7 +235,7 @@ namespace BDArmory.Control
                 motorControl.vessel = vessel;
             }
             motorControl.Activate();
-
+            if (speedController) speedController.Deactivate();
             if (BroadsideAttack && sideSlipDirection == 0)
             {
                 SetBroadsideDirection(OrbitDirectionName);
@@ -760,6 +760,7 @@ namespace BDArmory.Control
                                 {
                                     if (maintainMinRange) //for some reason ignored if both vessel and targetvessel using Mk2roverCans?
                                     {
+                                        //Add LoS provisions if target is behind hill/building?
                                         if (targetVessel.srfSpeed < 10)
                                         {
                                             targetVelocity = 0;

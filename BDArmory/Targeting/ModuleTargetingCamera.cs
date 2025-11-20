@@ -1313,8 +1313,8 @@ namespace BDArmory.Targeting
             StopResetting();
 
             RaycastHit rayHit;
-            Ray ray = new Ray(cameraParentTransform.position + (50 * cameraParentTransform.forward), cameraParentTransform.forward);
-            bool raycasted = Physics.Raycast(ray, out rayHit, maxRayDistance - 50, (int)(LayerMasks.Parts | LayerMasks.Scenery | LayerMasks.EVA | LayerMasks.Unknown19 | LayerMasks.Unknown23 | LayerMasks.Wheels));
+            Ray ray = new Ray(cameraParentTransform.position, cameraParentTransform.forward);
+            bool raycasted = Physics.Raycast(ray, out rayHit, maxRayDistance, (int)(LayerMasks.Parts | LayerMasks.Scenery | LayerMasks.EVA | LayerMasks.Unknown19 | LayerMasks.Unknown23 | LayerMasks.Wheels));
             if (raycasted)
             {
                 if (FlightGlobals.getAltitudeAtPos(rayHit.point) < 0)
@@ -1403,8 +1403,8 @@ namespace BDArmory.Targeting
             if (delayedEnabling) return;
 
             RaycastHit rayHit;
-            Ray ray = new Ray(cameraParentTransform.position + (50 * cameraParentTransform.forward), cameraParentTransform.forward);
-            if (Physics.Raycast(ray, out rayHit, maxRayDistance - 50, (int)(LayerMasks.Parts | LayerMasks.Scenery | LayerMasks.EVA | LayerMasks.Unknown19 | LayerMasks.Unknown23 | LayerMasks.Wheels)))
+            Ray ray = new Ray(cameraParentTransform.position, cameraParentTransform.forward);
+            if (Physics.Raycast(ray, out rayHit, maxRayDistance, (int)(LayerMasks.Parts | LayerMasks.Scenery | LayerMasks.EVA | LayerMasks.Unknown19 | LayerMasks.Unknown23 | LayerMasks.Wheels)))
             {
                 targetPointPosition = rayHit.point;
 
