@@ -263,6 +263,7 @@ namespace BDArmory.Weapons
         //module references
         [KSPField] public int turretID = 0;
         public ModuleTurret turret;
+        public List<ModuleCustomTurret> customTurret = new List<ModuleCustomTurret>();
         public MissileFire WeaponManager
         {
             get
@@ -471,6 +472,10 @@ namespace BDArmory.Weapons
         private bool spinningDown;
 
         //weapon specifications
+        [KSPField(advancedTweakable = false, isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_FiringBurstCount"),//Burst Firing Count
+    UI_FloatRange(minValue = 1f, maxValue = 60f, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+        public float customTurretID = 0;
+
         [KSPField(advancedTweakable = true, isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_FiringPriority"),
             UI_FloatRange(minValue = 0, maxValue = 10, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
         public float priority = 0; //per-weapon priority selection override
@@ -1651,6 +1656,19 @@ namespace BDArmory.Weapons
                     Events["Jettison"].guiActive = false;
                     Actions["AGJettison"].active = false;
                 }
+            }
+            //custom turret setup
+            //TODO - have customTurretID slider disable if not a ((great)grand)child of a ModuleCustomTurret rotor part to avoid PAW clutter.
+            if (HighLogic.LoadedSceneIsFlight)
+            {
+                using (var servo = VesselModuleRegistry.GetModules<ModuleCustomTurret>(vessel).GetEnumerator())
+                    while (servo.MoveNext())
+                    {
+                        if (servo.Current == null) continue;
+                        if ((int)servo.Current.turretID != (int)customTurretID) continue;
+                        customTurret.Add(servo.Current);
+                        servo.Current.SetReferenceTransform(fireTransforms[0]);
+                    }
             }
             //setup animations
             if (hasDeployAnim)
@@ -4069,7 +4087,18 @@ namespace BDArmory.Weapons
                     }
                 }
                 if (!targetAcquired)
+                {
                     if (turret) turret.ReturnTurret();
+                    if (customTurret.Count > 0)
+                    {
+                        for (int i = 0; i < customTurret.Count; i++)
+                        {
+                            if (customTurret[i] == null) continue;
+                            if (customTurret[i].vessel != vessel) continue;
+                            customTurret[i].ReturnTurret();
+                        }
+                    }
+                }
             }
             else
             {
@@ -4087,7 +4116,7 @@ namespace BDArmory.Weapons
                         smoothedPartVelocity = part.rb.velocity;
                         smoothedPartAcceleration = vessel.acceleration_immediate;
                     }
-                    if (yawRange > 0 || maxPitch > minPitch)
+                    if (yawRange > 0 || maxPitch > minPitch || customTurret.Count > 0)
                     {
                         //MouseControl
                         var camera = FlightCamera.fetch;
@@ -4371,6 +4400,15 @@ namespace BDArmory.Weapons
                 }
                 turret.AimToTarget(finalAimTarget); //no aimbot turrets when target out of sight
                 turret.smoothRotation = origSmooth;
+            }
+            if (customTurret.Count > 0)
+            {
+                for (int i = 0; i < customTurret.Count; i++)
+                {
+                    if (customTurret[i] == null) continue;
+                    if (customTurret[i].vessel != vessel) continue;
+                    customTurret[i].AimToTarget(finalAimTarget); //no aimbot turrets when target out of sight
+                }
             }
         }
 
@@ -5625,7 +5663,7 @@ namespace BDArmory.Weapons
                 if (weaponManager.vesselRadarData && weaponManager.vesselRadarData.locked) // && weaponManager.slavedPosition != Vector3.zero)
                 {
                     TargetSignatureData targetData = TargetSignatureData.noTarget;
-                    if (weaponManager.multiTargetNum > 1 && (turret && (maxPitch != minPitch || yawRange > 0))) //if multi target turrets, get relevant lock
+                    if (weaponManager.multiTargetNum > 1 && ((turret && (maxPitch != minPitch || yawRange > 0)) || customTurret.Count > 0)) //if multi target turrets, get relevant lock
                     {
                         List<TargetSignatureData> possibleTargets = weaponManager.vesselRadarData.GetLockedTargets();
                         for (int i = 0; i < possibleTargets.Count; i++)
@@ -5780,7 +5818,7 @@ namespace BDArmory.Weapons
                             targetparts = targetparts.OrderBy(w => w.mass).ToList(); //weight target part priority by part mass, also serves as a default 'target heaviest part' in case other options not selected
                             targetparts.Reverse(); //Order by mass is lightest to heaviest. We want H>L
                                                    //targetparts.Shuffle(); //alternitively, increase the random range from maxtargetnum to targetparts.count, otherwise edge cases where lots of one thing (targeting command/mass) will be pulled before lighter things (weapons, maybe engines) if both selected
-                            if (turret && (yawRange > 0 || maxPitch > minPitch))
+                            if ((turret && (yawRange > 0 || maxPitch > minPitch)) || customTurret.Count > 0)
                             {
                                 targetID = (int)UnityEngine.Random.Range(0, Mathf.Min(targetparts.Count, weaponManager.multiTargetNum));
                             }
@@ -5967,6 +6005,15 @@ namespace BDArmory.Weapons
                                                                                      //visualTargetPart = null;
                                                                                      //tgtShell = null;
                                                                                      //tgtRocket = null;
+                    if (customTurret.Count > 0)
+                    {
+                        for (int i = 0; i < customTurret.Count; i++)
+                        {
+                            if (customTurret[i] == null) continue;
+                            if (customTurret[i].vessel != vessel) continue;
+                            customTurret[i].ReturnTurret();
+                        }
+                    }
                 }
             }
             return false;
@@ -6163,6 +6210,16 @@ namespace BDArmory.Weapons
             {
                 yield return new WaitForSecondsFixed(0.2f);
                 yield return new WaitWhileFixed(() => !turret.ReturnTurret()); //wait till turret has returned
+            }
+            if (customTurret.Count > 0)
+            {
+                yield return new WaitForSecondsFixed(0.2f);
+                for (int i = 0; i < customTurret.Count; i++)
+                {
+                    if (customTurret[i] == null) continue;
+                    if (customTurret[i].vessel != vessel) continue;
+                    yield return new WaitWhileFixed(() => !customTurret[i].ReturnTurret()); //wait till turret has returned
+                }
             }
             if (hasCharged)
             {
