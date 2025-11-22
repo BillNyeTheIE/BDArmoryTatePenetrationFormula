@@ -6,6 +6,7 @@
 	- AI can no longer see incoming missiles through water.
 	- AI will fire missiles that can (probably) clear any terrain in front of them without LoS to the target.
 	- Add an action group trigger for when the vessel comes under attack.
+	- Fix broken ActiveController registry clean-up.
 - Sensors:
 	- Radar code optimizations.
 - Weapons:
@@ -20,6 +21,9 @@
 	- Missiles:
 		- Fix Nuclear ordnance applying multiple stacks of EMP damage to a single vessel during detonation.
 		- Improve "CLOSlead" debug visualization, now shows the proper, lead-adjusted beam, for easier debugging.
+- Competition:
+	- Allow warping to morning for waypoints tournaments.
+	- Show the waypoint name (if it exists) in the VS status during waypoint competitions.
 
 v1.11.1.0
 IMPROVEMENTS / FIXES
