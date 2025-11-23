@@ -985,9 +985,9 @@ namespace BDArmory.Utils
             // Update the AIs.
             // Find the primary of each type of AI: the first active one or the first one, sorted by proximity to the root.
             // Then disable all but the overall primary (the first active primary in the order: pilot, surface, VTOL, orbital), reactivating it if necessary (as deactivating the others may have side effects).
-            PilotAI = VesselModuleRegistry.GetBDModulePilotAIs(vessel).Where(ai => ai.pilotEnabled).FirstOrDefault(); // Select the first active one.
+            PilotAI = VesselModuleRegistry.GetBDModulePilotAIs(Vessel).Where(ai => ai.pilotEnabled).FirstOrDefault(); // Select the first active one.
             if (PilotAI == null) PilotAI = VesselModuleRegistry.GetBDModulePilotAI(Vessel); // Or default to the first one.
-            SurfaceAI = VesselModuleRegistry.GetBDModuleSurfaceAIs(vessel).Where(ai => ai.pilotEnabled).FirstOrDefault();
+            SurfaceAI = VesselModuleRegistry.GetBDModuleSurfaceAIs(Vessel).Where(ai => ai.pilotEnabled).FirstOrDefault();
             if (SurfaceAI == null) SurfaceAI = VesselModuleRegistry.GetBDModuleSurfaceAI(Vessel);
             VTOLAI = VesselModuleRegistry.GetModules<BDModuleVTOLAI>(Vessel).Where(ai => ai.pilotEnabled).FirstOrDefault();
             if (VTOLAI == null) VTOLAI = VesselModuleRegistry.GetModule<BDModuleVTOLAI>(Vessel);
