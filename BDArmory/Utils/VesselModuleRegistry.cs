@@ -996,7 +996,7 @@ namespace BDArmory.Utils
             UpdateAIModules(true);
 
             // Update the registry.
-            registry = registry.Where(kvp => kvp.Key != null || kvp.Key != kvp.Value.Vessel).ToDictionary(kvp => kvp.Key, kvp => kvp.Value); // Remove any null or non-matching vessels.
+            registry = registry.Where(kvp => kvp.Key != null && kvp.Key == kvp.Value.Vessel).ToDictionary(kvp => kvp.Key, kvp => kvp.Value); // Remove any null or non-matching vessels.
 
             updateRequired = false;
             if (BDArmorySettings.DEBUG_OTHER)
