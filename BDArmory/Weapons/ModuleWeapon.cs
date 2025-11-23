@@ -299,18 +299,20 @@ namespace BDArmory.Weapons
 
         public float maxPitch
         {
-            get { return turret ? turret.maxPitch : 0; }
+            get { return turret ? turret.maxPitch : customMaxPitch; }
         }
-
         public float minPitch
         {
-            get { return turret ? turret.minPitch : 0; }
+            get { return turret ? turret.minPitch : customMinPitch; }
         }
-
         public float yawRange
         {
-            get { return turret ? turret.yawRange : 0; }
+            get { return turret ? turret.yawRange : customYaw; }
         }
+        float customYaw = 0;
+        float customMinPitch = 0;
+        float customMaxPitch = 0;
+
 
         //weapon interface
         public WeaponClasses GetWeaponClass()
@@ -472,8 +474,8 @@ namespace BDArmory.Weapons
         private bool spinningDown;
 
         //weapon specifications
-        [KSPField(advancedTweakable = false, isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_FiringBurstCount"),//Burst Firing Count
-    UI_FloatRange(minValue = 1f, maxValue = 60f, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+        [KSPField(advancedTweakable = false, isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_TurretID"),//Custom Turret ID
+    UI_FloatRange(minValue = 1f, maxValue = 20f, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
         public float customTurretID = 0;
 
         [KSPField(advancedTweakable = true, isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_FiringPriority"),
@@ -1658,9 +1660,11 @@ namespace BDArmory.Weapons
                 }
             }
             //custom turret setup
-            //TODO - have customTurretID slider disable if not a ((great)grand)child of a ModuleCustomTurret rotor part to avoid PAW clutter.
             if (HighLogic.LoadedSceneIsFlight)
             {
+                float yaw = 0;
+                float minP = 0;
+                float maxP = 0;
                 using (var servo = VesselModuleRegistry.GetModules<ModuleCustomTurret>(vessel).GetEnumerator())
                     while (servo.MoveNext())
                     {
@@ -1668,7 +1672,20 @@ namespace BDArmory.Weapons
                         if ((int)servo.Current.turretID != (int)customTurretID) continue;
                         customTurret.Add(servo.Current);
                         servo.Current.SetReferenceTransform(fireTransforms[0]);
+                        if (servo.Current.fullRotation) yaw = 360;
+                        else
+                        {
+                            float tempyaw = Mathf.Abs(servo.Current.minYaw) + Mathf.Abs(servo.Current.maxYaw);
+                            if (tempyaw > yaw)
+                                yaw = tempyaw;
+                        }
+                        minP += servo.Current.minPitch;
+                        maxP += servo.Current.maxPitch;
                     }
+                customYaw = yaw;
+                customMinPitch = minP;
+                customMaxPitch = maxP;
+                Debug.Log($"[ModuleWeapon] custom Min/max Pitch/Yaw vals are :{customMinPitch}; {customMaxPitch}; {customYaw}");
             }
             //setup animations
             if (hasDeployAnim)
@@ -4116,7 +4133,7 @@ namespace BDArmory.Weapons
                         smoothedPartVelocity = part.rb.velocity;
                         smoothedPartAcceleration = vessel.acceleration_immediate;
                     }
-                    if (yawRange > 0 || maxPitch > minPitch || customTurret.Count > 0)
+                    if (yawRange > 0 || maxPitch > minPitch)
                     {
                         //MouseControl
                         var camera = FlightCamera.fetch;
@@ -5663,7 +5680,7 @@ namespace BDArmory.Weapons
                 if (weaponManager.vesselRadarData && weaponManager.vesselRadarData.locked) // && weaponManager.slavedPosition != Vector3.zero)
                 {
                     TargetSignatureData targetData = TargetSignatureData.noTarget;
-                    if (weaponManager.multiTargetNum > 1 && ((turret && (maxPitch != minPitch || yawRange > 0)) || customTurret.Count > 0)) //if multi target turrets, get relevant lock
+                    if (weaponManager.multiTargetNum > 1 && (turret && (maxPitch != minPitch || yawRange > 0))) //if multi target turrets, get relevant lock
                     {
                         List<TargetSignatureData> possibleTargets = weaponManager.vesselRadarData.GetLockedTargets();
                         for (int i = 0; i < possibleTargets.Count; i++)
@@ -5818,7 +5835,7 @@ namespace BDArmory.Weapons
                             targetparts = targetparts.OrderBy(w => w.mass).ToList(); //weight target part priority by part mass, also serves as a default 'target heaviest part' in case other options not selected
                             targetparts.Reverse(); //Order by mass is lightest to heaviest. We want H>L
                                                    //targetparts.Shuffle(); //alternitively, increase the random range from maxtargetnum to targetparts.count, otherwise edge cases where lots of one thing (targeting command/mass) will be pulled before lighter things (weapons, maybe engines) if both selected
-                            if ((turret && (yawRange > 0 || maxPitch > minPitch)) || customTurret.Count > 0)
+                            if (turret && (yawRange > 0 || maxPitch > minPitch))
                             {
                                 targetID = (int)UnityEngine.Random.Range(0, Mathf.Min(targetparts.Count, weaponManager.multiTargetNum));
                             }

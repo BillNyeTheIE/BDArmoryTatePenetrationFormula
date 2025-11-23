@@ -1,15 +1,18 @@
 using BDArmory.Extensions;
 using BDArmory.Utils;
+using BDArmory.Weapons;
 using Expansions.Serenity;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace BDArmory.WeaponMounts
 {
     public class ModuleCustomTurret : PartModule
     {
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_TurretID"),//Max Pitch
- UI_FloatRange(minValue = 0f, maxValue = 60f, stepIncrement = 1f, scene = UI_Scene.All)]
+ UI_FloatRange(minValue = 0f, maxValue = 20f, stepIncrement = 1f, scene = UI_Scene.All)]
         public float turretID;
 
         [KSPField] public string pitchTransformName = "TopJoint";
@@ -22,9 +25,6 @@ namespace BDArmory.WeaponMounts
         public Transform bottomTransform;
 
         Transform referenceTransform; //set this to gun's fireTransform
-
-        [KSPField] public float pitchSpeedDPS;
-        [KSPField] public float yawSpeedDPS;
 
         public float maxPitch = 0;
         public float minPitch = 0;
@@ -39,10 +39,14 @@ namespace BDArmory.WeaponMounts
         ModuleRoboticServoHinge Hinge;
         ModuleRoboticRotationServo Servo;
 
+        public Vector3 yawNormal;
+
+        public bool isYawRotor => Servo != null;
+
         public override void OnStart(StartState state)
         {
             base.OnStart(state);
-
+            if (HighLogic.LoadedSceneIsEditor) GameEvents.onEditorPartPlaced.Add(OnEditorPartPlaced);
             yawTransform = part.FindModelTransform(yawTransformName);            
             var hinge = part.FindModuleImplementing<ModuleRoboticServoHinge>();
             if (hinge != null)
@@ -62,7 +66,6 @@ namespace BDArmory.WeaponMounts
                     Debug.LogWarning("[BDArmory.ModuleCustomTurret]: " + part.partInfo.title + " has no bottomTransform");
                 }
             }
-
             var servo = part.FindModuleImplementing<ModuleRoboticRotationServo>();
             if (servo != null)
             {
@@ -95,6 +98,15 @@ namespace BDArmory.WeaponMounts
                     Debug.LogWarning("[BDArmory.ModuleCustomTurret]: " + part.partInfo.title + " has no referenceTransform");
             }
             if (!bottomTransform) bottomTransform = part.transform;
+
+            yawNormal = yawTransform.up;
+            //because ofc Squad can't have consistant standard for servo/hinge axis transform orientation...
+            //Also need to account for rotation/facing; ModuleTurret is agnostic, but targetAngle in the hinge module is not.
+            if (Hinge)
+            {
+                if (Hinge.mainAxis == "X") yawNormal = -pitchTransform.forward;
+                if (Hinge.mainAxis == "Z") yawNormal = pitchTransform.right;
+            }
         }
 
         public void AimToTarget(Vector3 targetPosition, bool pitch = true, bool yaw = true)
@@ -109,14 +121,7 @@ namespace BDArmory.WeaponMounts
                 return;
             }
             if (!bottomTransform) return;
-            Vector3 yawNormal = yawTransform.up;
-            //because ofc Squad can't have consistant standard for servo/hinge axis transform orientation...
-            //Also need to account for rotation/facing; ModuleTurret is agnostic, but targetAngle in the hinge module is not.
-            if (Hinge)
-            {
-                if (Hinge.mainAxis == "X") yawNormal = -pitchTransform.forward;
-                if (Hinge.mainAxis == "Z") yawNormal = pitchTransform.right;
-            }
+
             Vector3 yawComponent = targetDirection.ProjectOnPlanePreNormalized(yawNormal);
             Vector3 pitchComponent = targetDirection.ProjectOnPlane(Vector3.Cross(yawComponent, yawNormal));
             //float currentYaw = Hinge ? 0 : Servo ? Servo.currentAngle : 0; //currentAngle for whatever reason only updates when the PAW is open. WTF, KSP.
@@ -187,7 +192,36 @@ namespace BDArmory.WeaponMounts
         {
             referenceTransform = t;
         }
-        
+        void OnEditorPartPlaced(Part p = null)
+        {
+            if (part.children.Count == 0) return;
+            FindChildGuns(part.children); 
+        }
+        private void FindChildGuns(List<Part> children)
+        {
+            using (List<Part>.Enumerator child = children.GetEnumerator())
+                while (child.MoveNext())
+                {
+                    if (child.Current == null) continue;
+                    if (child.Current.IsWeapon())
+                    {
+                        var gun = child.Current.FindModuleImplementing<ModuleWeapon>();
+                        if (gun != null)
+                        gun.Fields["customTurretID"].guiActiveEditor = true;
+                    }
+                    //only have gun's TurrID slider appear if a child of the turret servo to reduce PAW clutter
+
+                    if (child.Current.children.Count > 0)
+                    {
+                        FindChildGuns(child.Current.children);
+                    }
+                }
+        }
+        void OnDestroy()
+        {
+            GameEvents.onEditorPartPlaced.Remove(OnEditorPartPlaced);
+        }
+        /*
         void OnGUI()
         {
             if ((Servo && !yawTransform) || (Hinge && !pitchTransform)) return;
@@ -207,8 +241,8 @@ namespace BDArmory.WeaponMounts
                 if (Hinge.mainAxis == "X") yawNrm = pitchTransform.position + (10 * -pitchTransform.forward);
                 if (Hinge.mainAxis == "Z") yawNrm = pitchTransform.position + (10 * pitchTransform.right);
             }
-            GUIUtils.DrawLineBetweenWorldPositions(yawTransform.position, yawNrm, 2, Color.white);
-            */
+            GUIUtils.DrawLineBetweenWorldPositions(yawTransform.position, yawNrm, 2, Color.white);            
         }
+        */
     }
 }

@@ -15,6 +15,7 @@ using BDArmory.Settings;
 using BDArmory.Targeting;
 using BDArmory.Utils;
 using BDArmory.WeaponMounts;
+using Expansions.Serenity;
 
 namespace BDArmory.GameModes
 {
@@ -417,6 +418,23 @@ namespace BDArmory.GameModes
                         //part.RemoveModule(turret);
                         subsysCrit = true;
                     }
+                    if (part.GetComponent<ModuleRoboticRotationServo>() != null)
+                    {
+                        ModuleRoboticRotationServo servo;
+                        servo = part.GetComponent<ModuleRoboticRotationServo>(); 
+                        servo.maxMotorOutput *= part.GetDamagePercentage();
+                        //part.RemoveModule(turret);
+                        subsysCrit = true;
+                    }
+                    if (part.GetComponent<ModuleRoboticServoHinge>() != null)
+                    {
+                        ModuleRoboticServoHinge hinge;
+                        hinge = part.GetComponent<ModuleRoboticServoHinge>(); 
+                        hinge.maxMotorOutput *= part.GetDamagePercentage();
+                        //part.RemoveModule(turret);
+                        subsysCrit = true;
+                    }
+                    //piston/rotor?
                     if (part.GetComponent<ModuleTargetingCamera>() != null)
                     {
                         ModuleTargetingCamera cam;
