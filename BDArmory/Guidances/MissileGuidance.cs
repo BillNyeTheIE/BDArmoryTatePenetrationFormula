@@ -141,7 +141,7 @@ namespace BDArmory.Guidances
         }
 
         public static Vector3 GetCLOSLeadTarget(Vector3 sensorPos, Vector3 sensorVel, Vector3 currentPos, Vector3 currentVelocity, Vector3 targetPos, Vector3 targetVel,
-            float correctionFactor, float N, float beamLeadFactor, out float gLimit)
+            float correctionFactor, float N, float beamLeadFactor, out float gLimit, MissileLauncher ml)
         {
             Vector3 relVelocity = targetVel - sensorVel;
             Vector3 relRange = targetPos - sensorPos;
@@ -168,6 +168,8 @@ namespace BDArmory.Guidances
                 angVel *= (1f - beamLeadFactor);
 
             Vector3 accel = GetCLOSAccel(sensorPos, sensorVel, currentPos, currentVelocity, sensorPos + corrRelRange, targetVel, angVel, correctionFactor, N);
+
+            ml.DrawDebugLine(sensorPos, sensorPos + corrRelRange);
 
             //accel -= 2f * Vector3.Cross(currentVelocity, angVel);
             gLimit = accel.magnitude / 9.80665f;

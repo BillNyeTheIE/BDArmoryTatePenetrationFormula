@@ -1,6 +1,30 @@
 ﻿IMPROVEMENTS / FIXES
 - UI:
 	- Adjust the "Steel Equivalent Thickness" display in the armor GUI to show a more intuitive value.
+- AI / WM:
+	- Further improved point-defense logic, should behave slightly better against mixed barrages of missiles, some of which it cannot engage with missiles (like stealthy missiles).
+	- AI can no longer see incoming missiles through water.
+	- AI will fire missiles that can (probably) clear any terrain in front of them without LoS to the target.
+	- Add an action group trigger to the WM for when the vessel comes under attack.
+	- Fix broken ActiveController registry clean-up.
+- Sensors:
+	- Radar code optimizations.
+	- Fix smooth slewing of the targeting camera when clicking on the GUI buttons when a target is locked.
+- Weapons:
+	- Add conical beam weapon implementation for creating microwave drone zappers, War of the Worlds heatrays, tractor beams, etc.
+		- Adds new weapon.cfg fields: 'conicAoE' = T/F to enable conic field of fire for Laser class weapons.
+			'beamFOV' = n to set width of beam.
+			'friendlyFire' = T/F to set of conic weapons affect ally craft in AoE, if firing into a melee.
+	- Rework EMP weapons. Craft EMP threshold before getting disabled is now dependent on cockpit seat quantity/drone core SAS level.
+		- EMP damage received now adjusted by craft armor/hull type and craft bulk. Electrolaser/lightning weapons resisted by non-conductive armor and hull material (e.g. not metal).
+		- EMP missile/Nuke EMP burst/conicAoE EMP lasers resisted by craft bulk and conductive armor occluding cockpits from emission source.
+		- EMP buildup now causes increasing penalties/subsystem shutdowns as it accrues in a vessel receiving EMP damage.
+	- Missiles:
+		- Fix Nuclear ordnance applying multiple stacks of EMP damage to a single vessel during detonation.
+		- Improve "CLOSlead" debug visualization, now shows the proper, lead-adjusted beam, for easier debugging.
+- Competition:
+	- Allow warping to morning for waypoints tournaments.
+	- Show the waypoint name (if it exists) in the VS status during waypoint competitions.
 
 v1.11.1.0
 IMPROVEMENTS / FIXES

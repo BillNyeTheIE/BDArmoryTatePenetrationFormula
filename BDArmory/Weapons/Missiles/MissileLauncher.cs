@@ -2367,6 +2367,7 @@ namespace BDArmory.Weapons.Missiles
 
                         // Missile's radar has gone active
                         ActiveRadar = true;
+                        updateRadarCS = true;
 
                         //RadarUtils.UpdateRadarLock(ray, maxOffBoresight, activeRadarMinThresh, ref scannedTargets, 0.4f, true, RadarWarningReceiver.RWRThreatTypes.MissileLock, true);
                         RadarUtils.RadarUpdateMissileLock(ray, maxOffBoresight, ref scannedTargets, 0.4f, this);
@@ -2465,7 +2466,11 @@ namespace BDArmory.Weapons.Missiles
                 {
                     // De-activate active radar if it's active
                     if (TargetingMode == TargetingModes.Radar && TargetingModeTerminal != TargetingModes.Radar)
+                    {
                         ActiveRadar = false;
+                        radarLOALSearching = false;
+                        updateRadarCS = true;
+                    }
 
                     TargetingMode = TargetingModeTerminal;
                     if (terminalSeekerTimeout >= 0)
@@ -3199,15 +3204,15 @@ namespace BDArmory.Weapons.Missiles
                         target = MissileGuidance.GetThreePointTarget(sensorPos, sensorVel, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
                         break;
                     case GuidanceModes.CLOSLead:
-                        target = MissileGuidance.GetCLOSLeadTarget(sensorPos, sensorVel, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, beamLeadFactor, out currgLimit);
+                        target = MissileGuidance.GetCLOSLeadTarget(sensorPos, sensorVel, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, beamLeadFactor, out currgLimit, this);
                         break;
 
                     default:
                         target = MissileGuidance.GetCLOSTarget(sensorPos, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
                         break;
                 }
-
-                DrawDebugLine(sensorPos, targetPos);
+                
+                if (!(GuidanceMode == GuidanceModes.CLOSLead)) DrawDebugLine(sensorPos, targetPos);
             }
             else
             {

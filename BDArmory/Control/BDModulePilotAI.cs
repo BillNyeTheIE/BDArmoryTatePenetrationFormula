@@ -3272,7 +3272,8 @@ namespace BDArmory.Control
             }
             else
             {
-                SetStatus($"Waypoint {activeWaypointIndex} ({waypointRange:F0}m)");
+                var wpName = WaypointCourses.CourseLocations[waypointCourseIndex].waypoints[activeWaypointIndex].name;
+                SetStatus($"Waypoint {activeWaypointIndex}{(string.IsNullOrEmpty(wpName) ? "" : $" {wpName}")} ({waypointRange:F0}m)");
             }
             var waypointDirection = (waypointPosition - vessel.transform.position).normalized;
             if (waypointRange < (BDArmorySettings.WAYPOINTS_SCALE > 0 ? BDArmorySettings.WAYPOINTS_SCALE : (WaypointCourses.CourseLocations[waypointCourseIndex].waypoints[activeWaypointIndex].scale)) / 2) //gate radius

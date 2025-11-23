@@ -53,6 +53,7 @@ namespace BDArmory.Competition
 
         public IEnumerator Execute()
         {
+            yield return BDATournament.Instance.WarpIfNeeded((spawnStrategy as SpawnConfigStrategy).spawnConfig);
             IsRunning = true;
 
             if (spawnStrategy != null && vesselSpawner != null) // Allow just running a course with the currently spawned vessels.

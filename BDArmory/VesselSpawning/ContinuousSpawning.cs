@@ -221,7 +221,7 @@ namespace BDArmory.VesselSpawning
                                 shufflePool.Remove(selected);
                             }
                         }
-                        foreach (var craft in shufflePool) bubbleShuffleQueue.Enqueue(craft); // Add any remaining craft in the shuffle pool.
+                        foreach (var craft in shufflePool) bubbleShuffleQueue.Enqueue(craft); // Add any remaining craft in the shuffle pool.                        
                         while (bubbleShuffleQueue.Count > 0) spawnQueue.Enqueue(bubbleShuffleQueue.Dequeue()); // Re-insert the craft into the spawn queue from the bubble shuffle queue.
                     }
                     while (craftToSpawn.Count + currentlySpawningCount + currentlyActive < spawnSlots.Count && spawnQueue.Count > 0)
@@ -296,7 +296,7 @@ namespace BDArmory.VesselSpawning
 
                 // Kill off vessels that are out of ammo for too long if we're in continuous spawning mode and a competition is active.
                 if (BDACompetitionMode.Instance.competitionIsActive)
-                    KillOffOutOfAmmoVessels();
+                    KillOffOutOfAmmoVessels();                    
 
                 if (BDACompetitionMode.Instance.competitionIsActive)
                 {
@@ -310,7 +310,7 @@ namespace BDArmory.VesselSpawning
             }
             #endregion
             vesselsSpawningContinuously = false;
-            LogMessage("[BDArmory.VesselSpawner]: Continuous vessel spawning ended.", false);
+            LogMessage("[BDArmory.VesselSpawner]: Continuous vessel spawning ended.", false);            
         }
 
         readonly List<string> currentlySpawning = [];

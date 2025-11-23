@@ -1022,17 +1022,16 @@ namespace BDArmory.Radar
                         Debug.Log("[BDArmory.ModuleRadar]: - Acquired lock on target (" + (attemptedLocks[i].vessel != null ? attemptedLocks[i].vessel.name : null) + ")");
 
                     vesselRadarData.AddRadarContact(this, lockedTarget, true);
-                    vesselRadarData.UpdateLockedTargets();
+                    //vesselRadarData.UpdateLockedTargets();
                     if (linkedToVessels.Count > 0)
                         foreach (VesselRadarData vrd in linkedToVessels)
                         {
                             if (vrd)
                             {
                                 vrd.AddRadarContact(this, lockedTarget, true, true);
-                                vrd.UpdateLockedTargets();
+                                //vrd.UpdateLockedTargets();
                             }
                         }
-                    attemptedLocks[i] = TargetSignatureData.noTarget;
                     return true;
                 }
             }

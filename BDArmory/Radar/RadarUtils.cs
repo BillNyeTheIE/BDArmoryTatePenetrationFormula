@@ -430,13 +430,19 @@ namespace BDArmory.Radar
                 MissileBase missile = ti.MissileBaseModule;
                 if (missile != null)
                 {
-                    if (missile.ActiveRadar)
+                    if (!missile.updateRadarCS)
+                        return ti;
+
+                    if (missile.ActiveRadar || missile.radarLOALSearching)
+                    {
                         ti.radarBaseSignature = RCS_MISSILES;
+                    }
                     else
                         ti.radarBaseSignature = missile.missileRadarCrossSection;
 
                     ti.radarBaseSignatureNeedsUpdate = false;
                     ti.radarSignatureMatrixNeedsUpdate = false;
+                    missile.updateRadarCS = false;
 
                     // Update ECM impact on RCS if base RCS is modified
                     VesselECMJInfo jammer = v.gameObject.GetComponent<VesselECMJInfo>();
@@ -2243,6 +2249,7 @@ namespace BDArmory.Radar
             Vector3 forwardVector = referenceTransform.forward;
             Vector3 upVector = referenceTransform.up;
             Vector3 lookDirection = -forwardVector;
+
             var AI = myWpnManager.vessel.ActiveController().AI;
             var ignoreMyTargetTargetingMe = AI != null && AI.pilotEnabled && AI.aiType switch
             {
@@ -2251,22 +2258,25 @@ namespace BDArmory.Radar
                 _ => false
             };
             float maxRWRDistance = RWR != null ? RWR.rwrDisplayRange : maxViewDistance;
+            float maxScanDistance = maxRWRDistance;
             using (var loadedvessels = BDATargetManager.LoadedVessels.GetEnumerator())
                 while (loadedvessels.MoveNext())
                 {
                     if (loadedvessels.Current == null || !loadedvessels.Current.loaded || VesselModuleRegistry.IgnoredVesselTypes.Contains(loadedvessels.Current.vesselType)) continue;
                     if (loadedvessels.Current == myWpnManager.vessel) continue; //ignore self
-
+                    var tgtMF = loadedvessels.Current.ActiveController().WM;
+                    if (tgtMF && tgtMF.vesselRadarData) maxRWRDistance = tgtMF.vesselRadarData.MaxRadarRange() * 2;
+                    maxScanDistance = Mathf.Max(maxViewDistance, maxRWRDistance);
                     Vector3 vesselDirection = loadedvessels.Current.CoM - position;
                     Vector3 vesselProjectedDirection = (vesselDirection).ProjectOnPlanePreNormalized(upVector);
                     float vesselDistanceSqr = (vesselDirection).sqrMagnitude;
                     //BDATargetManager.ClearRadarReport(loadedvessels.Current, myWpnManager); //reset radar contact status
-                    if (vesselDistanceSqr < maxRWRDistance * maxRWRDistance) // && VectorUtils.Angle(vesselProjectedDirection, lookDirection) < fov / 2f) // && VectorUtils.Angle(loadedvessels.Current.transform.position - position, -myWpnManager.transform.forward) < myWpnManager.guardAngle / 2f) //WM facing direction? that s going to cause issues for any that aren't mounted pointing forward if guardAngle < 360; check combatSeat forward vector
+                    if (vesselDistanceSqr < maxScanDistance * maxScanDistance) // && VectorUtils.Angle(vesselProjectedDirection, lookDirection) < fov / 2f) // && VectorUtils.Angle(loadedvessels.Current.transform.position - position, -myWpnManager.transform.forward) < myWpnManager.guardAngle / 2f) //WM facing direction? that s going to cause issues for any that aren't mounted pointing forward if guardAngle < 360; check combatSeat forward vector
                     {
                         TargetInfo tInfo;
                         if ((tInfo = loadedvessels.Current.gameObject.GetComponent<TargetInfo>()))
                         {
-                            if (TerrainCheck(referenceTransform.position, loadedvessels.Current.transform.position))
+                            if (TerrainCheck(position, loadedvessels.Current.CoM, loadedvessels.Current.mainBody))
                             {
                                 continue; //blocked by terrain
                             }
