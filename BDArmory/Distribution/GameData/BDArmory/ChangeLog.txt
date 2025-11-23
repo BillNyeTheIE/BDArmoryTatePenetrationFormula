@@ -5,7 +5,7 @@
 	- Further improved point-defense logic, should behave slightly better against mixed barrages of missiles, some of which it cannot engage with missiles (like stealthy missiles).
 	- AI can no longer see incoming missiles through water.
 	- AI will fire missiles that can (probably) clear any terrain in front of them without LoS to the target.
-	- Add an action group trigger for when the vessel comes under attack.
+	- Add an action group trigger to the WM for when the vessel comes under attack.
 	- Fix broken ActiveController registry clean-up.
 - Sensors:
 	- Radar code optimizations.
@@ -15,7 +15,7 @@
 		- Adds new weapon.cfg fields: 'conicAoE' = T/F to enable conic field of fire for Laser class weapons.
 			'beamFOV' = n to set width of beam.
 			'friendlyFire' = T/F to set of conic weapons affect ally craft in AoE, if firing into a melee.
-	- Reworks EMP weapons. Craft EMP threshold before getting disabled is now dependent on cockpit seat quantity/drone core SAS level.
+	- Rework EMP weapons. Craft EMP threshold before getting disabled is now dependent on cockpit seat quantity/drone core SAS level.
 		- EMP damage received now adjusted by craft armor/hull type and craft bulk. Electrolaser/lightning weapons resisted by non-conductive armor and hull material (e.g. not metal).
 		- EMP missile/Nuke EMP burst/conicAoE EMP lasers resisted by craft bulk and conductive armor occluding cockpits from emission source.
 		- EMP buildup now causes increasing penalties/subsystem shutdowns as it accrues in a vessel receiving EMP damage.
