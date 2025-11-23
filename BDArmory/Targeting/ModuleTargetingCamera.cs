@@ -729,8 +729,8 @@ namespace BDArmory.Targeting
 
                 if (BDArmorySettings.DEBUG_RADAR)
                 {
-                    GUI.Label(new Rect(600, 1000, 100, 30), "Slew rate: " + finalSlewSpeed);
-                    GUI.Label(new Rect(600, 950, 200, 30), "ComLock: " + (CoMLock ? lockedVessel != null ? lockedVessel.GetName() : "null" : "false"));
+                    GUI.Label(new Rect(600, 1000, 200, 30), $"Slew rate: {finalSlewSpeed:G3}");
+                    GUI.Label(new Rect(600, 950, 200, 30), $"ComLock: {(CoMLock ? lockedVessel != null ? lockedVessel.GetName() : "null" : "false")}");
                 }
 
                 if (BDArmorySettings.DEBUG_LINES && cameraEnabled && cameraParentTransform is not null)
@@ -861,26 +861,26 @@ namespace BDArmory.Targeting
             Rect slewRightRect = new Rect(slewStartX + (2 * buttonHeight) + (gap * 2), slewStartY + ((buttonHeight + gap) / 2), buttonHeight, buttonHeight);
             if (GUI.RepeatButton(slewUpRect, "^", GUI.skin.button))
             {
-                //SlewCamera(Vector3.up);
-                slewInput.y = 1;
+                SlewCamera(Vector3.up); // OnGUI occurs after LateUpdate, so we can't set slewInput and expect it to work for the current frame.
+                // slewInput.y = 1;
             }
 
             if (GUI.RepeatButton(slewDownRect, "v", GUI.skin.button))
             {
-                //SlewCamera(Vector3.down);
-                slewInput.y = -1;
+                SlewCamera(Vector3.down);
+                // slewInput.y = -1;
             }
 
             if (GUI.RepeatButton(slewLeftRect, "<", GUI.skin.button))
             {
-                //SlewCamera(Vector3.left);
-                slewInput.x = -1;
+                SlewCamera(Vector3.left);
+                // slewInput.x = -1;
             }
 
             if (GUI.RepeatButton(slewRightRect, ">", GUI.skin.button))
             {
-                //SlewCamera(Vector3.right);
-                slewInput.x = 1;
+                SlewCamera(Vector3.right);
+                // slewInput.x = 1;
             }
         }
 
