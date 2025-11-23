@@ -9,6 +9,7 @@
 	- Fix broken ActiveController registry clean-up.
 - Sensors:
 	- Radar code optimizations.
+	- Fix smooth slewing of the targeting camera when clicking on the GUI buttons when a target is locked.
 - Weapons:
 	- Add conical beam weapon implementation for creating microwave drone zappers, War of the Worlds heatrays, tractor beams, etc.
 		- Adds new weapon.cfg fields: 'conicAoE' = T/F to enable conic field of fire for Laser class weapons.
