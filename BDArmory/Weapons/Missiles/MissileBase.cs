@@ -447,6 +447,10 @@ namespace BDArmory.Weapons.Missiles
 
         public bool ActiveRadar { get; set; }
 
+        // Boolean, used to determine whether or not to update the missile's TargetInfo, should be set
+        // to true whenever a change is to be made to the missile's RCS, like ActiveRadar or radarLOALSearching
+        public bool updateRadarCS = false;
+
         public Vessel SourceVessel
         {
             get { return _sourceVessel; }
@@ -569,7 +573,7 @@ namespace BDArmory.Weapons.Missiles
         [KSPField] public float terminalSeekerTimeout = -1;
         private float lastRWRPing = 0;
         public RadarWarningReceiver.RWRThreatTypes[] antiradTargets;
-        protected bool radarLOALSearching = false;
+        public bool radarLOALSearching { get; protected set; } = false;
         private bool hasLostLock = false;
         protected bool checkMiss = false;
         public StringBuilder debugString = new StringBuilder();
@@ -702,6 +706,7 @@ namespace BDArmory.Weapons.Missiles
             info.Team = Team;
             info.isMissile = true;
             info.MissileBaseModule = this;
+            updateRadarCS = true;
         }
 
         [KSPEvent(guiActive = true, guiActiveEditor = false, guiName = "#LOC_BDArmory_GPSTarget", active = true, name = "GPSTarget")]//GPS Target
@@ -1127,6 +1132,7 @@ namespace BDArmory.Weapons.Missiles
                                             locksCount++;
                                         }
                                         ActiveRadar = true;
+                                        updateRadarCS = true;
                                         return;
                                     }
                                 }
@@ -1140,9 +1146,10 @@ namespace BDArmory.Weapons.Missiles
                         if (radarLOAL)
                         {
                             // Lost track of target, but we can re-acquire set radarLOALSearching = true and try to re-acquire using existing target information
-                            if (radarLOALSearching)
+                            if (!radarLOALSearching)
                             {
                                 radarLOALSearching = true;
+                                updateRadarCS = true;
                                 startDirection = GetForwardTransform();
                             }
                             TargetAcquired = true;
@@ -1164,6 +1171,7 @@ namespace BDArmory.Weapons.Missiles
                             radarLOAL = false;
                             TargetAcquired = false;
                             ActiveRadar = false;
+                            updateRadarCS = true;
                         }
                     }
                 }
@@ -1236,6 +1244,7 @@ namespace BDArmory.Weapons.Missiles
                                 smallestDist = currDist;
                                 lockedTarget = scannedTargets[i];
                                 ActiveRadar = true;
+                                updateRadarCS = true;
                                 //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileBase][Radar LOAL]: Target: {scannedTargets[i].vessel.name} selected.");
                             }
                             //return;
@@ -1279,9 +1288,10 @@ namespace BDArmory.Weapons.Missiles
                     TargetPosition = transform.position + (startDirection * 5000);
                     TargetVelocity = vessel.Velocity(); // Set the relative target velocity to 0.
                     TargetAcceleration = Vector3.zero;
-                    if (radarLOALSearching)
+                    if (!radarLOALSearching)
                     {
                         radarLOALSearching = true;
+                        updateRadarCS = true;
                         startDirection = GetForwardTransform();
                     }
                     _radarFailTimer += Time.fixedDeltaTime;
@@ -1293,6 +1303,7 @@ namespace BDArmory.Weapons.Missiles
                         radarLOALSearching = false;
                         TargetAcquired = false;
                         ActiveRadar = false;
+                        updateRadarCS = true;
                     }
                     return;
                 }
@@ -1307,6 +1318,7 @@ namespace BDArmory.Weapons.Missiles
                         if (!radarLOALSearching)
                         {
                             radarLOALSearching = true;
+                            updateRadarCS = true;
                             TargetAcquired = true;
                             startDirection = GetForwardTransform();
                         }
@@ -1437,20 +1449,10 @@ namespace BDArmory.Weapons.Missiles
                     bool radarLocked = false;
                     if (FiredByWM != null && FiredByWM.vesselRadarData)
                     {
-                        INStarget = FiredByWM._radarsEnabled || weaponClass == WeaponClasses.SLW && FiredByWM._sonarsEnabled ? FiredByWM.vesselRadarData.detectedRadarTarget(targetVessel.Vessel, FiredByWM) : TargetSignatureData.noTarget; //is the target tracked by radar or ISRT?
+                        if (FiredByWM._radarsEnabled || weaponClass == WeaponClasses.SLW && FiredByWM._sonarsEnabled)
+                            (INStarget, radarLocked) = FiredByWM.vesselRadarData.detectedRadarTargetLock(targetVessel.Vessel, FiredByWM); //is the target tracked by radar or ISRT?
                         if (INStarget.exists)
-                        {
                             detectedByRadar = true;
-                            List<TargetSignatureData> possibleTargets = FiredByWM.vesselRadarData.GetLockedTargets();
-                            for (int i = 0; i < possibleTargets.Count; i++)
-                            {
-                                if (possibleTargets[i].vessel == targetVessel.Vessel)
-                                {
-                                    radarLocked = true;
-                                    break;
-                                }
-                            }
-                        }
                         else
                             if (FiredByWM._irstsEnabled) INStarget = FiredByWM.vesselRadarData.activeIRTarget(targetVessel.Vessel, FiredByWM);
                     }

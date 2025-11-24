@@ -1921,7 +1921,7 @@ namespace BDArmory.Weapons
                 for (int c = 0; c < beamCone.Length; c++)
                 {
                     if (beamCone[c] != null)
-                        beamCone[c].SetActive(false);                    
+                        beamCone[c].SetActive(false);
                 }
             }
             BDArmorySetup.OnVolumeChange -= UpdateVolume;
@@ -2569,9 +2569,9 @@ namespace BDArmory.Weapons
                     }
                     else
                     {
-                        if (!conicAoE) 
+                        if (!conicAoE)
                             LaserBeam(aName);
-                        else 
+                        else
                             MicrowaveBeam(aName);
                         heat += heatPerShot * TimeWarp.CurrentRate;
                         BeamTracker += 0.02f;
@@ -2701,7 +2701,7 @@ namespace BDArmory.Weapons
                                                 {
                                                     float evalDist = (moduleCommand.part.transform.position - p.transform.position).sqrMagnitude;
                                                     if (evalDist < distToCommandSqr)
-                                                    {                                                        
+                                                    {
                                                         closestCommand = moduleCommand.part;
                                                         commandDir = closestCommand.transform.position - p.transform.position;
                                                         distToCommandSqr = evalDist;
@@ -2837,7 +2837,7 @@ namespace BDArmory.Weapons
                                                     damage = initialDamage * TimeWarp.fixedDeltaTime;
                                                 }
                                             }
-                                            p.ReduceArmor(damage); //really should be tied into diffuisvity, density, and SafeUseTemp - lasers would need to melt/ablate material away; needs to be in cm^3. Review later
+                                            p.ReduceArmor(damage); //really should be tied into diffusivity, density, and SafeUseTemp - lasers would need to melt/ablate material away; needs to be in cm^3. Review later
                                             p.AddDamage(damage);
                                             if (BDArmorySettings.DEBUG_WEAPONS) Debug.Log($"[BDArmory.ModuleWeapon]: Damage Applied to {p.name} on {p.vessel.GetName()}: {damage}");
                                             if (pulseLaser) BattleDamageHandler.CheckDamageFX(p, caliber, 1 + (damage / initialDamage), HEpulses, false, part.vessel.GetName(), hit, false, false); //beams will proc BD once every scoreAccumulatorTick
@@ -2982,7 +2982,7 @@ namespace BDArmory.Weapons
             float initialDamage = laserDamage * 0.425f;
             var beamLength = engageRangeMax / 1000;
             var beamAngle = Mathf.Tan(beamFOV * Mathf.Deg2Rad) * beamLength; //assumes a default 1km long, 45deg angle cone model
-                                                                 //Also, TOD - add conic AoE ingo to the GetInfo weapon infocard
+                                                                             //Also, TOD - add conic AoE ingo to the GetInfo weapon infocard
             Vector3 beamScale = new Vector3(beamAngle, beamAngle, beamLength); //this need a 1/localscale for oddly scaled parts?
             for (int i = 0; i < fireTransforms.Length; i++)
             {
@@ -3011,13 +3011,13 @@ namespace BDArmory.Weapons
                         if (wms == null || wms.Team == WeaponManager.Team) continue;
                     }
                     if (!loadedvessels.Current.Splashed && vessel.IsUnderwater()) //not sure if a water transition should serve as a barrier, but easily commented out
-                            continue;
+                        continue;
                     if (loadedvessels.Current == vessel) continue;
                     float distance = (loadedvessels.Current.CoM - fireTransforms[0].transform.position).magnitude;
                     if (distance > maxTargetingRange) continue;
                     var angularSpread = tanAngle * distance; //Scales down the damage based on the increased surface area of the area being hit by the laser. Think flashlight on a wall.
                     initialDamage = (laserDamage * 0.425f) / (1 + Mathf.PI * angularSpread * angularSpread);
-                    
+
                     if (electroLaser)
                     {
                         float EMPDamage = initialDamage * (pulseLaser ? 1 : TimeWarp.fixedDeltaTime) * (BDArmorySettings.DMG_MULTIPLIER / 100);
@@ -3044,14 +3044,14 @@ namespace BDArmory.Weapons
                                 Part partHit = electrolaserHits[mwh].collider.GetComponentInParent<Part>();
                                 if (partHit == null) continue;
                                 if (ProjectileUtils.IsIgnoredPart(partHit)) continue;
-                                
+
                                 //AoE EMP field EMP damage mitigation - -1 EMP damage per mm of conductive armor/5t of conductive hull mass per part occluding command part from emission source         
                                 var Armor = partHit.FindModuleImplementing<HitpointTracker>();
                                 if (Armor != null && partHit.Rigidbody != null)
                                 {
                                     if (Armor.Diffusivity > 15) testShieldValue += Armor.Armour;
                                     if (Armor.HullMassAdjust >= 0) testShieldValue += (partHit.mass * 4);
-                                }  
+                                }
                             }
                             if (shieldvalue < testShieldValue) shieldvalue = testShieldValue;
                         }
@@ -3068,7 +3068,7 @@ namespace BDArmory.Weapons
                             emp.incomingDamage = EMPDamage;
                             damage = EMPDamage;
                             //if (BDArmorySettings.DEBUG_WEAPONS)
-                                Debug.Log($"[BDArmory.ModuleWeapon]: {loadedvessels.Current.GetName()} receiving {EMPDamage} EMP damage; EMP buildup applied: {initialDamage * (pulseLaser ? 1 : TimeWarp.fixedDeltaTime) * (BDArmorySettings.DMG_MULTIPLIER / 100)}; reduction from armor: {shieldvalue}");
+                            Debug.Log($"[BDArmory.ModuleWeapon]: {loadedvessels.Current.GetName()} receiving {EMPDamage} EMP damage; EMP buildup applied: {initialDamage * (pulseLaser ? 1 : TimeWarp.fixedDeltaTime) * (BDArmorySettings.DMG_MULTIPLIER / 100)}; reduction from armor: {shieldvalue}");
                         }
                     }
                     else
@@ -3109,7 +3109,7 @@ namespace BDArmory.Weapons
                                                         damage = initialDamage * TimeWarp.fixedDeltaTime;
                                                     }
                                                 }
-                                                hitPart.ReduceArmor(damage); //really should be tied into diffuisvity, density, and SafeUseTemp - lasers would need to melt/ablate material away; needs to be in cm^3. Review later
+                                                hitPart.ReduceArmor(damage); //really should be tied into diffusivity, density, and SafeUseTemp - lasers would need to melt/ablate material away; needs to be in cm^3. Review later
                                                 hitPart.AddDamage(damage);
                                                 if (BDArmorySettings.DEBUG_WEAPONS) Debug.Log($"[BDArmory.ModuleWeapon]: Damage Applied to {hitPart.name} on {hitPart.vessel.GetName()}: {damage}");
                                             }
@@ -3186,7 +3186,7 @@ namespace BDArmory.Weapons
                         }
                     }
                 }
-        }    
+        }
 
         public void SetupLaserSpecifics()
         {
@@ -3199,7 +3199,7 @@ namespace BDArmory.Weapons
             laserColor.a = laserColor.a / 2;
             if (conicAoE)
             {
-                var cone = GameDatabase.Instance.GetModel(laserModelPath);            
+                var cone = GameDatabase.Instance.GetModel(laserModelPath);
                 cone.SetActive(false);
                 beamConeFX = ObjectPool.CreateObjectPool(cone, 10, true, true);
                 if (beamConeFX != null)
@@ -3226,7 +3226,7 @@ namespace BDArmory.Weapons
                 for (int i = 0; i < fireTransforms.Length; i++)
                 {
                     Transform tf = fireTransforms[i];
-                    laserRenderers[i] = tf.gameObject.AddOrGetComponent<LineRenderer>();                    
+                    laserRenderers[i] = tf.gameObject.AddOrGetComponent<LineRenderer>();
                     laserRenderers[i].material = new Material(Shader.Find("KSP/Particles/Alpha Blended"));
                     laserRenderers[i].material.SetColor("_TintColor", laserColor);
                     laserRenderers[i].material.mainTexture = GameDatabase.Instance.GetTexture(laserTexList[0], false);
@@ -5680,7 +5680,7 @@ namespace BDArmory.Weapons
                 if (weaponManager.vesselRadarData && weaponManager.vesselRadarData.locked) // && weaponManager.slavedPosition != Vector3.zero)
                 {
                     TargetSignatureData targetData = TargetSignatureData.noTarget;
-                    if (weaponManager.multiTargetNum > 1 && (turret && (maxPitch != minPitch || yawRange > 0))) //if multi target turrets, get relevant lock
+                    if (weaponManager.multiTargetNum > 1 && turret && (maxPitch != minPitch || yawRange > 0)) //if multi target turrets, get relevant lock
                     {
                         List<TargetSignatureData> possibleTargets = weaponManager.vesselRadarData.GetLockedTargets();
                         for (int i = 0; i < possibleTargets.Count; i++)
@@ -6761,7 +6761,7 @@ namespace BDArmory.Weapons
                         output.AppendLine($"-Maximum output: {laserMaxDamage} damage");
                     }
                     if (secondaryAmmoPerShot > 0 || ECPerShot > 0)
-                    {                        
+                    {
                         if (pulseLaser)
                         {
                             output.AppendLine($"{secondaryAmmoName} required per shot: {secondaryAmmoPerShot}");

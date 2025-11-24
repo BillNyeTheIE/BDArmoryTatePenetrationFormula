@@ -875,7 +875,6 @@ namespace BDArmory.VesselSpawning
             yield return VesselMover.Instance.PlaceVessel(vessel, true);
             --loweringVesselsCount;
         }
-       
         #endregion
 
         #region Utils

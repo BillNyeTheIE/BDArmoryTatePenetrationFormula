@@ -430,13 +430,19 @@ namespace BDArmory.Radar
                 MissileBase missile = ti.MissileBaseModule;
                 if (missile != null)
                 {
-                    if (missile.ActiveRadar)
+                    if (!missile.updateRadarCS)
+                        return ti;
+
+                    if (missile.ActiveRadar || missile.radarLOALSearching)
+                    {
                         ti.radarBaseSignature = RCS_MISSILES;
+                    }
                     else
                         ti.radarBaseSignature = missile.missileRadarCrossSection;
 
                     ti.radarBaseSignatureNeedsUpdate = false;
                     ti.radarSignatureMatrixNeedsUpdate = false;
+                    missile.updateRadarCS = false;
 
                     // Update ECM impact on RCS if base RCS is modified
                     VesselECMJInfo jammer = v.gameObject.GetComponent<VesselECMJInfo>();
@@ -2270,7 +2276,7 @@ namespace BDArmory.Radar
                         TargetInfo tInfo;
                         if ((tInfo = loadedvessels.Current.gameObject.GetComponent<TargetInfo>()))
                         {
-                            if (TerrainCheck(referenceTransform.position, loadedvessels.Current.transform.position))
+                            if (TerrainCheck(position, loadedvessels.Current.CoM, loadedvessels.Current.mainBody))
                             {
                                 continue; //blocked by terrain
                             }

@@ -103,6 +103,7 @@ namespace BDArmory.VesselSpawning
                     spawnFailureReason = SpawnFailureReason.VesselLostParts;
                     yield break;
                 }
+
                 if (!airborne) SpawnUtils.AirborneActivation(vessel, false); // Activate ground-spawned craft (air-spawned craft are already active).
                 BDACompetitionMode.Instance.AddToActiveCompetition(vessel);
             }
