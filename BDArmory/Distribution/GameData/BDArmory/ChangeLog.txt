@@ -1,7 +1,17 @@
 ﻿IMPROVEMENTS / FIXES
 - UI:
 	- Adjust the "Steel Equivalent Thickness" display in the armor GUI to show a more intuitive value.
-
+- Sensors:
+	- Targeting Camera terrain collision detection no longer starts 50m forward of the lens.
+- Weapons:
+	- Fix hypersonic rounds dealing self damage when fired into something at close range.
+	- External fires from incendiary ammo into flammable hull materials no longer suppressed by Inerted Tanks.
+	Missiles:
+		- Add ordnance offset option to non-adjustabeRail reloadable MultiMissileLaunchers that don't come with set missile types.
+	Robotics:
+		- Adds ability to build custom turrets with Breaking Ground Hinges and Servoes. BG hinges/servoes now have a 'Custom Turret ID' slider; attaching a weapon as a 
+		child of the robotic part adds a similar 'Custom Turret ID' slider to the gun;setting both to the same value will enable the gun to use BG robotics to slew/traverse
+		the attached weapon (and any other parts attached to the robotics) as if it were a standard BDA turret.
 v1.11.1.0
 IMPROVEMENTS / FIXES
 - General:
@@ -30,12 +40,7 @@ IMPROVEMENTS / FIXES
 		- Fix 0 values for advanced (multiple value) maxTorque, liftArea, dragArea, maxTorqueAero and steerMult usage not being respected.
 		- Fix 0 values for terminalSeekerTimeout not being respected.
 		- Fix missing Cruise Popup menu for MMLs.
-- Competition:
-	- Fixes to include any newly detached fighters during competition start-up.
-	- Fix vessel name deconfliction for teams tournaments that use the "Re-use Craft To Fill Teams" option.
-		- Note: If this option is being used and two craft with the same name are used in multiple teams then the scoring will be messed up.
-	- If not storing Team Icon colours, reset the colours at the start of a tournament / continuous spawn.
-- Weapons:
+		- Fix Nuclear ordnance applying multiple stacks of EMP damage to a single vessel during detonation.
 	- Add conical beam weapon implementation for creating microwave drone zappers, War of the Worlds heatrays, tractor beams, etc.
 		- Adds new weapon.cfg fields: 'conicAoE' = T/F to enable conic field of fire for Laser class weapons.
 									'beamFOV' = n to set width of beam.
@@ -44,8 +49,12 @@ IMPROVEMENTS / FIXES
 	    EMP damage received now adjusted by craft armor/hull type and craft bulk. Electrolaser/lightning weapons resisted by non-conductive armor and hull material (e.g. not metal)
 		EMP missile/Nuke EMP burst/conicAoE EMP lasers resisted by craft bulk and conductive armor occluding cockpits from emission source.
 		EMP buildup now causes increasing penalties/subsystem shutdowns as it accrues in a vessel receiving EMP damage.
-	- Missiles:
-		- Fix Nuclear ordnance applying multiple stacks of EMP damage to a single vessel during detonation.
+- Competition:
+	- Fixes to include any newly detached fighters during competition start-up.
+	- Fix vessel name deconfliction for teams tournaments that use the "Re-use Craft To Fill Teams" option.
+		- Note: If this option is being used and two craft with the same name are used in multiple teams then the scoring will be messed up.
+	- If not storing Team Icon colours, reset the colours at the start of a tournament / continuous spawn.
+- Weapons:
 - Scripts:
 	- Fix default GLOBAL_LIFT_MULTIPLIER in BDArmoryMissileManeuverEnvelopePlotter.py.
 
