@@ -451,6 +451,8 @@ namespace BDArmory.Radar
 
                     return ti;
                 }
+
+                return ti;
             }
 
             // Run intensive RCS rendering if 1. It has not been done yet, 2. If the competition just started (capture vessel changes such as gear-raise or robotics)
