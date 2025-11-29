@@ -4106,14 +4106,11 @@ namespace BDArmory.Weapons
                 if (!targetAcquired)
                 {
                     if (turret) turret.ReturnTurret();
-                    if (customTurret.Count > 0)
+                    for (int i = 0; i < customTurret.Count; i++)
                     {
-                        for (int i = 0; i < customTurret.Count; i++)
-                        {
-                            if (customTurret[i] == null) continue;
-                            if (customTurret[i].vessel != vessel) continue;
-                            customTurret[i].ReturnTurret();
-                        }
+                        if (customTurret[i] == null) continue;
+                        if (customTurret[i].vessel != vessel) continue;
+                        customTurret[i].ReturnTurret();
                     }
                 }
             }
@@ -4418,14 +4415,11 @@ namespace BDArmory.Weapons
                 turret.AimToTarget(finalAimTarget); //no aimbot turrets when target out of sight
                 turret.smoothRotation = origSmooth;
             }
-            if (customTurret.Count > 0)
+            for (int i = 0; i < customTurret.Count; i++)
             {
-                for (int i = 0; i < customTurret.Count; i++)
-                {
-                    if (customTurret[i] == null) continue;
-                    if (customTurret[i].vessel != vessel) continue;
-                    customTurret[i].AimToTarget(finalAimTarget); //no aimbot turrets when target out of sight
-                }
+                if (customTurret[i] == null) continue;
+                if (customTurret[i].vessel != vessel) continue;
+                customTurret[i].AimToTarget(finalAimTarget); //no aimbot turrets when target out of sight
             }
         }
 
@@ -6022,14 +6016,12 @@ namespace BDArmory.Weapons
                                                                                      //visualTargetPart = null;
                                                                                      //tgtShell = null;
                                                                                      //tgtRocket = null;
-                    if (customTurret.Count > 0)
+
+                    for (int i = 0; i < customTurret.Count; i++)
                     {
-                        for (int i = 0; i < customTurret.Count; i++)
-                        {
-                            if (customTurret[i] == null) continue;
-                            if (customTurret[i].vessel != vessel) continue;
-                            customTurret[i].ReturnTurret();
-                        }
+                        if (customTurret[i] == null) continue;
+                        if (customTurret[i].vessel != vessel) continue;
+                        customTurret[i].ReturnTurret();
                     }
                 }
             }
