@@ -237,7 +237,6 @@ namespace BDArmory.Control
             }
             speedController.Deactivate();
             motorControl.Activate();
-            if (speedController) speedController.Deactivate();
             if (BroadsideAttack && sideSlipDirection == 0)
             {
                 SetBroadsideDirection(OrbitDirectionName);

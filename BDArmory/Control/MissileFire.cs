@@ -9783,7 +9783,7 @@ namespace BDArmory.Control
                     {
                         directionYaw = direction.ProjectOnPlanePreNormalized(servo.Current.yawTransform.up);
                         angleYaw = VectorUtils.Angle(turretTransform.forward, directionYaw);
-                        yawRange = servo.Current.fullRotation ? 360 : Mathf.Abs(servo.Current.minYaw) + Mathf.Abs(servo.Current.maxYaw);
+                        yawRange = servo.Current.fullRotation ? 360 : servo.Current.maxYaw - servo.Current.minYaw;
                     }
                     else
                     {

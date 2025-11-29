@@ -1675,7 +1675,7 @@ namespace BDArmory.Weapons
                         if (servo.Current.fullRotation) yaw = 360;
                         else
                         {
-                            float tempyaw = Mathf.Abs(servo.Current.minYaw) + Mathf.Abs(servo.Current.maxYaw);
+                            float tempyaw = servo.Current.maxYaw - servo.Current.minYaw;
                             if (tempyaw > yaw)
                                 yaw = tempyaw;
                         }

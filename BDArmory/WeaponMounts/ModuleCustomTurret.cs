@@ -5,7 +5,6 @@ using Expansions.Serenity;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace BDArmory.WeaponMounts
 {
@@ -104,8 +103,12 @@ namespace BDArmory.WeaponMounts
             //Also need to account for rotation/facing; ModuleTurret is agnostic, but targetAngle in the hinge module is not.
             if (Hinge)
             {
-                if (Hinge.mainAxis == "X") yawNormal = -pitchTransform.forward;
-                if (Hinge.mainAxis == "Z") yawNormal = pitchTransform.right;
+                yawNormal = Hinge.mainAxis switch
+                {
+                    "X" => -pitchTransform.forward,
+                    "Z" => pitchTransform.right,
+                    _ => yawTransform.up
+                };
             }
         }
 
@@ -136,10 +139,10 @@ namespace BDArmory.WeaponMounts
             {
                 if (Mathf.Abs(targetYawAngle) > 180)
                 {
-                    var nonWooblyWay = Vector3.Dot(yawTransform.parent.right, targetDirection + referenceTransform.position - yawTransform.position);
-                    if (float.IsNaN(nonWooblyWay)) return;
+                    var nonWobblyWay = Vector3.Dot(yawTransform.parent.right, targetDirection + referenceTransform.position - yawTransform.position);
+                    if (float.IsNaN(nonWobblyWay)) return;
 
-                    targetYawAngle = 180 * Math.Sign(nonWooblyWay);
+                    targetYawAngle = 180 * Math.Sign(nonWobblyWay);
                 }
             }
             else

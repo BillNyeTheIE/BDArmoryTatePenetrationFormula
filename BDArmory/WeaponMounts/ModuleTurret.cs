@@ -201,10 +201,10 @@ namespace BDArmory.WeaponMounts
             // clamp target yaw in a non-wobbly way
             if (Mathf.Abs(targetYawAngle) > yawRange / 2)
             {
-                var nonWooblyWay = Vector3.Dot(yawTransform.parent.right, targetDirection + referenceTransform.position - yawTransform.position);
-                if (float.IsNaN(nonWooblyWay)) return;
+                var nonWobblyWay = Vector3.Dot(yawTransform.parent.right, targetDirection + referenceTransform.position - yawTransform.position);
+                if (float.IsNaN(nonWobblyWay)) return;
 
-                targetYawAngle = yawRange / 2 * Math.Sign(nonWooblyWay);
+                targetYawAngle = yawRange / 2 * Math.Sign(nonWobblyWay);
             }
 
 
