@@ -1,13 +1,19 @@
 ﻿IMPROVEMENTS / FIXES
 - Sensors:
-	- Radar code optimizations.
+	- Radar and RWR code optimizations.
 - AI / WM:
 	- Further improved point-defense logic, should behave slightly better against mixed barrages of missiles, some of which it cannot engage with missiles (like stealthy missiles)
+	- Fixed some bugs in point-defense logic which could lead to the game freezing.
 	- AI can no longer see incoming missiles through water
 	- AI will fire missiles that can (probably) clear any terrain in front of them without LoS to the target
+	- Slightly better AI radar management behavior (pending a bigger overhaul), AI will no longer try to lock targets if it'll unlock the radar's current radar target (due to it being outside of multiLockFOV) if it's being used for guidance
+	- Improved AI weapon selection, AI should be a tiny bit smarter about what weapon it picks, as well as not dumping all anti-radiation missiles at once.
+	- Fix surface AI reversing behavior, surface AI should now reverse more smoothly.
 - Weapons:
 	- Missiles:
 		- Improve "CLOSlead" debug visualization, now shows the proper, lead-adjusted beam, for easier debugging.
+		- Fixed missile ECM behavior, previously changes to the missile's radar signature due to ECM could be overwritten by the missile going active/passive, causing ECM to seemingly not function.
+		- Missiles with a "cruiseRangeTrigger" will now also fire the cruise motor if the missile's airspeed drops below 75% of its optimum airspeed while in-atmosphere
 
 v1.11.1.0
 IMPROVEMENTS / FIXES
