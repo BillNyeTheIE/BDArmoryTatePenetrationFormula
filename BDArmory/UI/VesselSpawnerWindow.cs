@@ -1042,11 +1042,11 @@ namespace BDArmory.UI
                             new CircularSpawnConfig(
                                 new SpawnConfig(
                                     BDArmorySettings.VESSEL_SPAWN_WORLDINDEX,
-                                    BDArmorySettings.VESSEL_SPAWN_GEOCOORDS.x,
-                                    BDArmorySettings.VESSEL_SPAWN_GEOCOORDS.y,
+                                    BDArmorySettings.VESSEL_SPAWN_GEOCOORDS.x, 
+                                    BDArmorySettings.VESSEL_SPAWN_GEOCOORDS.y, 
                                     BDArmorySettings.VESSEL_SPAWN_ALTITUDE_,
                                     killEverythingFirst: true,
-                                    assignTeams: true,
+                                    assignTeams: BDArmorySettings.VESSEL_SPAWN_REASSIGN_TEAMS,
                                     numberOfTeams: 1,
                                     teamCounts: null,
                                     teamsSpecific: null,

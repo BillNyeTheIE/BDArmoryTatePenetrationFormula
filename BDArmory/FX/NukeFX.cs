@@ -71,6 +71,7 @@ namespace BDArmory.FX
 
         static RaycastHit[] lineOfSightHits;
         static RaycastHit[] reverseHits;
+        static RaycastHit[] electroHits;
         Collider[] blastHitColliders = new Collider[100];
         public static List<Part> IgnoreParts;
         public static List<DestructibleBuilding> IgnoreBuildings;
@@ -92,6 +93,7 @@ namespace BDArmory.FX
         {
             if (lineOfSightHits == null) { lineOfSightHits = new RaycastHit[100]; }
             if (reverseHits == null) { reverseHits = new RaycastHit[100]; }
+            if (electroHits == null) { electroHits = new RaycastHit[100]; }
             if (IgnoreParts == null) { IgnoreParts = new List<Part>(); }
             if (IgnoreBuildings == null) { IgnoreBuildings = new List<DestructibleBuilding>(); }
         }
@@ -362,7 +364,7 @@ namespace BDArmory.FX
                 {
                     hasDetonated = true;
                     CalculateBlastEvents();
-
+                    if (isEMP) CalculateEMPEvent();
                     if (lastValidAtmDensity < 0.05)
                     {
                         if (!string.IsNullOrWhiteSpace(flashModelPath))
@@ -590,22 +592,6 @@ namespace BDArmory.FX
                     }
                     //part.skinTemperature += fluence * 3370000000 / (4 * Math.PI * (realDistance * realDistance)) * radiativeArea / 2; // Fluence scales linearly w/ yield, 1 Kt will produce between 33 TJ and 337 kJ at 0-1000m,
                     part.skinTemperature += (fluence * (337000000 * BDArmorySettings.EXP_DMG_MOD_MISSILE) / (4 * Math.PI * (realDistance * realDistance))); // everything gets heated via atmosphere
-                    if (isEMP && !VesselModuleRegistry.IgnoredVesselTypes.Contains(part.vesselType))
-                    {
-                        if (part == part.vessel.rootPart) //don't apply EMP buildup per part
-                        {
-                            var EMP = part.vessel.rootPart.FindModuleImplementing<ModuleDrainEC>();
-                            if (EMP == null)
-                            {
-                                EMP = (ModuleDrainEC)part.vessel.rootPart.AddModule("ModuleDrainEC");
-                                var MB = part.vessel.rootPart.FindModuleImplementing<MissileBase>();
-                                if (MB != null) EMP.EMPThreshold = 10;
-                            }
-                            EMP.incomingDamage = ((EMPRadius / realDistance) * 100); //this way craft at edge of blast might only get disabled instead of bricked
-                                                                                     //work on a better EMP damage value, in case of configs with very large thermalRadius
-                            EMP.softEMP = false;                                     //IRL EMP intensity/magnitude enerated by nuke explosion is more or less constant within AoE rather than tapering off, but that's no fun
-                        }
-                    }
                 }
                 else
                 {
@@ -620,6 +606,70 @@ namespace BDArmory.FX
                             if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log("[BDArmory.NukeFX]: Applying " + eventToExecute.NegativeForce.ToString("0.0") + " impulse to " + part + " of mass " + part.mass + " at distance " + realDistance + "m");
                             rb.AddForceAtPosition((Position - part.transform.position).normalized * eventToExecute.NegativeForce * BDArmorySettings.EXP_IMP_MOD * 0.25f, part.transform.position, ForceMode.Impulse);
                         }
+                    }
+                }
+            }
+        }
+
+        private void CalculateEMPEvent()
+        {
+            foreach (Vessel v in FlightGlobals.Vessels)
+            {
+                if (v == null || !v.loaded || v.packed) continue;
+                if (VesselModuleRegistry.IgnoredVesselTypes.Contains(v.vesselType)) continue;
+                if (!v.HoldPhysics)
+                {
+                    double targetDistance = Vector3d.Distance(Position, v.GetWorldPos3D());
+                    if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log($"[BDArmory.NukeFX]: Detonating EMP from {ReportingName} with blast range {targetDistance}m.");
+
+                    if (targetDistance <= EMPRadius)
+                    {
+                        var EMPDamage = ((EMPRadius / (float)targetDistance) * 100) * BDArmorySettings.DMG_MULTIPLIER; //this way craft at edge of blast might only get disabled instead of bricked
+
+                        Vector3 commandDir = Vector3.zero;
+                        float shieldvalue = float.PositiveInfinity;
+                        foreach (var moduleCommand in VesselModuleRegistry.GetModuleCommands(v))
+                        {
+                            //see how many parts are between emitter and the nearest command part to see which one is least shielded
+                            var distToCommand = commandDir.magnitude;
+                            var ElecRay = new Ray(Position, commandDir);
+                            const int layerMask = (int)(LayerMasks.Parts | LayerMasks.Wheels);
+                            var partCount = Physics.RaycastNonAlloc(ElecRay, electroHits, distToCommand, layerMask);
+                            if (partCount == electroHits.Length) // If there's a whole bunch of stuff in the way (unlikely), then we need to increase the size of our hits buffer.
+                            {
+                                electroHits = Physics.RaycastAll(ElecRay, distToCommand, layerMask);
+                                partCount = electroHits.Length;
+                            }
+                            for (int mwh = 0; mwh < partCount; ++mwh)
+                            {
+                                Part partHit = electroHits[mwh].collider.GetComponentInParent<Part>();
+                                if (partHit == null) continue;
+                                if (ProjectileUtils.IsIgnoredPart(partHit)) continue;
+                                float testShieldValue = 0;
+                                //AoE EMP field EMP damage mitigation - -1 EMP damage per mm of conductive armor/5t of conductive hull mass per part occluding command part from emission source         
+                                var Armor = partHit.FindModuleImplementing<HitpointTracker>();
+                                if (Armor != null && partHit.Rigidbody != null)
+                                {
+                                    if (Armor.Diffusivity > 15) testShieldValue += Armor.Armour;
+                                    if (Armor.HullMassAdjust > 0) testShieldValue += (partHit.mass * 4);
+                                }
+                                if (testShieldValue < shieldvalue) shieldvalue = testShieldValue;
+                            }
+                        }
+                        EMPDamage -= shieldvalue;
+                        if (EMPDamage > 0)
+                        {
+                            var emp = v.rootPart.FindModuleImplementing<ModuleDrainEC>();
+                            if (emp == null)
+                            {
+                                emp = (ModuleDrainEC)v.rootPart.AddModule("ModuleDrainEC");
+                            }
+                            emp.softEMP = false; //can bypass DMP damage cap
+                            emp.incomingDamage = EMPDamage;
+                        }
+                        //this way craft at edge of blast might only get disabled instead of bricked
+                        //work on a better EMP damage value, in case of configs with very large thermalRadius
+                        //IRL EMP intensity/magnitude enerated by nuke explosion is more or less constant within AoE rather than tapering off, but that's no fun
                     }
                 }
             }

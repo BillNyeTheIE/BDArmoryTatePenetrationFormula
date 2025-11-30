@@ -89,7 +89,6 @@ namespace BDArmory.Utils
 
             return true;
         }
-
         public static float[] ParseToFloatArray(string floatString)
         {
             string[] floatStrings = floatString.Split(new char[] { ',' });
@@ -249,5 +248,17 @@ namespace BDArmory.Utils
     public struct StringList
     {
         public List<string> ls;
+    }
+
+    /// <summary>
+    /// Comparer for raycast hit sorting.
+    /// </summary>
+    public class RaycastHitComparer : IComparer<RaycastHit>
+    {
+        int IComparer<RaycastHit>.Compare(RaycastHit left, RaycastHit right)
+        {
+            return left.distance.CompareTo(right.distance);
+        }
+        public static RaycastHitComparer raycastHitComparer = new RaycastHitComparer();
     }
 }

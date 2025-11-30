@@ -27,7 +27,8 @@ namespace BDArmory.Control
 
         Vector3 targetDirection; // Note: this isn't normalized
         float targetVelocity; // the velocity the ship should target, not the velocity of its target
-        bool aimingMode = false;
+        enum AimingMode { Off = 0, Yaw = 1, Pitch = 2, Direct = Yaw | Pitch }
+        AimingMode aimingMode = AimingMode.Off;
 
         //Building collision detection stuff
         float terrainAlertDetectionRadius;
@@ -234,6 +235,7 @@ namespace BDArmory.Control
                 motorControl = gameObject.AddComponent<BDLandSpeedControl>();
                 motorControl.vessel = vessel;
             }
+            speedController.Deactivate();
             motorControl.Activate();
 
             if (BroadsideAttack && sideSlipDirection == 0)
@@ -395,7 +397,7 @@ namespace BDArmory.Control
 
             targetVelocity = 0;
             targetDirection = vesselTransform.up;
-            aimingMode = false;
+            aimingMode = AimingMode.Off;
             upDir = vessel.up;
             if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine("");
             if (IsRunningWaypoints) UpdateWaypoint(); // Update the waypoint state.
@@ -447,7 +449,7 @@ namespace BDArmory.Control
                         using var vs = BDATargetManager.LoadedVessels.GetEnumerator();
                         while (vs.MoveNext())
                         {
-                            if (vs.Current == null || vs.Current == vessel || vs.Current.GetTotalMass() < AvoidMass) continue;
+                            if (vs.Current == null || vs.Current == vessel || vs.Current.GetTotalMass() < AvoidMass) continue; //expand for SrfAi ramming implementation?
                             if (!VesselModuleRegistry.IgnoredVesselTypes.Contains(vs.Current.vesselType))
                             {
                                 var ibdaiControl = vs.Current.ActiveController().AI;
@@ -637,7 +639,7 @@ namespace BDArmory.Control
                 // check for enemy targets and engage
                 // not checking for guard mode, because if guard mode is off now you can select a target manually and if it is of opposing team, the AI will try to engage while you can man the turrets
                 var weaponManager = WeaponManager;
-                if (weaponManager && targetVessel != null && !BDArmorySettings.PEACE_MODE)
+                if (weaponManager != null && targetVessel != null && !BDArmorySettings.PEACE_MODE)
                 {
                     leftPath = true;
                     if (collisionDetectionTicker == 5)
@@ -647,7 +649,7 @@ namespace BDArmory.Control
                     float distance = vecToTarget.magnitude;
                     // lead the target a bit, where 1km/s is a ballpark estimate of the average bullet velocity
                     float shotSpeed = 1000f;
-                    if ((weaponManager != null ? weaponManager.selectedWeapon : null) is ModuleWeapon wep)
+                    if (weaponManager.selectedWeapon is ModuleWeapon wep)
                         shotSpeed = wep.bulletVelocity;
                     var timeToCPA = targetVessel.TimeToCPA(vessel.CoM, vessel.Velocity() + vesselTransform.up * shotSpeed, FlightGlobals.getGeeForceAtPosition(vessel.CoM), MaxEngagementRange / shotSpeed);
                     vecToTarget = targetVessel.PredictPosition(timeToCPA) - vessel.CoM;
@@ -657,7 +659,7 @@ namespace BDArmory.Control
                         if (distance >= MinEngagementRange && distance <= MaxEngagementRange)
                         {
                             targetDirection = vecToTarget;
-                            aimingMode = true;
+                            aimingMode = AimingMode.Direct;
                         }
                         else
                         {
@@ -702,7 +704,7 @@ namespace BDArmory.Control
                             if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine($"velAngle: {VectorUtils.Angle(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(vessel.up), vesselTransform.up)}");
                             extendingTarget = null;
                             targetDirection = vecToTarget.ProjectOnPlanePreNormalized(upDir);
-                            if (weaponManager != null && weaponManager.selectedWeapon != null)
+                            if (weaponManager.selectedWeapon != null)
                             {
                                 switch (weaponManager.selectedWeapon.GetWeaponClass())
                                 {
@@ -713,7 +715,8 @@ namespace BDArmory.Control
                                         orderedToExtend = false;
                                         if (gun != null && (gun.yawRange == 0 || gun.maxPitch == gun.minPitch) && gun.FiringSolutionVector != null)
                                         {
-                                            aimingMode = true;
+                                            if (gun.yawRange == 0) aimingMode |= AimingMode.Yaw;
+                                            if (gun.maxPitch == gun.minPitch) aimingMode |= AimingMode.Pitch; // FIXME: currently pitch isn't used directly in attitude control for aiming.
                                             if (VectorUtils.Angle((Vector3)gun.FiringSolutionVector, vessel.transform.up) < 20)
                                                 targetDirection = (Vector3)gun.FiringSolutionVector;
                                         }
@@ -725,7 +728,7 @@ namespace BDArmory.Control
                                                 MissileBase bomb = weaponManager.CurrentMissile;
 
                                                 targetDirection = (AIUtils.PredictPosition(targetVessel, weaponManager.bombAirTime) - vessel.CoM).ProjectOnPlanePreNormalized(upDir);
-                                                aimingMode = true;
+                                                aimingMode = AimingMode.Yaw;
                                             }
                                         }
                                         break;
@@ -738,7 +741,7 @@ namespace BDArmory.Control
                                                 {
                                                     if (distance < torpedo.engageRangeMax + (float)(vessel.srf_velocity - targetVessel.srf_velocity).magnitude)
                                                     {
-                                                        aimingMode = true;
+                                                        aimingMode = AimingMode.Direct;
                                                         targetDirection = (MissileGuidance.GetAirToAirFireSolution(torpedo, targetVessel) - vessel.CoM).ProjectOnPlanePreNormalized(upDir);
                                                     }
                                                     if (weaponManager.firedMissiles >= weaponManager.maxMissilesOnTarget)
@@ -780,7 +783,7 @@ namespace BDArmory.Control
                                     else
                                     {
                                         targetVelocity = MaxSpeed;
-                                        if (weaponManager != null && weaponManager.selectedWeapon != null && (weaponManager.selectedWeapon.GetWeaponClass() == WeaponClasses.Bomb
+                                        if (weaponManager.selectedWeapon != null && (weaponManager.selectedWeapon.GetWeaponClass() == WeaponClasses.Bomb
                                             || weaponManager.selectedWeapon.GetWeaponClass() == WeaponClasses.SLW))
                                             orderedToExtend = true;
                                     }
@@ -872,13 +875,13 @@ namespace BDArmory.Control
         {
             var weaponManager = WeaponManager;
             // enable RCS if we're in combat
-            vessel.ActionGroups.SetGroup(KSPActionGroup.RCS, weaponManager && (
+            vessel.ActionGroups.SetGroup(KSPActionGroup.RCS, weaponManager != null && (
                 targetVessel && !BDArmorySettings.PEACE_MODE && (
                     weaponManager.selectedWeapon != null || (vessel.CoM - targetVessel.CoM).sqrMagnitude < MaxEngagementRange * MaxEngagementRange
                 ) || weaponManager.underFire || weaponManager.missileIsIncoming));
 
             // if weaponManager thinks we're under fire, do the evasive dance
-            if (SurfaceType != AIUtils.VehicleMovementType.Stationary && (weaponManager.underFire || weaponManager.missileIsIncoming))
+            if (SurfaceType != AIUtils.VehicleMovementType.Stationary && weaponManager != null && (weaponManager.underFire || weaponManager.missileIsIncoming))
             {
                 if (!maintainMinRange) targetVelocity = doReverse ? -MaxSpeed : MaxSpeed;
                 if (weaponManager.underFire || weaponManager.incomingMissileDistance < 2500)
@@ -895,7 +898,7 @@ namespace BDArmory.Control
             {
                 weaveAdjustment = 0;
             }
-            if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine($"underFire {weaponManager.underFire}, weaveAdjustment {weaveAdjustment}");
+            if ((BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) && weaponManager) DebugLine($"underFire {weaponManager.underFire}, weaveAdjustment {weaveAdjustment}");
         }
 
         bool PanicModes()
@@ -918,7 +921,7 @@ namespace BDArmory.Control
             }
             else if (
                 (SurfaceType & AIUtils.VehicleMovementType.Land) != 0 && vessel.Landed //land Vee on land
-                && (weaponManager.guardMode && targetVessel != null) //and under AI control 
+                && weaponManager != null && weaponManager.guardMode && targetVessel != null //and under AI control 
                 && (
                     currentStatusMode == StatusMode.RammingSpeed || !weaponManager.HasWeaponsAndAmmo() //and have been told to ram or doesn't have weapons
                     || !WeaponCanEngage(weaponManager.currentGun) //or have no guns, or only fixed guns/turrets unable to traverse to target, or out of range
@@ -968,7 +971,6 @@ namespace BDArmory.Control
 
         void AdjustThrottle(float targetSpeed)
         {
-            targetVelocity = Mathf.Clamp(targetVelocity, doReverse ? -MaxSpeed : 0, MaxSpeed);
             targetSpeed = Mathf.Clamp(targetSpeed, doReverse ? -MaxSpeed : 0, MaxSpeed);
             float velocitySignedSrfSpeed = VectorUtils.Angle(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(upDir), vesselTransform.up) < 110 ? (float)vessel.srfSpeed : -(float)vessel.srfSpeed;
 
@@ -1009,7 +1011,7 @@ namespace BDArmory.Control
                 yawTarget = Vector3.RotateTowards(tempSrfVel, yawTarget, MaxDrift * Mathf.Deg2Rad, 0);
             }
             // Reverse the angle if we're going backwards
-            float yawError = VectorUtils.GetAngleOnPlane(yawTarget, vesselTransform.up, invertCtrlPoint ? -vesselTransform.right : vesselTransform.right) + (aimingMode ? 0 : weaveAdjustment);
+            float yawError = VectorUtils.GetAngleOnPlane(yawTarget, vesselTransform.up, invertCtrlPoint ? -vesselTransform.right : vesselTransform.right) + ((aimingMode & AimingMode.Yaw) > 0 ? 0 : weaveAdjustment);
             if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI)
             {
                 DebugLine($"yaw target: {yawTarget}, yaw error: {yawError}, invertCtrlPoint: {invertCtrlPoint}");
@@ -1156,10 +1158,10 @@ namespace BDArmory.Control
 
             Vector3 localAngVel = vessel.angularVelocity;
             SetFlightControlState(s,
-                Mathf.Clamp(((aimingMode ? 0.02f : 0.015f) * steerMult * pitchError) + pitchIntegral - (steerDamping * -localAngVel.x), -2, 2), // pitch
-                Mathf.Clamp((((aimingMode ? 0.007f : 0.005f) * steerMult * yawError) - (steerDamping * 0.2f * -localAngVel.z)) * driftMult, -2, 2), // yaw
+                Mathf.Clamp((((aimingMode & AimingMode.Pitch) > 0 ? 0.02f : 0.015f) * steerMult * pitchError) + pitchIntegral - (steerDamping * -localAngVel.x), -2, 2), // pitch
+                Mathf.Clamp(((((aimingMode & AimingMode.Yaw) > 0 ? 0.007f : 0.005f) * steerMult * yawError) - (steerDamping * 0.2f * -localAngVel.z)) * driftMult, -2, 2), // yaw
                 steerMult * 0.006f * rollError - 0.4f * steerDamping * -localAngVel.y, // roll
-                -Mathf.Clamp(((aimingMode ? 0.005f : 0.003f) * steerMult * yawError) - (steerDamping * 0.1f * -localAngVel.z), -2, 2) // wheel steer
+                -Mathf.Clamp((((aimingMode & AimingMode.Yaw) > 0 ? 0.005f : 0.003f) * steerMult * yawError) - (steerDamping * 0.1f * -localAngVel.z), -2, 2) // wheel steer
             );
 
             if (ManeuverRCS && (Mathf.Abs(s.roll) >= 1 || Mathf.Abs(s.pitch) >= 1 || Mathf.Abs(s.yaw) >= 1))
@@ -1221,7 +1223,7 @@ namespace BDArmory.Control
         {
             //evasive will handle avoiding missiles
             var weaponManager = WeaponManager;
-            if ((weaponManager && v == weaponManager.incomingMissileVessel)
+            if ((weaponManager != null && v == weaponManager.incomingMissileVessel)
                 || v.rootPart.FindModuleImplementing<MissileBase>() != null)
                 return Vector3.zero;
 

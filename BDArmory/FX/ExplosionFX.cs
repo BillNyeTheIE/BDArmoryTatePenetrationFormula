@@ -1455,16 +1455,4 @@ namespace BDArmory.FX
     {
         public DestructibleBuilding Building { get; set; }
     }
-
-    /// <summary>
-    /// Comparer for raycast hit sorting.
-    /// </summary>
-    internal class RaycastHitComparer : IComparer<RaycastHit>
-    {
-        int IComparer<RaycastHit>.Compare(RaycastHit left, RaycastHit right)
-        {
-            return left.distance.CompareTo(right.distance);
-        }
-        public static RaycastHitComparer raycastHitComparer = new RaycastHitComparer();
-    }
 }
