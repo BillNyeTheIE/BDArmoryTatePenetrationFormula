@@ -1251,6 +1251,9 @@ namespace BDArmory.Radar
             }
             Vessel rVess = lockedTargets[index].vessel;
 
+            if (rVess == null)
+                tryRelock = false;
+
             if (tryRelock)
             {
                 UnlockTargetAt(index, false);

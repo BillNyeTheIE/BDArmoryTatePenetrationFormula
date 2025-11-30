@@ -2326,6 +2326,13 @@ namespace BDArmory.Radar
 
         public void RemoveVesselFromLockedTargets(Vessel _vessel)
         {
+            if (_vessel == null)
+            {
+                displayedTargets.RemoveAll(t => t.vessel == null);
+                UpdateLockedTargets();
+                return;
+            }
+
             for (int i = 0; i < displayedTargets.Count; i++)
             {
                 // Get local copy (since we're gonna be using it for a comparison anyways, which will create a local copy)
@@ -2399,8 +2406,8 @@ namespace BDArmory.Radar
         private void CleanDisplayedContacts()
         {
             int count = displayedTargets.Count;
-            displayedTargets.RemoveAll(t => t.targetData.age > t.signalPersistTime * 2);
-            displayedIRTargets.RemoveAll(t => t.targetData.age > t.signalPersistTime * 2);
+            displayedTargets.RemoveAll(t => t.vessel == null || t.targetData.age > t.signalPersistTime * 2);
+            displayedIRTargets.RemoveAll(t => t.vessel == null || t.targetData.age > t.signalPersistTime * 2);
             if (count != displayedTargets.Count)
             {
                 UpdateLockedTargets();
