@@ -9491,12 +9491,13 @@ namespace BDArmory.Control
         public bool GetNextPDMslTgt(int currIndex, int tgtCount)
         {
             if (currIndex >= tgtCount) currIndex = 0;
+            int temp = currIndex;
             while (GetMissilesAway(PDMslTgts[currIndex])[0] >= maxMissilesOnTarget)
             {
                 currIndex++;
                 if (currIndex >= tgtCount) currIndex = 0;
                 // If we've searched all missiles and all targets are accounted for, return
-                if (currIndex == MissileID)
+                if (currIndex == temp)
                     return false;
             }
             MissileID = currIndex;
