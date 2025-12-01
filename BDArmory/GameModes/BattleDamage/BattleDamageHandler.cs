@@ -15,6 +15,7 @@ using BDArmory.Settings;
 using BDArmory.Targeting;
 using BDArmory.Utils;
 using BDArmory.WeaponMounts;
+using Expansions.Serenity;
 
 namespace BDArmory.GameModes
 {
@@ -100,7 +101,7 @@ namespace BDArmory.GameModes
                         if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log("[BDArmory.BattleDamageHandler]: Wood part Dice Roll: " + Diceroll);
                         if (Diceroll <= BDArmorySettings.BD_DAMAGE_CHANCE)
                         {
-                            BulletHitFX.AttachFire(hitPoint, part, caliber, attacker, 90);
+                            BulletHitFX.AttachFire(hitPoint, part, caliber, attacker, 90, surfaceFire: true);
                         }
                     }
                 }
@@ -417,6 +418,23 @@ namespace BDArmory.GameModes
                         //part.RemoveModule(turret);
                         subsysCrit = true;
                     }
+                    if (part.GetComponent<ModuleRoboticRotationServo>() != null)
+                    {
+                        ModuleRoboticRotationServo servo;
+                        servo = part.GetComponent<ModuleRoboticRotationServo>(); 
+                        servo.maxMotorOutput *= part.GetDamagePercentage();
+                        //part.RemoveModule(turret);
+                        subsysCrit = true;
+                    }
+                    if (part.GetComponent<ModuleRoboticServoHinge>() != null)
+                    {
+                        ModuleRoboticServoHinge hinge;
+                        hinge = part.GetComponent<ModuleRoboticServoHinge>(); 
+                        hinge.maxMotorOutput *= part.GetDamagePercentage();
+                        //part.RemoveModule(turret);
+                        subsysCrit = true;
+                    }
+                    //piston/rotor?
                     if (part.GetComponent<ModuleTargetingCamera>() != null)
                     {
                         ModuleTargetingCamera cam;
@@ -425,6 +443,7 @@ namespace BDArmory.GameModes
                         if (cam.gimbalLimit < 30 || part.GetDamagePercentage() < 0.5) part.RemoveModule(cam);
                         subsysCrit = true;
                     }
+                    //if a wheel, disable the wheel and swap it to the broken state/model?
                     if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log($"[BDArmory.BattleDamageHandler]: {part.name} on {part.vessel.vesselName} took subsystem damage");
                     if (subsysCrit && Diceroll <= (damageChance / 2)) //only start fire on part that actually contains destroyed subsystem
                     {

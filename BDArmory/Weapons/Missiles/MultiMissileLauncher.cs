@@ -64,7 +64,7 @@ namespace BDArmory.Weapons.Missiles
         AnimationState deployState;
         public ModuleMissileRearm missileSpawner = null;
         MissileLauncher missileLauncher = null;
-        BDAdjustableRail adjustableRail = null;
+        [KSPField] public bool adjustMissileVOffset = false; //should missile vertical offset dynamically adjust based on missile diameter (for MMLs on adjustable rails, etc)
         float attachedMissileDia = 0;
         MissileFire FiredByWM = null; // Assigned when fired and then not updated even if the parent craft changes their primary WM.
         private int tubesFired = 0;
@@ -170,7 +170,6 @@ namespace BDArmory.Weapons.Missiles
             yield return new WaitForFixedUpdate();
             missileLauncher = part.FindModuleImplementing<MissileLauncher>();
             missileSpawner = part.FindModuleImplementing<ModuleMissileRearm>();
-            adjustableRail = part.FindModuleImplementing<BDAdjustableRail>();
             turret = part.FindModuleImplementing<MissileTurret>();
             if (turret != null) turret.missilepod = missileLauncher;
             if (missileSpawner == null) //MultiMissile launchers/cluster missiles need a MMR module for spawning their submunitions, so add one if not present in case cfg not set up properly
@@ -343,7 +342,7 @@ namespace BDArmory.Weapons.Missiles
                 if (Length > scaleMax) Length = scaleMax;
                 ALength.onFieldChanged = updateLength;
             }
-            if (!string.IsNullOrEmpty(lengthTransformName))
+            if (adjustMissileVOffset)
             {
                 UI_FloatRange AOffset = (UI_FloatRange)Fields["attachOffset"].uiControlEditor;
                 AOffset.maxValue = offsetMax;
@@ -475,7 +474,7 @@ namespace BDArmory.Weapons.Missiles
                                 {
                                     subMunitionName = missile.name;
                                     subMunitionPath = GetMeshurl((UrlDir.UrlConfig)GameDatabase.Instance.root.GetConfig(missile.partInfo.partUrl));
-                                    if (adjustableRail)
+                                    if (adjustMissileVOffset)
                                     {
                                         var missileCOL = missile.GetComponentInChildren<Collider>();
                                         if (missileCOL) attachedMissileDia = Mathf.Min(missileCOL.bounds.size.x, missileCOL.bounds.size.y, missileCOL.bounds.size.z);
@@ -728,7 +727,7 @@ namespace BDArmory.Weapons.Missiles
 
                     dummy.transform.localScale = dummyScale;
                     dummyThis.AttachAt(part, launchTransforms[i]);
-                    if (adjustableRail && attachedMissileDia > 0) dummyThis.transform.localPosition = new Vector3(attachedMissileDia / 2, 0, 0);
+                    if (adjustMissileVOffset && attachedMissileDia > 0) dummyThis.transform.localPosition = new Vector3(attachedMissileDia / 2, 0, 0);
                     var mslAnim = dummy.GetComponentInChildren<Animation>();
                     if (mslAnim != null) mslAnim.enabled = false;
                     if (!displayOrdinanceHasColliders)

@@ -1744,8 +1744,9 @@ namespace BDArmory.Weapons.Missiles
         public IEnumerator MissileReload()
         {
             bool redployTurret = false;
+            //TODO: missile reload SFX support?
             MissileTurret turret = multiLauncher ? multiLauncher.turret : missileTurret;
-            if ((turret != null) && (turret.deployBlocksReload && turret.hasDeployAnimation))
+            if ((turret != null) && (turret.deployBlocksReload && turret.hasDeployAnimation)) //change this to an AnimatedReload bool for deploy/reloadAnim support
             {
                 turret.isReloading = true;
                 redployTurret = true;

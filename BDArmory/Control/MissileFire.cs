@@ -1,10 +1,4 @@
-using System.Collections.Generic;
-using System.Collections;
-using System.Linq;
-using System.Text;
-using System;
-using UnityEngine;
-
+using BDArmory.Bullets;
 using BDArmory.Competition;
 using BDArmory.CounterMeasure;
 using BDArmory.Extensions;
@@ -16,9 +10,14 @@ using BDArmory.Targeting;
 using BDArmory.UI;
 using BDArmory.Utils;
 using BDArmory.WeaponMounts;
-using BDArmory.Weapons.Missiles;
 using BDArmory.Weapons;
-using BDArmory.Bullets;
+using BDArmory.Weapons.Missiles;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using UnityEngine;
 using static BDArmory.Weapons.ModuleWeapon;
 
 namespace BDArmory.Control
@@ -5820,7 +5819,7 @@ namespace BDArmory.Control
                                     if (targetWeapon != null && (candidateYTraverse > 0 || candidatePTraverse > 0)) //prioritize turreted lasers
                                     {
                                         ModuleTurret turret = Laser.turret;
-                                        if (!TargetInTurretRange(turret, 15, default, Laser)) continue; // weight selection towards turrets that can fire on missile
+                                        if (!TargetInTurretRange(turret, 15, default, Laser) || !TargetInCustomTurretRange(Laser, 15, default)) continue; // weight selection towards turrets that can fire on missile
                                         targetWeapon = item.Current;
                                         break;
                                     }
@@ -5859,7 +5858,7 @@ namespace BDArmory.Control
                                     if (candidateYTraverse > 0 || candidatePTraverse > 0)
                                     {
                                         ModuleTurret turret = Gun.turret;
-                                        candidateRPM *= TargetInTurretRange(turret, 5, default, Gun) ? 2.0f : 0.01f; // weight selection towards turrets that can fire on missile
+                                        candidateRPM *= TargetInTurretRange(turret, 5, default, Gun) ? 2.0f : TargetInCustomTurretRange(Gun, 5, default) ? 2.0f : 0.01f; // weight selection towards turrets that can fire on missile
                                     }
                                     if (candidatePFuzed || candidateVTFuzed)
                                     {
@@ -5913,7 +5912,7 @@ namespace BDArmory.Control
                                     if (candidateYTraverse > 0 || candidatePTraverse > 0)
                                     {
                                         ModuleTurret turret = Rocket.turret;
-                                        candidateRPM *= TargetInTurretRange(turret, 5, default, Rocket) ? 2.0f : 0.01f; // weight selection towards turrets that can fire on missile
+                                        candidateRPM *= TargetInTurretRange(turret, 5, default, Rocket) ? 2.0f : TargetInCustomTurretRange(Rocket, 5, default) ? 2.0f : 0.01f; // weight selection towards turrets that can fire on missile
                                     }
                                     if (targetRocketAccel < candidateRocketAccel)
                                     {
@@ -6128,7 +6127,7 @@ namespace BDArmory.Control
                                     if (candidateYTraverse > 0 || candidatePTraverse > 0)
                                     {
                                         ModuleTurret turret = Rocket.turret;
-                                        candidateRPM *= TargetInTurretRange(turret, 15, default, Rocket) ? 2.0f : 0.01f; // weight selection towards turrets that can face in the right direction
+                                        candidateRPM *= TargetInTurretRange(turret, 5, default, Rocket) ? 2.0f : TargetInCustomTurretRange(Rocket, 5, default) ? 2.0f : 0.01f; // weight selection towards turrets that can face the right direction
                                     }
 
                                     if (targetRocketAccel < candidateRocketAccel)
@@ -6184,7 +6183,7 @@ namespace BDArmory.Control
                                     //if shooting larger targets - bombers/zeppelins/Ace Combat Wunderwaffen - prioritize biggest caliber
                                     ModuleWeapon Gun = item.Current as ModuleWeapon;
                                     float candidateRPM = Gun.roundsPerMinute;
-                                    bool candidateGimbal = Gun.turret;
+                                    bool candidateGimbal = Gun.maxPitch > Gun.minPitch && Gun.maxPitch > 20; //not going to hit air with low elevation, unless they're flying very low
                                     float candidateTraverse = Gun.yawRange;
                                     bool candidatePFuzed = Gun.eFuzeType == PooledBullet.BulletFuzeTypes.Proximity || Gun.eFuzeType == PooledBullet.BulletFuzeTypes.Flak;
                                     bool candidateVTFuzed = Gun.eFuzeType == PooledBullet.BulletFuzeTypes.Timed || Gun.eFuzeType == PooledBullet.BulletFuzeTypes.Flak;
@@ -6222,7 +6221,7 @@ namespace BDArmory.Control
                                         if (candidateGimbal = true && candidateTraverse > 0)
                                         {
                                             ModuleTurret turret = Gun.turret;
-                                            candidateCaliber *= TargetInTurretRange(turret, 15, default, Gun) ? 1.5f : 0.01f; // weight selection towards turrets that can face the right direction
+                                            candidateRPM *= TargetInTurretRange(turret, 5, default, Gun) ? 2.0f : TargetInCustomTurretRange(Gun, 5, default) ? 2.0f : 0.01f; // weight selection towards turrets that can face the right direction
                                         }
                                         if (candidatePFuzed || candidateVTFuzed)
                                         {
@@ -6243,7 +6242,7 @@ namespace BDArmory.Control
                                         if (candidateGimbal = true && candidateTraverse > 0)
                                         {
                                             ModuleTurret turret = Gun.turret;
-                                            candidateRPM *= TargetInTurretRange(turret, 15, default, Gun) ? 1.5f : 0.01f; // weight selection towards turrets that can face the right direction
+                                            candidateRPM *= TargetInTurretRange(turret, 5, default, Gun) ? 2.0f : TargetInCustomTurretRange(Gun, 5, default) ? 2.0f : 0.01f; // weight selection towards turrets that can face the right direction
                                         }
                                         if (candidatePFuzed || candidateVTFuzed)
                                         {
@@ -6289,7 +6288,7 @@ namespace BDArmory.Control
                                     // For AA, favour higher power/turreted
                                     ModuleWeapon Laser = item.Current as ModuleWeapon;
                                     float candidateRPM = Laser.roundsPerMinute;
-                                    bool candidateGimbal = Laser.turret;
+                                    bool candidateGimbal = Laser.maxPitch > Laser.minPitch && Laser.maxPitch > 20;
                                     float candidateTraverse = Laser.yawRange;
                                     float candidateMinrange = Laser.engageRangeMin;
                                     float candidateMaxRange = Laser.engageRangeMax;
@@ -6325,7 +6324,7 @@ namespace BDArmory.Control
                                     if (candidateGimbal = true && candidateTraverse > 0)
                                     {
                                         ModuleTurret turret = Laser.turret;
-                                        candidateRPM *= TargetInTurretRange(turret, 15, default, Laser) ? 1.5f : 0.01f; // weight selection towards turrets that can point in the right direction
+                                        candidateRPM *= TargetInTurretRange(turret, 5, default, Laser) ? 1.5f : TargetInCustomTurretRange(Laser, 5, default) ? 1.3f : 0.01f; // weight selection towards turrets that can face the right direction
                                     }
                                     if (candidateMinrange > distance || distance > candidateMaxRange)
                                     {
@@ -6686,7 +6685,7 @@ namespace BDArmory.Control
                                     // For STS, favour higher power/turreted
                                     ModuleWeapon Laser = item.Current as ModuleWeapon;
                                     float candidateRPM = Laser.roundsPerMinute;
-                                    bool candidateGimbal = Laser.turret;
+                                    bool candidateGimbal = Laser.maxPitch > Laser.minPitch && Laser.maxPitch > 20;
                                     float candidateTraverse = Laser.yawRange;
                                     float candidateMinrange = Laser.engageRangeMin;
                                     float candidateMaxrange = Laser.engageRangeMax;
@@ -6724,7 +6723,7 @@ namespace BDArmory.Control
                                         if (candidateGimbal = true && candidateTraverse > 0)
                                         {
                                             ModuleTurret turret = Laser.turret;
-                                            candidateRPM *= TargetInTurretRange(turret, 15, default, Laser) ? 1.5f : 0.01f; // weight selection towards turrets that can point in the right direction
+                                            candidateRPM *= TargetInTurretRange(turret, 5, default, Laser) ? 1.5f : TargetInCustomTurretRange(Laser, 5, default) ? 1.5f : 0.01f; // weight selection towards turrets that can face the right direction
                                         }
                                         if (candidateMinrange > distance || distance > candidateMaxrange / 10)
                                         {
@@ -6778,7 +6777,7 @@ namespace BDArmory.Control
                                     // For Atg, favour higher power/turreted
                                     ModuleWeapon Laser = item.Current as ModuleWeapon;
                                     float candidateRPM = Laser.roundsPerMinute;
-                                    bool candidateGimbal = Laser.turret;
+                                    bool candidateGimbal = Laser.maxPitch > Laser.minPitch;
                                     float candidateTraverse = Laser.yawRange;
                                     float candidateMinrange = Laser.engageRangeMin;
                                     float candidateMaxRange = Laser.engageRangeMax;
@@ -6815,7 +6814,7 @@ namespace BDArmory.Control
                                     if (candidateGimbal = true && candidateTraverse > 0)
                                     {
                                         ModuleTurret turret = Laser.turret;
-                                        candidateRPM *= TargetInTurretRange(turret, 0, default, Laser) ? 1.5f : 0.01f; // weight selection towards turrets that can point in the right direction
+                                        candidateRPM *= TargetInTurretRange(turret, 5, default, Laser) ? 1.5f : TargetInCustomTurretRange(Laser, 5, default) ? 1.3f : 0.01f; // weight selection towards turrets that can face the right direction
                                     }
                                     if (HEpulses)
                                     {
@@ -6855,7 +6854,7 @@ namespace BDArmory.Control
                                     float candidateRPM = Gun.roundsPerMinute;
                                     float candidateImpact = Gun.bulletMass * Gun.bulletVelocity;
                                     int candidatePriority = Mathf.RoundToInt(Gun.priority);
-                                    bool candidateGimbal = Gun.turret;
+                                    bool candidateGimbal = Gun.maxPitch > Gun.minPitch;
                                     float candidateMinrange = Gun.engageRangeMin;
                                     float candidateMaxRange = Gun.engageRangeMax;
                                     float candidateTraverse = Gun.yawRange * (Gun.maxPitch - Gun.minPitch);
@@ -6891,7 +6890,7 @@ namespace BDArmory.Control
                                     if (candidateGimbal && candidateTraverse > 0)
                                     {
                                         ModuleTurret turret = Gun.turret;
-                                        candidateRPM *= TargetInTurretRange(turret, 0, default, Gun) ? 1.5f : 0.01f; // weight selection towards turrets that can point in the right direction
+                                        candidateRPM *= TargetInTurretRange(turret, 5, default, Gun) ? 1.5f : TargetInCustomTurretRange(Gun, 5, default) ? 1.5f : 0.01f; // weight selection towards turrets that can face the right direction
                                     }
                                     if (candidateMinrange > distance || distance > candidateMaxRange)
                                     {
@@ -7424,7 +7423,10 @@ namespace BDArmory.Control
                             if (turret != null)
                                 if (!TargetInTurretRange(turret, gimbalTolerance))
                                     return false;
-
+                            if (laser.customTurret.Count > 0)
+                            {
+                                if (!TargetInCustomTurretRange(laser, gimbalTolerance)) return false;
+                            }
                             if (laser.isReloading || !laser.hasGunner)
                                 return false;
 
@@ -7637,6 +7639,10 @@ namespace BDArmory.Control
                             if (turret != null)
                                 if (!TargetInTurretRange(turret, gimbalTolerance, default, rocket))
                                     return false;
+                            if (rocket.customTurret.Count > 0)
+                            {
+                                if (!TargetInCustomTurretRange(rocket, gimbalTolerance)) return false;
+                            }
                             //check reloading and crewed
                             if (rocket.isReloading || !rocket.hasGunner)
                                 return false;
@@ -9860,6 +9866,80 @@ namespace BDArmory.Control
                 {
                     Debug.Log($"[BDArmory.MissileFire]: Checking turret range - target is OUTSIDE gimbal limits! signedAnglePitch: {signedAnglePitch}, minPitch: {turret.minPitch}, maxPitch: {turret.maxPitch}, angleYaw: {angleYaw}, tolerance: {tolerance}");
                 }
+                return false;
+            }
+        }
+
+        bool TargetInCustomTurretRange(ModuleWeapon weapon, float tolerance, Vector3 gTarget = default(Vector3))
+        {
+            if (!weapon || weapon.customTurret.Count == 0)
+            {
+                return false;
+            }
+            if (gTarget == default && !guardTarget)
+            {
+                if (BDArmorySettings.DEBUG_WEAPONS)
+                {
+                    Debug.Log("[BDArmory.MissileFire]: Checking turret range but no guard target");
+                }
+                return false;
+            }
+            if (gTarget == default) gTarget = guardTarget.CoM;
+            if (weapon != null && (gTarget - weapon.fireTransforms[0].transform.position).sqrMagnitude > (weapon.engageRangeMax * 1.25f) * (weapon.engageRangeMax * 1.25f)) return false; //target too far away
+            Transform turretTransform = weapon.customTurret[0].bottomTransform; //might be an issue if grabbing non-servo; servos are proper Z+ forward Y+ up that turrets are, hinges...
+            Vector3 direction = gTarget - turretTransform.position;
+            if (weapon != null && weapon.bulletDrop) // Account for bullet drop (rough approximation not accounting for target movement).
+            {
+                switch (weapon.GetWeaponClass())
+                {
+                    case WeaponClasses.Gun:
+                        {
+                            (float distance, Vector3 dir) = direction.MagNorm();
+                            var effectiveBulletSpeed = (weapon.part.rb.velocity + BDKrakensbane.FrameVelocityV3f + weapon.bulletVelocity * dir).magnitude;
+                            var timeOfFlight = distance / effectiveBulletSpeed;
+                            direction -= 0.5f * FlightGlobals.getGeeForceAtPosition(vessel.CoM) * timeOfFlight * timeOfFlight;
+                            break;
+                        }
+                    case WeaponClasses.Rocket:
+                        {
+                            (float distance, Vector3 dir) = direction.MagNorm();
+                            var effectiveRocketSpeed = (weapon.part.rb.velocity + BDKrakensbane.FrameVelocityV3f + (weapon.thrust * weapon.thrustTime / weapon.rocketMass) * dir).magnitude;
+                            var timeOfFlight = distance / effectiveRocketSpeed;
+                            direction -= 0.5f * FlightGlobals.getGeeForceAtPosition(vessel.CoM) * timeOfFlight * timeOfFlight;
+                            break;
+                        }
+                }
+            }
+            Vector3 directionYaw = weapon.fireTransforms[0].transform.up;
+            float angleYaw = 0;
+            float yawRange = 0;
+            bool withinPitchRange = false;
+            using (List<ModuleCustomTurret>.Enumerator servo = weapon.customTurret.GetEnumerator())
+                while (servo.MoveNext())
+                {
+                    if (servo.Current == null || servo.Current.vessel != vessel) continue;
+                    if (servo.Current.isYawRotor)
+                    {
+                        directionYaw = direction.ProjectOnPlanePreNormalized(servo.Current.yawTransform.up);
+                        angleYaw = VectorUtils.Angle(turretTransform.forward, directionYaw);
+                        yawRange = servo.Current.fullRotation ? 360 : servo.Current.maxYaw - servo.Current.minYaw;
+                    }
+                    else
+                    {
+                        float signedAnglePitch = 90 - VectorUtils.Angle(servo.Current.yawNormal, direction);
+                        withinPitchRange = (signedAnglePitch >= servo.Current.minPitch - tolerance && signedAnglePitch <= servo.Current.maxPitch + tolerance);
+                        if (BDArmorySettings.DEBUG_WEAPONS)
+                        {
+                            Debug.Log($"[BDArmory.MissileFire]: Checking turret range - target is INSIDE gimbal limits! signedAnglePitch: {signedAnglePitch}, minPitch: {servo.Current.minPitch}, maxPitch: {servo.Current.maxPitch}, tolerance: {tolerance}");
+                        }
+                    }
+                }  
+            if (angleYaw < (yawRange / 2) + tolerance && withinPitchRange)
+            {
+                return true;
+            }
+            else
+            {
                 return false;
             }
         }
