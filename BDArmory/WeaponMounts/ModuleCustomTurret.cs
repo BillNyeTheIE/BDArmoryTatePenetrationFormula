@@ -140,8 +140,6 @@ namespace BDArmory.WeaponMounts
                 if (Mathf.Abs(targetYawAngle) > 180)
                 {
                     var nonWobblyWay = Vector3.Dot(yawTransform.parent.right, targetDirection + referenceTransform.position - yawTransform.position);
-                    if (float.IsNaN(nonWobblyWay)) return;
-
                     targetYawAngle = 180 * Math.Sign(nonWobblyWay);
                 }
             }
@@ -151,10 +149,6 @@ namespace BDArmory.WeaponMounts
             }
             if (!fullRotation && Mathf.Abs(currentYaw - targetYawAngle) >= 180)
             {
-                if (float.IsNaN(currentYaw))
-                {
-                    return;
-                }
                 targetYawAngle = currentYaw - (Math.Sign(currentYaw) * 179);
             }
             if (Servo)
