@@ -202,7 +202,7 @@ namespace BDArmory.WeaponMounts
             if (Mathf.Abs(targetYawAngle) > yawRange / 2)
             {
                 var nonWobblyWay = Vector3.Dot(yawTransform.parent.right, targetDirection + referenceTransform.position - yawTransform.position);
-                if (float.IsNaN(nonWobblyWay)) return;
+                //if (float.IsNaN(nonWobblyWay)) return;
 
                 targetYawAngle = yawRange / 2 * Math.Sign(nonWobblyWay);
             }
@@ -229,10 +229,7 @@ namespace BDArmory.WeaponMounts
 
             if (yawRange < 360 && Mathf.Abs(currentYaw - targetYawAngle) >= 180)
             {
-                if (float.IsNaN(currentYaw))
-                {
-                    return;
-                }
+                //if (float.IsNaN(currentYaw)) return;
 
                 targetYawAngle = currentYaw - (Math.Sign(currentYaw) * 179);
             }

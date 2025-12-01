@@ -8529,8 +8529,8 @@ namespace BDArmory.Control
                                     {
                                         if (rd.Current != null && (rd.Current.DynamicRadar || DynamicRadarOverride))
                                             rd.Current.DisableRadar();
-                                    }
-                                _radarsEnabled = false;
+                                        _radarsEnabled = false;
+                                    }                                
                                 FireECM(0); //disable jammers
                             }
 
@@ -8586,8 +8586,8 @@ namespace BDArmory.Control
                                                 {
                                                     if (rd.Current != null && rd.Current.DynamicRadar || DynamicRadarOverride)
                                                         rd.Current.DisableRadar();
+                                                    _radarsEnabled = false;
                                                 }
-                                            _radarsEnabled = false;
                                         }
                                         FireECM(0);//uh oh, blip ECM!
                                     }
