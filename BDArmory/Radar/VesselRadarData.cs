@@ -2471,8 +2471,8 @@ namespace BDArmory.Radar
                 if (t.locked && locked)
                 {
                     TargetSignatureData lockedTarget = t.targetData;
-                    RadarDisplayData newData = new RadarDisplayData();
-                    /*newData.detectedByRadar = displayedTargets[i].detectedByRadar;
+                    /*RadarDisplayData newData = new RadarDisplayData();
+                    newData.detectedByRadar = displayedTargets[i].detectedByRadar;
                     newData.locked = displayedTargets[i].locked;
                     if (guiDispOmni)
                         newData.pingPosition = RadarUtils.WorldToRadar(lockedTarget.position, referenceTransform, RadarDisplayRect,
