@@ -237,7 +237,6 @@ namespace BDArmory.Control
             }
             speedController.Deactivate();
             motorControl.Activate();
-
             if (BroadsideAttack && sideSlipDirection == 0)
             {
                 SetBroadsideDirection(OrbitDirectionName);
@@ -763,6 +762,7 @@ namespace BDArmory.Control
                                 {
                                     if (maintainMinRange) //for some reason ignored if both vessel and targetvessel using Mk2roverCans?
                                     {
+                                        //Add LoS provisions if target is behind hill/building?
                                         if (targetVessel.srfSpeed < 10)
                                         {
                                             targetVelocity = 0;
@@ -851,7 +851,7 @@ namespace BDArmory.Control
                     else
                         targetVelocity = command == PilotCommands.Waypoints ? MaxSpeed : Mathf.Clamp((targetDirection.magnitude - targetRadius / 2) / 5f,
                         0, command == PilotCommands.Attack ? MaxSpeed : CruiseSpeed);
-
+                    //if targetDirection > VesselTurnRate reduce speed until vessel is slow enough to make turn ?
                     if (Vector3.Dot(targetDirection, vesselTransform.up) < 0 && !PoweredSteering) targetVelocity = 0;
                     SetStatus(bypassTarget ? "Repositioning" : "Moving");
                     if (IsRunningWaypoints)
@@ -1272,6 +1272,9 @@ namespace BDArmory.Control
                                     VectorUtils.WorldPositionToGeoCoords(vessel.CoM, vessel.mainBody),
                                     destination, vessel.mainBody, SurfaceType, MaxSlopeAngle, AvoidMass);
             intermediatePositionGeo = pathingWaypoints[0];
+            //any sort of spline stuff would need to modify this value.
+            //Spline calc would likely also need to determine if the first couple pathingWaypoints are multiple points beween the craft and 
+            //the next WP Gate (sloping/uneven terrain), or a straight shot between WP Gates. if (pathingWaypoints.count > 1)?
         }
 
         void cycleWaypoint()
