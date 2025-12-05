@@ -1000,7 +1000,7 @@ namespace BDArmory.Control
 
             Vector3 yawTarget = targetDirection.ProjectOnPlanePreNormalized(vesselTransform.forward);
 
-            bool invertCtrlPoint = SurfaceType != AIUtils.VehicleMovementType.Stationary && VectorUtils.Angle(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(vessel.up), vesselTransform.up) > 90 && Math.Round(vessel.srfSpeed, 1) > 1; //need to flip vessel 'forward' when reversing for proper steerage
+            bool invertCtrlPoint = SurfaceType != AIUtils.VehicleMovementType.Stationary && Math.Round(vessel.srfSpeed, 1) > 1.0 && Vector3.Dot(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(vessel.up), vesselTransform.up) < 0.0f; //need to flip vessel 'forward' when reversing for proper steerage
 
             // limit "aoa" if we're moving
             float driftMult = 1;

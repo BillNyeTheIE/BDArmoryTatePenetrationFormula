@@ -1969,12 +1969,12 @@ namespace BDArmory.Radar
             availableIRSTs.RemoveAll(r => r == null);
             availableIRSTs.RemoveAll(r => r.vessel != vessel);
             iCount = availableIRSTs.Count;
-            MaxradarLocksExternal = 0;
+            MaxRadarLocksExternal = 0;
             RefreshAvailableLinks();
         }
 
         bool externalLockCapabilityDirty = false;
-        public int MaxradarLocksExternal
+        public int MaxRadarLocksExternal
         {
             get 
             {
@@ -1994,7 +1994,7 @@ namespace BDArmory.Radar
                 if (radar == null) continue;
                 tempMaxRadarLocksExternal += radar.maxLocks;
             }
-            MaxradarLocksExternal = tempMaxRadarLocksExternal;
+            MaxRadarLocksExternal = tempMaxRadarLocksExternal;
             externalLockCapabilityDirty = false;
         }
 
