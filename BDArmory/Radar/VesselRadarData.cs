@@ -2337,7 +2337,7 @@ namespace BDArmory.Radar
             {
                 // Get local copy (since we're gonna be using it for a comparison anyways, which will create a local copy)
                 RadarDisplayData t = displayedTargets[i];
-                if (t.vessel == vessel)
+                if (t.vessel == _vessel)
                 {
                     // Set locked to false
                     t.locked = false;
