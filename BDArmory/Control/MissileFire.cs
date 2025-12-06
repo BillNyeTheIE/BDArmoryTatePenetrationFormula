@@ -443,7 +443,7 @@ namespace BDArmory.Control
         //radar
         public List<ModuleRadar> radars { get { if (modulesNeedRefreshing) RefreshModules(); return _radars; } }
         public List<ModuleRadar> _radars = [];
-        public int MaxradarLocks = 0;
+        public int MaxRadarLocks = 0;
         public VesselRadarData vesselRadarData;
         public bool _radarsEnabled = false;
         public float GpsUpdateMax = -1;
@@ -2580,7 +2580,7 @@ namespace BDArmory.Control
                                             // if a low lock capacity radar, and it already has a lock on another target, TLT will return false, because the radar already at lock cap
                                             // end result: radar lock stuck on wrong target; need unlock, then lock if lock num = max locks
                                             //if availableLocks, tryLocktarget, else, unlock target -> try locktarget
-                                            /*if (MaxradarLocks <= possibleTargets.Count) //not currently checking if available radar locks are viable, e.g. a rear-facing radar w/ lock capability
+                                            /*if (MaxRadarLocks <= possibleTargets.Count) //not currently checking if available radar locks are viable, e.g. a rear-facing radar w/ lock capability
                                             {
                                                 if (PreviousMissile == null || (PreviousMissile.TargetingMode != MissileBase.TargetingModes.Radar && PreviousMissile.TargetingMode != MissileBase.TargetingModes.Inertial && PreviousMissile.TargetingMode != MissileBase.TargetingModes.Gps))
                                                     vesselRadarData.UnlockAllTargets();
@@ -2590,7 +2590,7 @@ namespace BDArmory.Control
                                                         vesselRadarData.UnlockSelectedTarget(PreviousMissile.targetVessel.Vessel); //no longer need that lock for guidance, remove
                                                     else
                                                     {
-                                                        if (MaxradarLocks > 1) //guiding a SARH, but we have a spare lock...
+                                                        if (MaxRadarLocks > 1) //guiding a SARH, but we have a spare lock...
                                                         {
                                                             vesselRadarData.UnlockAllTargets(); //clear everything...
                                                             vesselRadarData.TryLockTarget(PreviousMissile.targetVessel.Vessel); //and immediately relock the SARH target vessel as a work around for only having unlock everything, and unlockselected
@@ -5144,13 +5144,13 @@ namespace BDArmory.Control
                 }
                 rad.Dispose();
                 */
-                MaxradarLocks = 0;
+                MaxRadarLocks = 0;
                 using (List<ModuleRadar>.Enumerator rd = _radars.GetEnumerator())
                     while (rd.MoveNext())
                     {
                         if (rd.Current != null && rd.Current.canLock)
                         {
-                            if (rd.Current.maxLocks > 0) MaxradarLocks += rd.Current.maxLocks;
+                            if (rd.Current.maxLocks > 0) MaxRadarLocks += rd.Current.maxLocks;
                         }
                     }
                 using (List<ModuleRadar>.Enumerator rd = _radars.GetEnumerator()) //now refresh lock array size with new maxradarLock value
@@ -8539,7 +8539,7 @@ namespace BDArmory.Control
 
                                 if (firedMissiles < maxMissilesOnTarget)
                                 {
-                                    if (CurrentMissile.TargetingMode == MissileBase.TargetingModes.Radar && (CurrentMissile.GetWeaponClass() == WeaponClasses.SLW ? _sonarsEnabled : _radarsEnabled) && !CurrentMissile.radarLOAL && !vesselRadarData.locked || (vesselRadarData.lockedTargetData.vessel != guardTarget && (MaxradarLocks + vesselRadarData.MaxRadarLocksExternal) <= vesselRadarData.numLockedTargets))
+                                    if (CurrentMissile.TargetingMode == MissileBase.TargetingModes.Radar && (CurrentMissile.GetWeaponClass() == WeaponClasses.SLW ? _sonarsEnabled : _radarsEnabled) && !CurrentMissile.radarLOAL && !vesselRadarData.locked || (vesselRadarData.lockedTargetData.vessel != guardTarget && (MaxRadarLocks + vesselRadarData.MaxRadarLocksExternal) <= vesselRadarData.numLockedTargets))
                                     {
                                         launchAuthorized = false; //don't fire SARH if radar can't support the needed radar lock
                                         if (BDArmorySettings.DEBUG_MISSILES) Debug.Log("[BDArmory.MissileFire]: radar lock number exceeded to launch!");

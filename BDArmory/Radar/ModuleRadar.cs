@@ -531,18 +531,18 @@ namespace BDArmory.Radar
             // If we're parsing elevation limits
             if (elevationLimits)
             {
-                // Then consider if it's omnidirectional or not, by default, omni radars are allowed +/- 90° FoV
+                // Then consider if it's omnidirectional or not, by default, omni radars are allowed +/- 90Â° FoV
                 // Otherwise the default is a square radar scan area (based on radarAZLimits)
                 radarLimits = omnidirectional ? [-90f, 90f] : [radarAzLimits[0], radarAzLimits[1]];
                 //radarMinMaxLimits = omnidirectional ? [90f, 90f] : [radarMinMaxAzLimits[0], radarMinMaxAzLimits[1]];
                 // Even if the azimuth is offset, we should start with no offset for elevation
                 radarMinMaxLimits = omnidirectional ? [90f, 90f] : [0.5f * radarAzFOV, 0.5f * radarAzFOV];
-                // Default omnidirectional FoV is 180°
+                // Default omnidirectional FoV is 180Â°
                 radarFOV = omnidirectional ? 180f : radarAzFOV;
             }
             else
             {
-                // If we're not parsing elevation limits, then default to a +/- 45° FoV
+                // If we're not parsing elevation limits, then default to a +/- 45Â° FoV
                 radarLimits = [-45f, 45f];
                 radarMinMaxLimits = [45f, 45f];
                 radarFOV = 90f;
@@ -1331,9 +1331,9 @@ namespace BDArmory.Radar
         {
             if (wpmr != null)
             {
-                attemptedLocks = new TargetSignatureData[wpmr.MaxradarLocks];
+                attemptedLocks = new TargetSignatureData[wpmr.MaxRadarLocks];
                 TargetSignatureData.ResetTSDArray(ref attemptedLocks);
-                //lockSuccesses = new bool[wpmr.MaxradarLocks];
+                //lockSuccesses = new bool[wpmr.MaxRadarLocks];
             }
         }
 

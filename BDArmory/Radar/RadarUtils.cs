@@ -51,7 +51,7 @@ namespace BDArmory.Radar
         private static Texture2D drawTextureVentral;
         public static Texture2D GetTextureVentral { get { return drawTextureVentral; } }
 
-        // additional anti-exploit 45� offset renderings
+        // additional anti-exploit 45° offset renderings
         private static Texture2D drawTextureFrontal45;
         public static Texture2D GetTextureFrontal45 { get { return drawTextureFrontal45; } }
         private static Texture2D drawTextureLateral45;
@@ -504,7 +504,7 @@ namespace BDArmory.Radar
             if (vci)
             {
                 // lockbreaking strength relative to jammer's lockbreak strength in relation to vessel rcs signature:
-                // lockbreak_factor = baseSig/modifiedSig x (1 � lopckBreakStrength/baseSig/100)
+                // lockbreak_factor = baseSig/modifiedSig x (1 - lockBreakStrength/baseSig/100)
                 chaffFactor = vci.GetChaffMultiplier();
             }
 
@@ -1066,7 +1066,7 @@ namespace BDArmory.Radar
             // pass3: Ventral
             RenderSinglePass(v, t, inEditorZoom, t.forward, vesselbounds, radarDistance, radarFOV, rcsRenderingVentral, drawTextureVentral);
 
-            //additional 45� offset renderings:
+            //additional 45° offset renderings:
             RenderSinglePass(v, t, inEditorZoom, (t.up + t.right), vesselbounds, radarDistance, radarFOV, rcsRenderingFrontal, drawTextureFrontal45);
             RenderSinglePass(v, t, inEditorZoom, (t.right + t.forward), vesselbounds, radarDistance, radarFOV, rcsRenderingLateral, drawTextureLateral45);
             RenderSinglePass(v, t, inEditorZoom, (t.forward - t.up), vesselbounds, radarDistance, radarFOV, rcsRenderingVentral, drawTextureVentral45);
