@@ -1,10 +1,14 @@
 using BDArmory.Extensions;
+using BDArmory.Settings;
+using BDArmory.UI;
 using BDArmory.Utils;
 using BDArmory.Weapons;
+using BDArmory.Weapons.Missiles;
 using Expansions.Serenity;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using static UnityEngine.GraphicsBuffer;
 
 namespace BDArmory.WeaponMounts
 {
@@ -13,7 +17,11 @@ namespace BDArmory.WeaponMounts
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_TurretID"),//Max Pitch
  UI_FloatRange(minValue = 0f, maxValue = 20f, stepIncrement = 1f, scene = UI_Scene.All)]
         public float turretID;
-
+        /*
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_MissileTurretFireFOV"),
+    UI_FloatRange(minValue = 1, maxValue = 180, stepIncrement = 1, scene = UI_Scene.All)]
+        public float fireFOV = 5; // Fire when pointing within 5° of target.
+        */
         [KSPField] public string pitchTransformName = "TopJoint";
         public Transform pitchTransform;
 
@@ -39,6 +47,10 @@ namespace BDArmory.WeaponMounts
         ModuleRoboticRotationServo Servo;
 
         public Vector3 yawNormal;
+
+        public Vector3 slavedTargetPosition;
+        public bool slaved;
+        public bool manuallyControlled = false;
 
         public bool isYawRotor => Servo != null;
 
@@ -112,6 +124,12 @@ namespace BDArmory.WeaponMounts
             }
         }
 
+        public override void OnFixedUpdate()
+        {
+            if (!HighLogic.LoadedSceneIsFlight) return;
+            if (manuallyControlled) MouseAim();
+        }
+
         public void AimToTarget(Vector3 targetPosition, bool pitch = true, bool yaw = true)
         {
             AimInDirection(targetPosition - referenceTransform.position);
@@ -158,7 +176,7 @@ namespace BDArmory.WeaponMounts
             {
                 Servo.targetAngle = targetYawAngle;
                 if (Servo.inverted) Servo.targetAngle *= -1;
-                Debug.Log($"[CUSTOMTURRET] CurrYaw: {currentYaw}; YawError: {yawError}; Servo Yaw: {Servo.currentAngle}; Servo target Angle {Servo.targetAngle}");
+                //Debug.Log($"[CUSTOMTURRET] CurrYaw: {currentYaw}; YawError: {yawError}; Servo Yaw: {Servo.currentAngle}; Servo target Angle {Servo.targetAngle}");
             }
             if (Hinge)
             {
@@ -167,13 +185,45 @@ namespace BDArmory.WeaponMounts
                 float currentPitch = Hinge ? VectorUtils.SignedAngleDP(Hinge.mainAxis == "X" ? bottomTransform.up : bottomTransform.right, referenceTransform.forward, bottomTransform.forward) : Servo ? 0 : 0;
                 float targetPitchAngle = (currentPitch + pitchError).ToAngle();
                 targetPitchAngle = Mathf.Clamp(targetPitchAngle, minPitch, maxPitch); // clamp pitch
-                Debug.Log($"[CUSTOMTURRET] CurrPitch: {currentPitch}; PitchError: {pitchError}; Hinge Pitch: {Hinge.currentAngle}; Hinge target Angle {Hinge.targetAngle}");
+                //Debug.Log($"[CUSTOMTURRET] CurrPitch: {currentPitch}; PitchError: {pitchError}; Hinge Pitch: {Hinge.currentAngle}; Hinge target Angle {Hinge.targetAngle}");
                 Hinge.targetAngle = targetPitchAngle;
             }
         }
 
+        const int mouseAimLayerMask = (int)(LayerMasks.Parts | LayerMasks.Scenery | LayerMasks.EVA | LayerMasks.Unknown19 | LayerMasks.Unknown23 | LayerMasks.Wheels);
+        void MouseAim()
+        {
+            Vector3 targetPosition;
+            float maxTargetingRange = 5000;
+
+            //MouseControl
+            Vector3 mouseAim = new Vector3(Input.mousePosition.x / Screen.width, Input.mousePosition.y / Screen.height, 0);
+            Ray ray = FlightCamera.fetch.mainCamera.ViewportPointToRay(mouseAim);
+            RaycastHit hit;
+
+            if (Physics.Raycast(ray, out hit, maxTargetingRange, mouseAimLayerMask))
+            {
+                targetPosition = hit.point;
+
+                //aim through self vessel if occluding mouseray
+                KerbalEVA eva = hit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+                Part p = eva ? eva.part : hit.collider.gameObject.GetComponentInParent<Part>();
+                if (p && p.vessel && p.vessel == vessel)
+                {
+                    targetPosition = ray.direction * maxTargetingRange + FlightCamera.fetch.mainCamera.transform.position;
+                }
+            }
+            else
+            {
+                targetPosition = (ray.direction * (maxTargetingRange + (FlightCamera.fetch.Distance * 0.75f))) +
+                                 FlightCamera.fetch.mainCamera.transform.position;
+            }
+            AimToTarget(targetPosition);
+        }
+
         public bool ReturnTurret()
         {
+            manuallyControlled = false;
             if ((Servo && !yawTransform) || (Hinge && !pitchTransform))
             {
                 return false;
@@ -195,9 +245,9 @@ namespace BDArmory.WeaponMounts
         void OnEditorPartPlaced(Part p = null)
         {
             if (part.children.Count == 0) return;
-            FindChildGuns(part.children); 
+            FindChildWeapons(part.children); 
         }
-        private void FindChildGuns(List<Part> children)
+        private void FindChildWeapons(List<Part> children)
         {
             using (List<Part>.Enumerator child = children.GetEnumerator())
                 while (child.MoveNext())
@@ -209,11 +259,18 @@ namespace BDArmory.WeaponMounts
                         if (gun != null)
                         gun.Fields["customTurretID"].guiActiveEditor = true;
                     }
+                    //if (child.Current.IsMissile())
+                    //{
+                    //    var msl = child.Current.FindModuleImplementing<MissileBase>();
+                    //    if (msl != null)
+                    //        Fields["fireFOV"].guiActiveEditor = true;
+                    //}
+                    //Would result in two fireFOVs, assuming Servo + hinge; just leave as hardcoded 5deg for now.
                     //only have gun's TurrID slider appear if a child of the turret servo to reduce PAW clutter
 
                     if (child.Current.children.Count > 0)
                     {
-                        FindChildGuns(child.Current.children);
+                        FindChildWeapons(child.Current.children);
                     }
                 }
         }
@@ -221,28 +278,34 @@ namespace BDArmory.WeaponMounts
         {
             GameEvents.onEditorPartPlaced.Remove(OnEditorPartPlaced);
         }
-        /*
+        
         void OnGUI()
         {
-            if ((Servo && !yawTransform) || (Hinge && !pitchTransform)) return;
-            /*
-            Vector3 fwdPos = referenceTransform.position + (5 * referenceTransform.forward);
-            GUIUtils.DrawLineBetweenWorldPositions(referenceTransform.position, fwdPos, 4, Color.blue);
-
-            Vector3 upPos = referenceTransform.position + (5 * referenceTransform.up);
-            GUIUtils.DrawLineBetweenWorldPositions(referenceTransform.position, upPos, 4, Color.green);
-
-            Vector3 rightPos = referenceTransform.position + (5 * referenceTransform.right);
-            GUIUtils.DrawLineBetweenWorldPositions(referenceTransform.position, rightPos, 4, Color.red);
-
-            Vector3 yawNrm = yawTransform.position + (10 * yawTransform.up);
-            if (Hinge)
+            if (HighLogic.LoadedSceneIsEditor && BDArmorySetup.showWeaponAlignment)
             {
-                if (Hinge.mainAxis == "X") yawNrm = pitchTransform.position + (10 * -pitchTransform.forward);
-                if (Hinge.mainAxis == "Z") yawNrm = pitchTransform.position + (10 * pitchTransform.right);
+                if ((Servo && !yawTransform) || (Hinge && !pitchTransform)) return;
+                if (Servo)
+                {
+                    Vector3 fwdPos = referenceTransform.position + (5 * referenceTransform.forward);
+                    GUIUtils.DrawLineBetweenWorldPositions(referenceTransform.position, fwdPos, 4, Color.blue);
+                }
+                /*
+                Vector3 upPos = referenceTransform.position + (5 * referenceTransform.up);
+                GUIUtils.DrawLineBetweenWorldPositions(referenceTransform.position, upPos, 4, Color.green);
+
+                Vector3 rightPos = referenceTransform.position + (5 * referenceTransform.right);
+                GUIUtils.DrawLineBetweenWorldPositions(referenceTransform.position, rightPos, 4, Color.red);
+                */
+                Vector3 yawNrm = yawTransform.position + (10 * yawTransform.up);
+                if (Hinge)
+                {
+                    if (Hinge.mainAxis == "X") yawNrm = pitchTransform.position + (10 * -pitchTransform.forward);
+                    if (Hinge.mainAxis == "Z") yawNrm = pitchTransform.position + (10 * pitchTransform.right);
+                }
+                GUIUtils.DrawLineBetweenWorldPositions(yawTransform.position, yawNrm, 4, Color.blue);     
+                
             }
-            GUIUtils.DrawLineBetweenWorldPositions(yawTransform.position, yawNrm, 2, Color.white);            
         }
-        */
+        
     }
 }

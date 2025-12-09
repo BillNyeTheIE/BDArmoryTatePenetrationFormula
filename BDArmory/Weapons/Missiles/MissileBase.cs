@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using UnityEngine;
-
-using BDArmory.Competition;
+﻿using BDArmory.Competition;
 using BDArmory.Control;
 using BDArmory.CounterMeasure;
 using BDArmory.Extensions;
@@ -15,6 +9,12 @@ using BDArmory.Settings;
 using BDArmory.Targeting;
 using BDArmory.UI;
 using BDArmory.Utils;
+using BDArmory.WeaponMounts;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using UnityEngine;
 
 namespace BDArmory.Weapons.Missiles
 {
@@ -386,6 +386,10 @@ namespace BDArmory.Weapons.Missiles
         [KSPField(isPersistant = false, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_terminalHomingRange")]//Terminal Homing Range
         public float terminalHomingRange = 3000;
 
+        [KSPField(advancedTweakable = false, isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_TurretID"),//Custom Turret ID
+UI_FloatRange(minValue = 1f, maxValue = 20f, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+        public float customTurretID = 0;
+
         [KSPField]
         public bool terminalHoming = false;
 
@@ -539,6 +543,8 @@ namespace BDArmory.Weapons.Missiles
         public Transform MissileReferenceTransform;
 
         protected ModuleTargetingCamera targetingPod;
+
+        public List<ModuleCustomTurret> customTurret = new List<ModuleCustomTurret>();
 
         //laser stuff
         public ModuleTargetingCamera lockedCamera;

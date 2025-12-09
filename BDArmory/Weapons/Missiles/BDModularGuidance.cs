@@ -1,11 +1,7 @@
-using KSP.UI.Screens;
-using System.Collections.Generic;
-using System;
-using UniLinq;
-using UnityEngine;
-
 using BDArmory.Control;
+using BDArmory.CounterMeasure;
 using BDArmory.Extensions;
+using BDArmory.FX;
 using BDArmory.Guidances;
 using BDArmory.Radar;
 using BDArmory.Settings;
@@ -13,8 +9,12 @@ using BDArmory.Targeting;
 using BDArmory.UI;
 using BDArmory.Utils;
 using BDArmory.VesselSpawning;
-using BDArmory.FX;
-using BDArmory.CounterMeasure;
+using BDArmory.WeaponMounts;
+using KSP.UI.Screens;
+using System;
+using System.Collections.Generic;
+using UniLinq;
+using UnityEngine;
 
 namespace BDArmory.Weapons.Missiles
 {
@@ -651,7 +651,18 @@ namespace BDArmory.Weapons.Missiles
 
             weaponClass = WeaponClasses.Missile;
             WeaponName = GetShortName();
-            if (HighLogic.LoadedSceneIsFlight) missileName = shortName;
+            if (HighLogic.LoadedSceneIsFlight)
+            {
+                missileName = shortName;
+                using (var servo = VesselModuleRegistry.GetModules<ModuleCustomTurret>(vessel).GetEnumerator())
+                    while (servo.MoveNext())
+                    {
+                        if (servo.Current == null) continue;
+                        if ((int)servo.Current.turretID != (int)customTurretID) continue;
+                        customTurret.Add(servo.Current);
+                        servo.Current.SetReferenceTransform(MissileReferenceTransform); //confirm this is pointing in the right direction
+                    }
+            }
             activeRadarRange = ActiveRadarRange;
             chaffEffectivity = ChaffEffectivity;
             missileCMRange = MissileCMRange;

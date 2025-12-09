@@ -721,6 +721,14 @@ namespace BDArmory.Weapons.Missiles
                     reloadableRail = missileSpawner;
                     hasAmmo = true;
                 }
+                using (var servo = VesselModuleRegistry.GetModules<ModuleCustomTurret>(vessel).GetEnumerator())
+                    while (servo.MoveNext())
+                    {
+                        if (servo.Current == null) continue;
+                        if ((int)servo.Current.turretID != (int)customTurretID) continue;
+                        customTurret.Add(servo.Current);
+                        servo.Current.SetReferenceTransform(MissileReferenceTransform);
+                    }
             }
 
             if (deployAnimationName != "")
