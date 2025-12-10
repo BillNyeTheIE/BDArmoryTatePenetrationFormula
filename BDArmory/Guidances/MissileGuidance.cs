@@ -538,26 +538,35 @@ namespace BDArmory.Guidances
                 float pullDownCos = Vector3.Dot(velDirection, upDirection);
                 float pullDownSin = BDAMath.Sqrt(1f - pullDownCos * pullDownCos);
                 // Turn radius is mv^2/r = ma -> v^2/r = a -> v^2/a = r, a = 6 g -> v^2 * 1/6 g = r
-                float invG = invg / (ml.gLimit > 0.0f ? ml.gLimit : 20f);
-                Vector3 turnLead = (currSpeed * currSpeed * invG) * (pullDownCos * planarDirectionToTarget + (1f - pullDownSin) * upDirection); //(currSpeed * currSpeed * 0.0169952698051929473876953125f) * (pullDownSin * planarDirectionToTarget + (1f - pullDownCos) * upDirection);
+                float invG = invg / (ml.maneuvergLimit > 0.0f ? ml.maneuvergLimit : 20f);
+                float turnRadius = currSpeed * currSpeed * invG;
+
+                //float curvatureCompensation = (1f - Vector3.Dot(upDirection, VectorUtils.GetUpDirection(predictedImpactPoint))) * (float)FlightGlobals.currentMainBody.Radius;
+                float termSin = Mathf.Sin(loftTermAngle * Mathf.Deg2Rad);
+
+                // turnRadius * (pullDownCos + termSin) -> horizontal dist required to go from current orientation to terminal angle
+                // turnRadius * (1 - pullDownSin) -> vertical dist required to go from current orientation to horizontal
+                // curvatureCompensation -> dist we must move target up / origin down by if we "unwrap" the world beneath them
+                // to put them on a flat surface (though in this case we *only* affect the vertical axis)
+                Vector3 turnLead = (turnRadius * (pullDownCos + termSin)) * planarDirectionToTarget + 
+                                   (turnRadius * (1f - pullDownSin)) * upDirection; //(currSpeed * currSpeed * 0.0169952698051929473876953125f) * (pullDownSin * planarDirectionToTarget + (1f - pullDownCos) * upDirection);
                 //float turnTimeOffset = (loftTermAngle * Mathf.Deg2Rad + 0.5f * Mathf.PI - Mathf.Acos(pullDownCos)) * currSpeed * invG;
 
-                float curvatureCompensation = (1f - Vector3.Dot(upDirection, VectorUtils.GetUpDirection(predictedImpactPoint))) * (float) FlightGlobals.currentMainBody.Radius;
+                float sinTarget = Vector3.Dot((predictedImpactPoint - ml.vessel.CoM - turnLead).normalized, -upDirection); //Vector3.Dot((targetPosition - ml.vessel.CoM), -upDirection) / R;
 
-                float sinTarget = Vector3.Dot((predictedImpactPoint - ml.vessel.CoM - turnLead - curvatureCompensation * upDirection).normalized, -upDirection); //Vector3.Dot((targetPosition - ml.vessel.CoM), -upDirection) / R;
-
-                boostGuidance = (midcourseRange > 0f) && (R > midcourseRange) && (sinTarget < Mathf.Sin(loftTermAngle * Mathf.Deg2Rad)) && (-sinTarget < Mathf.Sin(loftAngle * Mathf.Deg2Rad));
+                boostGuidance = (midcourseRange > 0f) && (R > midcourseRange) && (sinTarget < termSin) && (-sinTarget < Mathf.Sin(loftAngle * Mathf.Deg2Rad));
             }
+
             // If still in boost phase
             if (boostGuidance)
             {
                 //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log("[BDArmory.MissileGuidance]: Lofting");
 
-                float altitudeClamp = Mathf.Clamp(targetAlt + 10f * rangeFac * Mathf.Pow(Vector3.Dot(targetPosition - ml.vessel.CoM, planarDirectionToTarget), Mathf.Abs(vertVelComp)), targetAlt, Mathf.Max(maxAltitude, targetAlt));
+                //float altitudeClamp = Mathf.Clamp(targetAlt + 10f * rangeFac * Mathf.Pow(Vector3.Dot(targetPosition - ml.vessel.CoM, planarDirectionToTarget), Mathf.Abs(vertVelComp)), targetAlt, Mathf.Max(maxAltitude, targetAlt));
 
                 // Stolen from my AAMloft guidance
                 // Limit climb angle by turnFactor, turnFactor goes negative when above target alt
-                float turnFactor = (float)(altitudeClamp - ml.vessel.altitude) / (4f * currSpeed);
+                float turnFactor = (float)(maxAltitude - ml.vessel.altitude) / (4f * currSpeed);
                 turnFactor = Mathf.Clamp(turnFactor, -1f, 1f);
 
                 // Limit gs during climb
