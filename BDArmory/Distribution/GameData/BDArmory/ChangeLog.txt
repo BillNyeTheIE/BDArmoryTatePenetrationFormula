@@ -32,6 +32,7 @@
 		- Improve "CLOSlead" debug visualization, now shows the proper, lead-adjusted beam, for easier debugging.
 		- Fixed missile ECM behavior, previously changes to the missile's radar signature due to ECM could be overwritten by the missile going active/passive, causing ECM to seemingly not function.
 		- Missiles with a "cruiseRangeTrigger" will now also fire the cruise motor if the missile's airspeed drops below 75% of its optimum airspeed while in-atmosphere.
+		- AAMLoft settings for modular missiles are now correctly loaded when returning to the SPH.
   - Robotics:
 		- Adds ability to build custom turrets with Breaking Ground Hinges and Servoes.
 			- BG hinges/servoes now have a 'Custom Turret ID' slider; attaching a weapon as a child of the robotic part adds a similar 'Custom Turret ID' slider to the gun.
