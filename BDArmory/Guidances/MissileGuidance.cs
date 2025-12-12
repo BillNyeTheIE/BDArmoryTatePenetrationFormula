@@ -508,7 +508,18 @@ namespace BDArmory.Guidances
 
             // Time to go calculation according to instantaneous change in range (dR/dt)
             Vector3 Rdir = (targetPosition - ml.vessel.CoM);
-            ttgo = -R*R / Vector3.Dot(targetVelocity - currVel, Rdir);
+            Vector3 velDiff = targetVelocity - currVel;
+            ttgo = -R*R / Vector3.Dot(velDiff, Rdir);
+
+            // Get up direction at missile location
+            Vector3 upDirection = ml.vessel.upAxis; //VectorUtils.GetUpDirection(ml.vessel.CoM);
+
+            // Get ttgo on the horizontal plane
+            Vector3 RPlanar = Rdir.ProjectOnPlanePreNormalized(upDirection);
+            float ttgoPlanar = -RPlanar.sqrMagnitude / Vector3.Dot(velDiff.ProjectOnPlanePreNormalized(upDirection), RPlanar);
+
+            // Average the two values
+            ttgo = 0.5f * (ttgo + ttgoPlanar);
 
             // Lead limiting
             if (ttgo <= 0f)
@@ -518,10 +529,7 @@ namespace BDArmory.Guidances
 
             float ttgoInv = 1f / ttgo;
 
-            float leadTime = Mathf.Clamp(ttgo, 0f, 16f);
-
-            // Get up direction at missile location
-            Vector3 upDirection = ml.vessel.upAxis; //VectorUtils.GetUpDirection(ml.vessel.CoM);
+            float leadTime = Mathf.Clamp(ttgo, 0f, 8f);
 
             // Set up PIP vector
             Vector3 predictedImpactPoint = AIUtils.PredictPosition(targetPosition, targetVelocity, Vector3.zero, leadTime + TimeWarp.fixedDeltaTime);
