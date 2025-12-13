@@ -919,10 +919,11 @@ namespace BDArmory.Weapons.Missiles
         {
             if (TargetAcquired)
             {
-                if (lockedCamera && lockedCamera.groundStabilized && !lockedCamera.gimbalLimitReached && lockedCamera.surfaceDetected) //active laser target
+                bool isCLOS = GuidanceMode == GuidanceModes.CLOS || GuidanceMode == GuidanceModes.CLOSThreePoint || GuidanceMode == GuidanceModes.CLOSLead;
+                if (lockedCamera && !lockedCamera.gimbalLimitReached && ((lockedCamera.groundStabilized && lockedCamera.surfaceDetected) || isCLOS)) //active laser target
                 {
                     TargetPosition = lockedCamera.groundTargetPosition;
-                    TargetVelocity = (TargetPosition - lastLaserPoint) / Time.fixedDeltaTime;
+                    TargetVelocity = isCLOS ? Vector3.zero : (TargetPosition - lastLaserPoint) / Time.fixedDeltaTime;
                     TargetAcceleration = Vector3.zero;
                     lastLaserPoint = TargetPosition;
 

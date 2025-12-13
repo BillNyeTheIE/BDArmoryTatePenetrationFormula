@@ -1317,14 +1317,16 @@ namespace BDArmory.Targeting
             bool raycasted = Physics.Raycast(ray, out rayHit, maxRayDistance, (int)(LayerMasks.Parts | LayerMasks.Scenery | LayerMasks.EVA | LayerMasks.Unknown19 | LayerMasks.Unknown23 | LayerMasks.Wheels));
             if (raycasted)
             {
-                if (FlightGlobals.getAltitudeAtPos(rayHit.point) < 0)
+                Part p;
+                if (FlightGlobals.getAltitudeAtPos(rayHit.point) < 0 || ((p = rayHit.collider.GetComponentInParent<Part>()) && p.vessel == vessel))
                 {
                     raycasted = false;
                 }
                 else
                 {
                     KerbalEVA hitEVA = rayHit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
-                    Part p = hitEVA ? hitEVA.part : rayHit.collider.GetComponentInParent<Part>();
+                    if (hitEVA)
+                        p = hitEVA.part;
 
                     bool pCheck = false;
 
@@ -1407,8 +1409,8 @@ namespace BDArmory.Targeting
             if (Physics.Raycast(ray, out rayHit, maxRayDistance, (int)(LayerMasks.Parts | LayerMasks.Scenery | LayerMasks.EVA | LayerMasks.Unknown19 | LayerMasks.Unknown23 | LayerMasks.Wheels)))
             {
                 targetPointPosition = rayHit.point;
-
-                if (!surfaceDetected && groundStabilized && !gimbalLimitReached)
+                Part p = rayHit.collider.GetComponentInParent<Part>();
+                if (!surfaceDetected && groundStabilized && !gimbalLimitReached && (!p || p.vessel != vessel))
                 {
                     groundStabilized = true;
                     groundTargetPosition = rayHit.point;
@@ -1416,7 +1418,8 @@ namespace BDArmory.Targeting
                     if (CoMLock)
                     {
                         KerbalEVA hitEVA = rayHit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
-                        Part p = hitEVA ? hitEVA.part : rayHit.collider.GetComponentInParent<Part>();
+                        if (hitEVA)
+                            p = hitEVA.part;
                         if (p && p.vessel)
                         {
                             groundTargetPosition = p.vessel.CoM;
