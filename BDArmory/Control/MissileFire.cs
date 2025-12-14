@@ -1410,6 +1410,19 @@ namespace BDArmory.Control
                 targetingAudioSource.loop = true;
                 targetingAudioSource.spatialBlend = 1;
 
+                if (SurfaceVisionOffset == null)
+                {
+                    SurfaceVisionOffset = new FloatCurve();
+                    SurfaceVisionOffset.Add(1500, 1.88f);
+                    SurfaceVisionOffset.Add(2000, 3.35f);
+                    SurfaceVisionOffset.Add(3000, 7.5f);
+                    SurfaceVisionOffset.Add(4000, 13.35f);
+                    SurfaceVisionOffset.Add(5000, 20.85f);
+                    SurfaceVisionOffset.Add(6000, 30f);
+                    SurfaceVisionOffset.Add(8000, 53.4f);
+                    SurfaceVisionOffset.Add(10000, 83.4f);
+                }
+
                 StartCoroutine(MissileWarningResetRoutine());
 
                 UpdateVolume();
@@ -7849,18 +7862,6 @@ namespace BDArmory.Control
 
             // can we get a visual sight of the target?
 
-            if (SurfaceVisionOffset == null)
-            {
-                SurfaceVisionOffset = new FloatCurve();
-                SurfaceVisionOffset.Add(1500, 1.88f);
-                SurfaceVisionOffset.Add(2000, 3.35f);
-                SurfaceVisionOffset.Add(3000, 7.5f);
-                SurfaceVisionOffset.Add(4000, 13.35f);
-                SurfaceVisionOffset.Add(5000, 20.85f);
-                SurfaceVisionOffset.Add(6000, 30f);
-                SurfaceVisionOffset.Add(8000, 53.4f);
-                SurfaceVisionOffset.Add(10000, 83.4f);
-            }
             VesselCloakInfo vesselcamo = target.Vessel.gameObject.GetComponent<VesselCloakInfo>();
             float viewModifier = 1;
             if (vesselcamo && vesselcamo.cloakEnabled)
