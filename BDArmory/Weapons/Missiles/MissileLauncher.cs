@@ -884,6 +884,7 @@ namespace BDArmory.Weapons.Missiles
             if (checkBaseConfig && baseConfig)
             {
                 canDetMinDist = baseConfig.DetonateAtMinimumDistance;
+                if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileLauncher]: setting canDetMinDist of {part} on {(HighLogic.LoadedSceneIsFlight ? part.vessel.vesselName : EditorLogic.fetch.ship.shipName)} to {canDetMinDist}");
             }
             if (isTimed)
             {
@@ -929,8 +930,8 @@ namespace BDArmory.Weapons.Missiles
                     canCruisePopup = baseConfig.CruisePopup;
                     if (BDArmorySettings.DEBUG_MISSILES)
                     {
-                        Debug.Log("[BDArmory.MissileLauncher]: setting maxCruiseSpeed of " + part + " on " + part.vessel.vesselName + " to " + maxCruiseSpeed);
-                        Debug.Log("[BDArmory.MissileLauncher]: setting canCruisePopup of " + part + " on " + part.vessel.vesselName + " to " + canCruisePopup);
+                        Debug.Log($"[BDArmory.MissileLauncher]: setting maxCruiseSpeed of {part} on {(HighLogic.LoadedSceneIsFlight ? part.vessel.vesselName : EditorLogic.fetch.ship.shipName)} to {maxCruiseSpeed}");
+                        Debug.Log($"[BDArmory.MissileLauncher]: setting canCruisePopup of {part} on {(HighLogic.LoadedSceneIsFlight ? part.vessel.vesselName : EditorLogic.fetch.ship.shipName)} to {canCruisePopup}");
                     }
                 }
                 UI_FloatRange CruiseSpeedRange = (UI_FloatRange)Fields["CruiseSpeed"].uiControlEditor;
