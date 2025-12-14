@@ -139,7 +139,7 @@ namespace BDArmory.Radar
 
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_DynamicRadar", advancedTweakable = true),//Disable Radar vs ARMs
             UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_false", scene = UI_Scene.All),]//Starboard (CW)--Port (CCW)
-        public bool DynamicRadar = true;
+        public bool DynamicRadar = false;
 
         public enum SonarModes
         {
