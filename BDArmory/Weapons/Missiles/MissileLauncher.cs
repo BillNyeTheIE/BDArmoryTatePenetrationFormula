@@ -1026,10 +1026,6 @@ namespace BDArmory.Weapons.Missiles
                 Fields["LoftAngle"].guiActiveEditor = false;
                 Fields["LoftTermAngle"].guiActive = false;
                 Fields["LoftTermAngle"].guiActiveEditor = false;
-                Fields["LoftRangeFac"].guiActive = false;
-                Fields["LoftRangeFac"].guiActiveEditor = false;
-                Fields["LoftVertVelComp"].guiActive = false;
-                Fields["LoftVertVelComp"].guiActiveEditor = false;
             }
             else
             {
@@ -1041,15 +1037,11 @@ namespace BDArmory.Weapons.Missiles
                 {
                     Fields["LoftAngle"].guiActiveEditor = false;
                     Fields["LoftTermAngle"].guiActiveEditor = false;
-                    Fields["LoftRangeFac"].guiActiveEditor = false;
-                    Fields["LoftVertVelComp"].guiActiveEditor = false;
                 }
                 else
                 {
                     Fields["LoftAngle"].guiActiveEditor = true;
                     Fields["LoftTermAngle"].guiActiveEditor = true;
-                    Fields["LoftRangeFac"].guiActiveEditor = true;
-                    Fields["LoftVertVelComp"].guiActiveEditor = true;
                 }
 
                 if (!BDArmorySettings.DEBUG_MISSILES)
@@ -1058,8 +1050,7 @@ namespace BDArmory.Weapons.Missiles
                     Fields["LoftRangeOverride"].guiActive = false;
                     Fields["LoftAngle"].guiActive = false;
                     Fields["LoftTermAngle"].guiActive = false;
-                    Fields["LoftRangeFac"].guiActive = false;
-                    Fields["LoftVertVelComp"].guiActive = false;
+                    
                 }
                 else
                 {
@@ -1067,8 +1058,6 @@ namespace BDArmory.Weapons.Missiles
                     Fields["LoftRangeOverride"].guiActive = true;
                     Fields["LoftAngle"].guiActive = true;
                     Fields["LoftTermAngle"].guiActive = true;
-                    Fields["LoftRangeFac"].guiActive = true;
-                    Fields["LoftVertVelComp"].guiActive = true;
                 }
             }
 
@@ -1082,6 +1071,10 @@ namespace BDArmory.Weapons.Missiles
                 Fields["LoftVertVelComp"].guiActiveEditor = false;
                 Fields["LoftAltitudeAdvMax"].guiActive = false;
                 Fields["LoftAltitudeAdvMax"].guiActiveEditor = false;
+                Fields["LoftRangeFac"].guiActive = false;
+                Fields["LoftRangeFac"].guiActiveEditor = false;
+                Fields["LoftVertVelComp"].guiActive = false;
+                Fields["LoftVertVelComp"].guiActiveEditor = false;
                 //Fields["LoftAltComp"].guiActive = false;
                 //Fields["LoftAltComp"].guiActiveEditor = false;
                 //Fields["terminalHomingRange"].guiActive = false;
@@ -1098,6 +1091,7 @@ namespace BDArmory.Weapons.Missiles
                 {
                     Fields["LoftVelComp"].guiActiveEditor = false;
                     Fields["LoftVertVelComp"].guiActiveEditor = false;
+                    Fields["LoftRangeFac"].guiActiveEditor = false;
                     //Fields["LoftAltComp"].guiActive = false;
                     //Fields["LoftAltComp"].guiActiveEditor = false;
                 }
@@ -1105,6 +1099,7 @@ namespace BDArmory.Weapons.Missiles
                 {
                     Fields["LoftVelComp"].guiActiveEditor = true;
                     Fields["LoftVertVelComp"].guiActiveEditor = true;
+                    Fields["LoftRangeFac"].guiActiveEditor = true;
                     //Fields["LoftAltComp"].guiActive = true;
                     //Fields["LoftAltComp"].guiActiveEditor = true;
                 }
@@ -1115,6 +1110,7 @@ namespace BDArmory.Weapons.Missiles
                     Fields["LoftAltitudeAdvMax"].guiActive = false;
                     Fields["LoftVelComp"].guiActive = false;
                     Fields["LoftVertVelComp"].guiActive = false;
+                    Fields["LoftRangeFac"].guiActive = false;
                 }
                 else
                 {
@@ -1122,6 +1118,7 @@ namespace BDArmory.Weapons.Missiles
                     Fields["LoftAltitudeAdvMax"].guiActive = true;
                     Fields["LoftVelComp"].guiActive = true;
                     Fields["LoftVertVelComp"].guiActive = true;
+                    Fields["LoftRangeFac"].guiActive = true;
                 }
             }
             if (!terminalHoming && GuidanceMode != GuidanceModes.AAMLoft) //(GuidanceMode != GuidanceModes.AAMHybrid && GuidanceMode != GuidanceModes.AAMLoft)
