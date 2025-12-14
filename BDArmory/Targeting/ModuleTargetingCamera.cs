@@ -1406,53 +1406,59 @@ namespace BDArmory.Targeting
 
             RaycastHit rayHit;
             Ray ray = new Ray(cameraParentTransform.position, cameraParentTransform.forward);
-            if (Physics.Raycast(ray, out rayHit, maxRayDistance, (int)(LayerMasks.Parts | LayerMasks.Scenery | LayerMasks.EVA | LayerMasks.Unknown19 | LayerMasks.Unknown23 | LayerMasks.Wheels)))
-            {
-                targetPointPosition = rayHit.point;
-                Part p = rayHit.collider.GetComponentInParent<Part>();
-                if (!surfaceDetected && groundStabilized && !gimbalLimitReached && (!p || p.vessel != vessel))
-                {
-                    groundStabilized = true;
-                    groundTargetPosition = rayHit.point;
-
-                    if (CoMLock)
-                    {
-                        KerbalEVA hitEVA = rayHit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
-                        if (hitEVA)
-                            p = hitEVA.part;
-                        if (p && p.vessel)
-                        {
-                            groundTargetPosition = p.vessel.CoM;
-                            lockedVessel = p.vessel;
-                        }
-                        else
-                        {
-                            lockedVessel = null;
-                        }
-                    }
-                    Vector3d newGTP = VectorUtils.WorldPositionToGeoCoords(groundTargetPosition, vessel.mainBody);
-                    if (newGTP != Vector3d.zero)
-                    {
-                        bodyRelativeGTP = newGTP;
-                    }
-                }
-
-                surfaceDetected = true;
-
-                if (groundStabilized && !gimbalLimitReached && CMDropper.smokePool != null)
-                {
-                    if (CMSmoke.RaycastSmoke(ray))
-                    {
-                        float angle = VectorUtils.FullRangePerlinNoise(0.75f * Time.time, 10) * BDArmorySettings.SMOKE_DEFLECTION_FACTOR;
-                        targetPointPosition = VectorUtils.RotatePointAround(targetPointPosition, ray.origin, vessel.up, angle);
-                        surfaceDetected = false;
-                    }
-                }
-            }
-            else
+            if (!Physics.Raycast(ray, out rayHit, maxRayDistance, (int)(LayerMasks.Parts | LayerMasks.Scenery | LayerMasks.EVA | LayerMasks.Unknown19 | LayerMasks.Unknown23 | LayerMasks.Wheels)))
             {
                 targetPointPosition = cameraParentTransform.position + (maxRayDistance * cameraParentTransform.forward);
                 surfaceDetected = false;
+                return;
+            }
+
+            Part p = rayHit.collider.GetComponentInParent<Part>();
+            if (p && p.vessel == vessel)
+            {
+                targetPointPosition = cameraParentTransform.position + (maxRayDistance * cameraParentTransform.forward);
+                surfaceDetected = false;
+                return;
+            }
+
+            targetPointPosition = rayHit.point;
+            if (!surfaceDetected && groundStabilized && !gimbalLimitReached)
+            {
+                groundStabilized = true;
+                groundTargetPosition = rayHit.point;
+
+                if (CoMLock)
+                {
+                    KerbalEVA hitEVA = rayHit.collider.gameObject.GetComponentUpwards<KerbalEVA>();
+                    if (hitEVA)
+                        p = hitEVA.part;
+                    if (p && p.vessel)
+                    {
+                        groundTargetPosition = p.vessel.CoM;
+                        lockedVessel = p.vessel;
+                    }
+                    else
+                    {
+                        lockedVessel = null;
+                    }
+                }
+                Vector3d newGTP = VectorUtils.WorldPositionToGeoCoords(groundTargetPosition, vessel.mainBody);
+                if (newGTP != Vector3d.zero)
+                {
+                    bodyRelativeGTP = newGTP;
+                }
+            }
+
+            surfaceDetected = true;
+
+            if (groundStabilized && !gimbalLimitReached && CMDropper.smokePool != null)
+            {
+                if (CMSmoke.RaycastSmoke(ray))
+                {
+                    float angle = VectorUtils.FullRangePerlinNoise(0.75f * Time.time, 10) * BDArmorySettings.SMOKE_DEFLECTION_FACTOR;
+                    targetPointPosition = VectorUtils.RotatePointAround(targetPointPosition, ray.origin, vessel.up, angle);
+                    surfaceDetected = false;
+                }
             }
         }
 
