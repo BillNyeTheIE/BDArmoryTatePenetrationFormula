@@ -623,7 +623,8 @@ namespace BDArmory.Weapons.Missiles
             //missileLauncher.LoftAltComp = LoftAltComp;
             missileLauncher.terminalHomingRange = MLConfig.terminalHomingRange;
             missileLauncher.maxCruiseSpeed = MLConfig.CruiseSpeed;
-            missileLauncher.CruisePopup = MLConfig.CruisePopup;
+            missileLauncher.canCruisePopup = MLConfig.CruisePopup;
+            missileLauncher.canDetMinDist = MLConfig.DetonateAtMinimumDistance;
             if (!overrideReferenceTransform) missileLauncher.maxOffBoresight = MLConfig.maxOffBoresight; //don't overwrite e.g. VLS launcher boresights so they can launch, but still have normal boresight on fired missiles
 
             if (configurableSettings)
@@ -667,7 +668,8 @@ namespace BDArmory.Weapons.Missiles
             missileLauncher.GetBlastRadius();
             GUIUtils.RefreshAssociatedWindows(missileLauncher.part);
             missileLauncher.ParseLiftDragSteerTorque();
-            missileLauncher.SetFields();
+            // Because we already set the values from the true base config, we do **not** check the base config in SetFields
+            missileLauncher.SetFields(false);
             missileLauncher.Sublabel = $"Guidance: {Enum.GetName(typeof(TargetingModes), missileLauncher.TargetingMode)}; Max Range: {Mathf.Round(missileLauncher.engageRangeMax / 100) / 10} km; Remaining: {missileLauncher.missilecount}";
         }
 

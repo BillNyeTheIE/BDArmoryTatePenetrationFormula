@@ -373,6 +373,8 @@ namespace BDArmory.Weapons.Missiles
         private float burnRate = 0;
         private float burnedFuelMass = 0;
         public float maxCruiseSpeed = 300f;
+        public bool canCruisePopup = false;
+        public bool canDetMinDist = false;
 
         private int cruiseTerminationFrames = 0;
 
@@ -864,16 +866,25 @@ namespace BDArmory.Weapons.Missiles
             if (BDArmorySettings.DEBUG_MISSILES) Debug.Log("[BDArmory.MissileLauncher] Start() setup complete");
         }
 
-        public void SetFields()
+        public void SetFields(bool checkBaseConfig = true)
         {
             ParseWeaponClass();
             ParseModes();
             InitializeEngagementRange(minStaticLaunchRange, maxStaticLaunchRange);
-            SetInitialDetonationDistance();
+            if (proxyDetonate)
+                SetInitialDetonationDistance();
+            else
+                DetonationDistance = 0f;
             uncagedLock = (allAspect) ? allAspect : uncagedLock;
             guidanceFailureRatePerFrame = (guidanceFailureRate >= 1) ? 1f : 1f - Mathf.Exp(Mathf.Log(1f - guidanceFailureRate) * Time.fixedDeltaTime); // Convert from per-second failure rate to per-frame failure rate
             invManeuvergLimit = 1f / maneuvergLimit;
+            // MMLs **shouldn't** be checking the base config, hence checkBaseConfig being a thing
+            MissileLauncher baseConfig = checkBaseConfig ? part.partInfo.partPrefab.FindModuleImplementing<MissileLauncher>() : null;
 
+            if (checkBaseConfig && baseConfig)
+            {
+                canDetMinDist = baseConfig.DetonateAtMinimumDistance;
+            }
             if (isTimed)
             {
                 Fields["detonationTime"].guiActive = true;
@@ -899,17 +910,27 @@ namespace BDArmory.Weapons.Missiles
             }
             else
             {
-                string maxCruiseSpeedString = ConfigNodeUtils.FindPartModuleConfigNodeValue(part.partInfo.partConfig, "MissileLauncher", "CruiseSpeed");
-                if (!string.IsNullOrEmpty(maxCruiseSpeedString)) // Use the default value from the MM patch.
+                /*string baseConfigParamString = ConfigNodeUtils.FindPartModuleConfigNodeValue(part.partInfo.partConfig, "MissileLauncher", "CruiseSpeed");
+                if (!string.IsNullOrEmpty(baseConfigParamString)) // Use the default value from the MM patch.
                 {
                     try
                     {
-                        maxCruiseSpeed = float.Parse(maxCruiseSpeedString);
+                        maxCruiseSpeed = float.Parse(baseConfigParamString);
                         if (BDArmorySettings.DEBUG_MISSILES) Debug.Log("[BDArmory.MissileLauncher]: setting maxCruiseSpeed of " + part + " on " + part.vessel.vesselName + " to " + maxCruiseSpeed);
                     }
                     catch (Exception e)
                     {
                         Debug.LogError("[BDArmory.MissileLauncher]: Failed to parse maxCruiseSpeed configNode: " + e.Message);
+                    }
+                }*/
+                if (checkBaseConfig && baseConfig)
+                {
+                    maxCruiseSpeed = baseConfig.CruiseSpeed;
+                    canCruisePopup = baseConfig.CruisePopup;
+                    if (BDArmorySettings.DEBUG_MISSILES)
+                    {
+                        Debug.Log("[BDArmory.MissileLauncher]: setting maxCruiseSpeed of " + part + " on " + part.vessel.vesselName + " to " + maxCruiseSpeed);
+                        Debug.Log("[BDArmory.MissileLauncher]: setting canCruisePopup of " + part + " on " + part.vessel.vesselName + " to " + canCruisePopup);
                     }
                 }
                 UI_FloatRange CruiseSpeedRange = (UI_FloatRange)Fields["CruiseSpeed"].uiControlEditor;
@@ -923,10 +944,16 @@ namespace BDArmory.Weapons.Missiles
                 Events["CruiseAltitudeRange"].guiActive = true;
                 Events["CruiseAltitudeRange"].guiActiveEditor = true;
                 Fields["CruisePredictionTime"].guiActiveEditor = true;
-                if (CruisePopup)
+                if (canCruisePopup)
+                {
                     Fields["CruisePopup"].guiActive = true;
+                    Fields["CruisePopup"].guiActiveEditor = true;
+                }
                 else
+                {
                     Fields["CruisePopup"].guiActive = false;
+                    Fields["CruisePopup"].guiActiveEditor = false;
+                }
             }
 
             if (GuidanceMode != GuidanceModes.AGM)
@@ -1192,10 +1219,15 @@ namespace BDArmory.Weapons.Missiles
             }
 
             // Don't show detonation distance settings for kinetic warheads
-            if (warheadType == WarheadTypes.Kinetic)
+            if (warheadType == WarheadTypes.Kinetic || !proxyDetonate)
             {
                 Fields["DetonationDistance"].guiActive = false;
                 Fields["DetonationDistance"].guiActiveEditor = false;
+                Fields["DetonateAtMinimumDistance"].guiActive = false;
+                Fields["DetonateAtMinimumDistance"].guiActiveEditor = false;
+            }
+            else if (!canDetMinDist)
+            {
                 Fields["DetonateAtMinimumDistance"].guiActive = false;
                 Fields["DetonateAtMinimumDistance"].guiActiveEditor = false;
             }
@@ -1717,6 +1749,14 @@ namespace BDArmory.Weapons.Missiles
                     VacuumClearanceStates.Clearing : VacuumClearanceStates.Cleared; // Set up clearance check if missile is vacuumSteerable, and is in space, and was not launched from a turret
 
                 CruiseSpeed = Mathf.Min(CruiseSpeed, maxCruiseSpeed);
+                CruisePopup = canCruisePopup && CruisePopup;
+                if (!proxyDetonate)
+                {
+                    DetonationDistance = 0f;
+                    DetonateAtMinimumDistance = false;
+                }
+                else
+                    DetonateAtMinimumDistance = canDetMinDist && DetonateAtMinimumDistance;
 
                 StartCoroutine(MissileRoutine());
                 List<BDWarheadBase> tntList = part.FindModulesImplementing<BDWarheadBase>();
