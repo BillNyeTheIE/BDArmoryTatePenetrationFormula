@@ -1685,7 +1685,6 @@ namespace BDArmory.Weapons
                 customYaw = yaw;
                 customMinPitch = minP;
                 customMaxPitch = maxP;
-                Debug.Log($"[ModuleWeapon] custom Min/max Pitch/Yaw vals are :{customMinPitch}; {customMaxPitch}; {customYaw}");
             }
             //setup animations
             if (hasDeployAnim)

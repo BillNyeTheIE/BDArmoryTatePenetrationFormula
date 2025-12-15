@@ -1,5 +1,7 @@
+using BDArmory.Control;
 using BDArmory.Extensions;
-using BDArmory.Settings;
+using BDArmory.Guidances;
+using BDArmory.Targeting;
 using BDArmory.UI;
 using BDArmory.Utils;
 using BDArmory.Weapons;
@@ -8,7 +10,7 @@ using Expansions.Serenity;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
+using static BDArmory.Weapons.Missiles.MissileBase;
 
 namespace BDArmory.WeaponMounts
 {
@@ -46,14 +48,23 @@ namespace BDArmory.WeaponMounts
         ModuleRoboticServoHinge Hinge;
         ModuleRoboticRotationServo Servo;
 
+        public Vector3 baseForward;
         public Vector3 yawNormal;
 
         public Vector3 slavedTargetPosition;
         public bool slaved;
         public bool manuallyControlled = false;
-
         public bool isYawRotor => Servo != null;
-
+        MissileFire WeaponManager
+        {
+            get
+            {
+                if (_weaponManager == null || !_weaponManager.IsPrimaryWM || _weaponManager.vessel != vessel)
+                    _weaponManager = vessel && vessel.loaded ? vessel.ActiveController().WM : null;
+                return _weaponManager;
+            }
+        }
+        MissileFire _weaponManager;
         public override void OnStart(StartState state)
         {
             base.OnStart(state);
@@ -117,17 +128,53 @@ namespace BDArmory.WeaponMounts
             {
                 yawNormal = Hinge.mainAxis switch
                 {
-                    "X" => -pitchTransform.forward,
+                    "X" => pitchTransform.forward,
                     "Z" => pitchTransform.right,
                     _ => yawTransform.up
+                };
+                baseForward = Hinge.mainAxis switch
+                {
+                    "X" => bottomTransform.up,
+                    "Z" => bottomTransform.forward,
+                    _ => -bottomTransform.right
                 };
             }
         }
 
-        public override void OnFixedUpdate()
+        void FixedUpdate()
         {
             if (!HighLogic.LoadedSceneIsFlight) return;
-            if (manuallyControlled) MouseAim();
+            var wm = WeaponManager;
+            if (wm && wm.CurrentMissile && wm.CurrentMissile.customTurret.Count > 0 && wm.CurrentMissile.customTurret.Contains(this))
+            {
+                if (wm.slavingTurrets)
+                {
+                    slaved = true;
+                    slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(wm.CurrentMissile, wm.slavedPosition, wm.slavedVelocity,
+                        (wm.CurrentMissile.GuidanceMode == GuidanceModes.AAMLoft || wm.CurrentMissile.GuidanceMode == GuidanceModes.Kappa));
+                }
+                else if (wm.mainTGP != null && ModuleTargetingCamera.windowIsOpen && wm.mainTGP.slaveTurrets)
+                {
+                    slaved = true;
+                    slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(wm.CurrentMissile, wm.mainTGP.targetPointPosition, wm.mainTGP.lockedVessel ? wm.mainTGP.lockedVessel.Velocity() : Vector3.zero,
+                        (wm.CurrentMissile.GuidanceMode == GuidanceModes.AAMLoft || wm.CurrentMissile.GuidanceMode == GuidanceModes.Kappa));
+                }
+            }
+            if (slaved)
+            {
+                AimToTarget(slavedTargetPosition);
+            }
+            else
+            {
+                if (wm && wm.guardMode)
+                {
+                    return;
+                }
+                if (manuallyControlled && vessel.isActiveVessel)
+                {
+                    MouseAim();
+                }
+            }
         }
 
         public void AimToTarget(Vector3 targetPosition, bool pitch = true, bool yaw = true)
@@ -176,16 +223,18 @@ namespace BDArmory.WeaponMounts
             {
                 Servo.targetAngle = targetYawAngle;
                 if (Servo.inverted) Servo.targetAngle *= -1;
-                //Debug.Log($"[CUSTOMTURRET] CurrYaw: {currentYaw}; YawError: {yawError}; Servo Yaw: {Servo.currentAngle}; Servo target Angle {Servo.targetAngle}");
+                //Debug.Log($"[BDArmory.ModuleCustomTurret] CurrYaw: {currentYaw}; YawError: {yawError}; Servo target Angle {Servo.targetAngle}; Servo Yaw: {Servo.currentAngle}");
             }
             if (Hinge)
             {
                 float pitchError = (float)VectorUtils.SignedAngleDP(pitchComponent, yawNormal, Hinge.mainAxis == "X" ? pitchTransform.right : pitchTransform.forward) - (float)VectorUtils.SignedAngleDP(referenceTransform.forward, yawNormal, Hinge.mainAxis == "X" ? pitchTransform.right : pitchTransform.forward);
                 //float currentPitch = Hinge ? Hinge.currentAngle : Servo ? 0 : 0;
-                float currentPitch = Hinge ? VectorUtils.SignedAngleDP(Hinge.mainAxis == "X" ? bottomTransform.up : bottomTransform.right, referenceTransform.forward, bottomTransform.forward) : Servo ? 0 : 0;
+                float currentPitch = Hinge ? -VectorUtils.SignedAngleDP(baseForward, Hinge.mainAxis == "X" ? pitchTransform.up : Hinge.mainAxis == "Z" ? pitchTransform.forward : -pitchTransform.right,
+                                                                        Hinge.mainAxis == "X" ? pitchTransform.right : pitchTransform.forward) : Servo ? 0 : 0;
+      
                 float targetPitchAngle = (currentPitch + pitchError).ToAngle();
                 targetPitchAngle = Mathf.Clamp(targetPitchAngle, minPitch, maxPitch); // clamp pitch
-                //Debug.Log($"[CUSTOMTURRET] CurrPitch: {currentPitch}; PitchError: {pitchError}; Hinge Pitch: {Hinge.currentAngle}; Hinge target Angle {Hinge.targetAngle}");
+                //Debug.Log($"[BDArmory.ModuleCustomTurret] PitchError: {pitchError}; CurrPitch: {currentPitch}; Target Pitch Angle: {targetPitchAngle}; Hinge Angle {Hinge.currentAngle}");
                 Hinge.targetAngle = targetPitchAngle;
             }
         }
@@ -195,7 +244,6 @@ namespace BDArmory.WeaponMounts
         {
             Vector3 targetPosition;
             float maxTargetingRange = 5000;
-
             //MouseControl
             Vector3 mouseAim = new Vector3(Input.mousePosition.x / Screen.width, Input.mousePosition.y / Screen.height, 0);
             Ray ray = FlightCamera.fetch.mainCamera.ViewportPointToRay(mouseAim);
@@ -259,12 +307,12 @@ namespace BDArmory.WeaponMounts
                         if (gun != null)
                         gun.Fields["customTurretID"].guiActiveEditor = true;
                     }
-                    //if (child.Current.IsMissile())
-                    //{
-                    //    var msl = child.Current.FindModuleImplementing<MissileBase>();
-                    //    if (msl != null)
-                    //        Fields["fireFOV"].guiActiveEditor = true;
-                    //}
+                    if (child.Current.IsMissile())
+                    {
+                        var msl = child.Current.FindModuleImplementing<MissileBase>();
+                        if (msl != null)
+                            Fields["customTurretID"].guiActiveEditor = true;
+                    }
                     //Would result in two fireFOVs, assuming Servo + hinge; just leave as hardcoded 5deg for now.
                     //only have gun's TurrID slider appear if a child of the turret servo to reduce PAW clutter
 
@@ -296,14 +344,35 @@ namespace BDArmory.WeaponMounts
                 Vector3 rightPos = referenceTransform.position + (5 * referenceTransform.right);
                 GUIUtils.DrawLineBetweenWorldPositions(referenceTransform.position, rightPos, 4, Color.red);
                 */
-                Vector3 yawNrm = yawTransform.position + (10 * yawTransform.up);
+                Vector3 yawNrm = yawTransform.position + (5 * yawTransform.up);
                 if (Hinge)
                 {
-                    if (Hinge.mainAxis == "X") yawNrm = pitchTransform.position + (10 * -pitchTransform.forward);
-                    if (Hinge.mainAxis == "Z") yawNrm = pitchTransform.position + (10 * pitchTransform.right);
+                    if (Hinge.mainAxis == "X")
+                    {
+                        yawNrm = pitchTransform.position + (10 * pitchTransform.forward);
+                        Vector3 forPos = referenceTransform.position + (5 * referenceTransform.up);
+                        GUIUtils.DrawLineBetweenWorldPositions(referenceTransform.position, forPos, 4, Color.blue);
+                    }
+                    if (Hinge.mainAxis == "Z")
+                    {
+                        yawNrm = pitchTransform.position + (10 * pitchTransform.right);
+                        Vector3 forPos = referenceTransform.position + (5 * -referenceTransform.up);
+                        GUIUtils.DrawLineBetweenWorldPositions(referenceTransform.position, forPos, 4, Color.blue);
+                    }
+                    if (Hinge.mainAxis == "Y")
+                    {
+                        Vector3 forPos = referenceTransform.position + (5 * referenceTransform.forward);
+                        GUIUtils.DrawLineBetweenWorldPositions(referenceTransform.position, forPos, 4, Color.blue);
+                    }
                 }
-                GUIUtils.DrawLineBetweenWorldPositions(yawTransform.position, yawNrm, 4, Color.blue);     
-                
+                GUIUtils.DrawLineBetweenWorldPositions(yawTransform.position, yawNrm, 4, Color.green);
+                Vector3 baseFor = Hinge.mainAxis switch
+                {
+                    "X" => bottomTransform.up,
+                    "Z" => bottomTransform.forward,
+                    _ => bottomTransform.right
+                };
+                GUIUtils.DrawLineBetweenWorldPositions(bottomTransform.position, referenceTransform.position + (1 * baseFor), 10, Color.cyan);
             }
         }
         

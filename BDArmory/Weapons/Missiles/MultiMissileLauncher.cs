@@ -65,7 +65,7 @@ namespace BDArmory.Weapons.Missiles
         public ModuleMissileRearm missileSpawner = null;
         MissileLauncher missileLauncher = null;
         [KSPField] public bool adjustMissileVOffset = false; //should missile vertical offset dynamically adjust based on missile diameter (for MMLs on adjustable rails, etc)
-        float attachedMissileDia = 0;
+        [KSPField(isPersistant = true)] float attachedMissileDia = 0;
         MissileFire FiredByWM = null; // Assigned when fired and then not updated even if the parent craft changes their primary WM.
         private int tubesFired = 0;
         [KSPField(isPersistant = true)]
@@ -342,7 +342,7 @@ namespace BDArmory.Weapons.Missiles
                 if (Length > scaleMax) Length = scaleMax;
                 ALength.onFieldChanged = updateLength;
             }
-            if (adjustMissileVOffset)
+            if (adjustMissileVOffset || !string.IsNullOrEmpty(lengthTransformName))
             {
                 UI_FloatRange AOffset = (UI_FloatRange)Fields["attachOffset"].uiControlEditor;
                 AOffset.maxValue = offsetMax;

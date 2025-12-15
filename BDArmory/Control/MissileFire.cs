@@ -1366,16 +1366,12 @@ namespace BDArmory.Control
         {
             team_loaded = true;
             Team = BDTeam.Deserialize(team);
-
             UpdateMaxGuardRange();
             SetAFCAA();
-
             startTime = Time.time;
-
             if (HighLogic.LoadedSceneIsFlight)
             {
                 part.force_activate();
-
                 pointDefenseIRMissileSkipArr = new string[4];
                 UpdateList();
                 if (weaponArray.Length > 0) selectedWeapon = weaponArray[weaponIndex];
@@ -2086,11 +2082,10 @@ namespace BDArmory.Control
 
         private void CalculateMissilesAway() //FIXME - add check for identically named vessels
         {
+            if (!guardMode) return;
             missilesAway.Clear();
             // int tempMissilesAway = 0;
             //firedMissiles = 0;
-            if (!guardMode) return;
-
             bool sourceVessel;
             MissileBase missileBase;
 
@@ -3801,7 +3796,6 @@ namespace BDArmory.Control
                 }
                 return;
             }
-
             if (selectedWeapon != null && selectedWeapon.GetWeaponClass() == WeaponClasses.Missile && vessel.isActiveVessel)
             {
                 MissileBase ml = CurrentMissile;
@@ -3847,7 +3841,7 @@ namespace BDArmory.Control
                 targetingAudioSource.pitch = 1;
                 if (targetingAudioSource.isPlaying)
                 {
-                    targetingAudioSource.Stop();
+                    targetingAudioSource.Stop();                    
                 }
             }
         }
@@ -4355,7 +4349,6 @@ namespace BDArmory.Control
             {
                 ScreenMessages.RemoveMessage(selectionMessage);
                 selectionMessage.textInstance = null;
-
                 selectionText = $"Selected Weapon: {(GetWeaponName(weaponArray[weaponIndex])).ToString()}";
                 selectionMessage.message = selectionText;
                 selectionMessage.style = ScreenMessageStyle.UPPER_CENTER;
@@ -5018,14 +5011,12 @@ namespace BDArmory.Control
                 while (ct.MoveNext())
                 {
                     if (ct.Current == null) continue;
-                    //if (!ct.Current.isActiveAndEnabled) continue;
-                    Debug.Log($"[CUSTOMTURRETDEBUG] looking at {ct.Current.part.partInfo.title} on {vessel.GetName()}; currentMissile {CurrentMissile.shortName} customTurret.count: {CurrentMissile.customTurret.Count}");
+                    if (!ct.Current.isActiveAndEnabled) continue;
                     if (weaponIndex > 0 && CurrentMissile)
                     {
                         if (CurrentMissile.customTurret.Contains(ct.Current))
                         {
                             ct.Current.manuallyControlled = true;
-                            Debug.Log($"[CUSTOMTURRETDEBUG] enabling manual aim on current servo");
                         }
                     }
                     else //does this need a condition for weaponIndex > 0 (weapon selected) but not the missile turret?
