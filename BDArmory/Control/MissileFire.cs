@@ -2664,29 +2664,37 @@ namespace BDArmory.Control
                                     float turretStartTime = attemptStartTime;
                                     if (mlauncher.missileTurret && vesselRadarData.locked)
                                     {
+                                        // Technically this call can be removed, especially since it could interfere with simultaneous multi-turret
+                                        // operations, but it also provides a better track
                                         vesselRadarData.SlaveTurrets();
+                                        mlauncher.missileTurret.slavedGuard = true;
                                         while (Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && targetVessel && mlauncher && angle > mlauncher.missileTurret.fireFOV)
                                         {
                                             angle = VectorUtils.Angle(mlauncher.missileTurret.finalTransform.forward, mlauncher.missileTurret.slavedTargetPosition - mlauncher.missileTurret.finalTransform.position);
-                                            mlauncher.missileTurret.slaved = true;
+                                            //mlauncher.missileTurret.slaved = true;
                                             mlauncher.missileTurret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, targetVessel.CoM, targetVessel.Velocity(), mlauncher.missileTurret.turretLoft, mlauncher.missileTurret.turretLoftFac);
-                                            mlauncher.missileTurret.SlavedAim();
+                                            //mlauncher.missileTurret.SlavedAim();
                                             //Debug.Log($"[PD Missile Debug - {vessel.GetName()}] bringing radarMsl turret to bear...");
                                             yield return wait;
                                         }
+                                        mlauncher.missileTurret.slavedGuard = false;
                                     }
                                     if (mlauncher.multiLauncher && mlauncher.multiLauncher.turret && vesselRadarData.locked)
                                     {
+                                        // Technically this call can be removed, especially since it could interfere with simultaneous multi-turret
+                                        // operations, but it also provides a better track
                                         vesselRadarData.SlaveTurrets();
+                                        mlauncher.missileTurret.slavedGuard = true;
                                         while (Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && targetVessel && mlauncher && angle > mlauncher.multiLauncher.turret.fireFOV)
                                         {
                                             angle = VectorUtils.Angle(mlauncher.multiLauncher.turret.finalTransform.forward, mlauncher.multiLauncher.turret.slavedTargetPosition - mlauncher.multiLauncher.turret.finalTransform.position);
-                                            mlauncher.multiLauncher.turret.slaved = true;
+                                            //mlauncher.multiLauncher.turret.slaved = true;
                                             mlauncher.multiLauncher.turret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, targetVessel.CoM, targetVessel.Velocity(), mlauncher.multiLauncher.turret.turretLoft, mlauncher.multiLauncher.turret.turretLoftFac);
-                                            mlauncher.multiLauncher.turret.SlavedAim();
+                                            //mlauncher.multiLauncher.turret.SlavedAim();
                                             //Debug.Log($"[PD Missile Debug - {vessel.GetName()}] bringing radarMsl turret to bear...");
                                             yield return wait;
                                         }
+                                        mlauncher.missileTurret.slavedGuard = false;
                                     }
                                     if (mlauncher.multiLauncher && !mlauncher.multiLauncher.turret)
                                         yield return new WaitForSecondsFixed(mlauncher.multiLauncher.deploySpeed);
@@ -2791,25 +2799,29 @@ namespace BDArmory.Control
                                 float turretStartTime = attemptStartTime;
                                 if (mlauncher.missileTurret && heatTarget.exists)
                                 {
+                                    mlauncher.missileTurret.slavedGuard = true;
                                     while (heatTarget.exists && Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && targetVessel && mlauncher && angle > mlauncher.missileTurret.fireFOV)
                                     {
                                         angle = VectorUtils.Angle(mlauncher.missileTurret.finalTransform.forward, mlauncher.missileTurret.slavedTargetPosition - mlauncher.missileTurret.finalTransform.position);
-                                        mlauncher.missileTurret.slaved = true;
+                                        //mlauncher.missileTurret.slaved = true;
                                         mlauncher.missileTurret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, heatTarget.predictedPosition, heatTarget.velocity, mlauncher.missileTurret.turretLoft, mlauncher.missileTurret.turretLoftFac);
-                                        mlauncher.missileTurret.SlavedAim();
+                                        //mlauncher.missileTurret.SlavedAim();
                                         yield return wait;
                                     }
+                                    mlauncher.missileTurret.slavedGuard = false;
                                 }
                                 if (mlauncher.multiLauncher && mlauncher.multiLauncher.turret && heatTarget.exists)
                                 {
+                                    mlauncher.missileTurret.slavedGuard = true;
                                     while (heatTarget.exists && Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && targetVessel && mlauncher && angle > mlauncher.multiLauncher.turret.fireFOV)
                                     {
                                         angle = VectorUtils.Angle(mlauncher.multiLauncher.turret.finalTransform.forward, mlauncher.multiLauncher.turret.slavedTargetPosition - mlauncher.multiLauncher.turret.finalTransform.position);
-                                        mlauncher.multiLauncher.turret.slaved = true;
+                                        //mlauncher.multiLauncher.turret.slaved = true;
                                         mlauncher.multiLauncher.turret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, heatTarget.predictedPosition, heatTarget.velocity, mlauncher.multiLauncher.turret.turretLoft, mlauncher.multiLauncher.turret.turretLoftFac);
-                                        mlauncher.multiLauncher.turret.SlavedAim();
+                                        //mlauncher.multiLauncher.turret.SlavedAim();
                                         yield return wait;
                                     }
+                                    mlauncher.missileTurret.slavedGuard = false;
                                 }
                                 if (mlauncher.multiLauncher && !mlauncher.multiLauncher.turret)
                                     yield return new WaitForSecondsFixed(mlauncher.multiLauncher.deploySpeed);
@@ -2968,26 +2980,29 @@ namespace BDArmory.Control
 
                                 if (mlauncher.missileTurret)
                                 {
+                                    mlauncher.missileTurret.slavedGuard = true;
                                     while (Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && targetVessel && mlauncher && angle > mlauncher.missileTurret.fireFOV)
                                     {
                                         angle = VectorUtils.Angle(mlauncher.missileTurret.finalTransform.forward, mlauncher.missileTurret.slavedTargetPosition - mlauncher.missileTurret.finalTransform.position);
-                                        mlauncher.missileTurret.slaved = true;
-
+                                        //mlauncher.missileTurret.slaved = true;
                                         mlauncher.missileTurret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, targetVessel.CoM, targetVessel.Velocity(), mlauncher.missileTurret.turretLoft, mlauncher.missileTurret.turretLoftFac);
-                                        mlauncher.missileTurret.SlavedAim();
+                                        //mlauncher.missileTurret.SlavedAim();
                                         yield return wait;
                                     }
+                                    mlauncher.missileTurret.slavedGuard = false;
                                 }
                                 if (mlauncher.multiLauncher && mlauncher.multiLauncher.turret)
                                 {
+                                    mlauncher.missileTurret.slavedGuard = true;
                                     while (Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && targetVessel && mlauncher && angle > mlauncher.multiLauncher.turret.fireFOV)
                                     {
                                         angle = VectorUtils.Angle(mlauncher.multiLauncher.turret.finalTransform.forward, mlauncher.multiLauncher.turret.slavedTargetPosition - mlauncher.multiLauncher.turret.finalTransform.position);
-                                        mlauncher.multiLauncher.turret.slaved = true;
+                                        //mlauncher.multiLauncher.turret.slaved = true;
                                         mlauncher.multiLauncher.turret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, targetVessel.CoM, targetVessel.Velocity(), mlauncher.multiLauncher.turret.turretLoft, mlauncher.multiLauncher.turret.turretLoftFac);
-                                        mlauncher.multiLauncher.turret.SlavedAim();
+                                        //mlauncher.multiLauncher.turret.SlavedAim();
                                         yield return wait;
                                     }
+                                    mlauncher.missileTurret.slavedGuard = false;
                                 }
                                 if (mlauncher.multiLauncher && !mlauncher.multiLauncher.turret)
                                     yield return new WaitForSecondsFixed(mlauncher.multiLauncher.deploySpeed);
@@ -3035,25 +3050,29 @@ namespace BDArmory.Control
                                 float turretStartTime = attemptStartTime;
                                 if (mlauncher.missileTurret && antiRadTargetAcquired)
                                 {
+                                    mlauncher.missileTurret.slavedGuard = true;
                                     while (antiRadTargetAcquired && Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && targetVessel && mlauncher && antiRadTargetAcquired && angle > mlauncher.missileTurret.fireFOV)
                                     {
                                         angle = VectorUtils.Angle(mlauncher.missileTurret.finalTransform.forward, mlauncher.missileTurret.slavedTargetPosition - mlauncher.missileTurret.finalTransform.position);
-                                        mlauncher.missileTurret.slaved = true;
+                                        //mlauncher.missileTurret.slaved = true;
                                         mlauncher.missileTurret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, antiRadiationTarget, targetVessel.Velocity(), mlauncher.missileTurret.turretLoft, mlauncher.missileTurret.turretLoftFac);
-                                        mlauncher.missileTurret.SlavedAim();
+                                        //mlauncher.missileTurret.SlavedAim();
                                         yield return wait;
                                     }
+                                    mlauncher.missileTurret.slavedGuard = false;
                                 }
                                 if (mlauncher.multiLauncher && mlauncher.multiLauncher.turret && antiRadTargetAcquired)
                                 {
+                                    mlauncher.missileTurret.slavedGuard = true;
                                     while (antiRadTargetAcquired && Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && targetVessel && mlauncher && antiRadTargetAcquired && angle > mlauncher.multiLauncher.turret.fireFOV)
                                     {
                                         angle = VectorUtils.Angle(mlauncher.multiLauncher.turret.finalTransform.forward, mlauncher.multiLauncher.turret.slavedTargetPosition - mlauncher.multiLauncher.turret.finalTransform.position);
-                                        mlauncher.multiLauncher.turret.slaved = true;
+                                        //mlauncher.multiLauncher.turret.slaved = true;
                                         mlauncher.multiLauncher.turret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, antiRadiationTarget, targetVessel.Velocity(), mlauncher.multiLauncher.turret.turretLoft, mlauncher.multiLauncher.turret.turretLoftFac);
-                                        mlauncher.multiLauncher.turret.SlavedAim();
+                                        //mlauncher.multiLauncher.turret.SlavedAim();
                                         yield return wait;
                                     }
+                                    mlauncher.missileTurret.slavedGuard = false;
                                 }
                                 if (mlauncher.multiLauncher && !mlauncher.multiLauncher.turret)
                                     yield return new WaitForSecondsFixed(mlauncher.multiLauncher.deploySpeed);
@@ -3127,25 +3146,29 @@ namespace BDArmory.Control
                                 float turretStartTime = attemptStartTime;
                                 if (mlauncher.missileTurret)
                                 {
+                                    mlauncher.missileTurret.slavedGuard = true;
                                     while (Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && mlauncher && mlauncher.isActiveAndEnabled && foundCam && angle > mlauncher.missileTurret.fireFOV)
                                     {
                                         angle = VectorUtils.Angle(mlauncher.missileTurret.finalTransform.forward, mlauncher.missileTurret.slavedTargetPosition - mlauncher.missileTurret.finalTransform.position);
-                                        mlauncher.missileTurret.slaved = true;
-                                        mlauncher.missileTurret.slavedTargetPosition = foundCam.groundTargetPosition;
-                                        mlauncher.missileTurret.SlavedAim();
+                                        //mlauncher.missileTurret.slaved = true;
+                                        mlauncher.missileTurret.slavedTargetPosition = foundCam.targetPointPosition;
+                                        //mlauncher.missileTurret.SlavedAim();
                                         yield return wait;
                                     }
+                                    mlauncher.missileTurret.slavedGuard = false;
                                 }
                                 if (mlauncher.multiLauncher && mlauncher.multiLauncher.turret)
                                 {
+                                    mlauncher.multiLauncher.turret.slavedGuard = true;
                                     while (Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && mlauncher && mlauncher.isActiveAndEnabled && foundCam && angle > mlauncher.multiLauncher.turret.fireFOV)
                                     {
                                         angle = VectorUtils.Angle(mlauncher.multiLauncher.turret.finalTransform.forward, mlauncher.multiLauncher.turret.slavedTargetPosition - mlauncher.multiLauncher.turret.finalTransform.position);
-                                        mlauncher.multiLauncher.turret.slaved = true;
-                                        mlauncher.multiLauncher.turret.slavedTargetPosition = foundCam.groundTargetPosition;
-                                        mlauncher.multiLauncher.turret.SlavedAim();
+                                        //mlauncher.multiLauncher.turret.slaved = true;
+                                        mlauncher.multiLauncher.turret.slavedTargetPosition = foundCam.targetPointPosition;
+                                        //mlauncher.multiLauncher.turret.SlavedAim();
                                         yield return wait;
                                     }
+                                    mlauncher.missileTurret.slavedGuard = false;
                                 }
                                 if (mlauncher.multiLauncher && !mlauncher.multiLauncher.turret)
                                     yield return new WaitForSecondsFixed(mlauncher.multiLauncher.deploySpeed);
@@ -3247,25 +3270,29 @@ namespace BDArmory.Control
                                     float turretStartTime = attemptStartTime;
                                     if (mlauncher.missileTurret)
                                     {
+                                        mlauncher.missileTurret.slavedGuard = true;
                                         while (Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && mlauncher && targetVessel && angle > mlauncher.missileTurret.fireFOV)
                                         {
                                             angle = VectorUtils.Angle(mlauncher.missileTurret.finalTransform.forward, mlauncher.missileTurret.slavedTargetPosition - mlauncher.missileTurret.finalTransform.position);
-                                            mlauncher.missileTurret.slaved = true;
+                                            //mlauncher.missileTurret.slaved = true;
                                             mlauncher.missileTurret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, targetVessel.CoM, targetVessel.Velocity(), mlauncher.missileTurret.turretLoft, mlauncher.missileTurret.turretLoftFac);
-                                            mlauncher.missileTurret.SlavedAim();
+                                            //mlauncher.missileTurret.SlavedAim();
                                             yield return wait;
                                         }
+                                        mlauncher.missileTurret.slavedGuard = false;
                                     }
                                     if (mlauncher.multiLauncher && mlauncher.multiLauncher.turret)
                                     {
+                                        mlauncher.missileTurret.slavedGuard = true;
                                         while (Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && mlauncher && targetVessel && angle > mlauncher.multiLauncher.turret.fireFOV)
                                         {
                                             angle = VectorUtils.Angle(mlauncher.multiLauncher.turret.finalTransform.forward, mlauncher.multiLauncher.turret.slavedTargetPosition - mlauncher.multiLauncher.turret.finalTransform.position);
-                                            mlauncher.multiLauncher.turret.slaved = true;
+                                            //mlauncher.multiLauncher.turret.slaved = true;
                                             mlauncher.multiLauncher.turret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, targetVessel.CoM, targetVessel.Velocity(), mlauncher.multiLauncher.turret.turretLoft, mlauncher.multiLauncher.turret.turretLoftFac);
-                                            mlauncher.multiLauncher.turret.SlavedAim();
+                                            //mlauncher.multiLauncher.turret.SlavedAim();
                                             yield return wait;
                                         }
+                                        mlauncher.missileTurret.slavedGuard = false;
                                     }
                                     if (mlauncher.multiLauncher && !mlauncher.multiLauncher.turret)
                                     {
@@ -3336,25 +3363,29 @@ namespace BDArmory.Control
                                 float dumbfireFOV = 1f; // Match firing conditions for dumbfired weapons in GetLaunchAuthorization
                                 if (mlauncher.missileTurret)
                                 {
+                                    mlauncher.missileTurret.slavedGuard = true;
                                     while (Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && mlauncher && targetVessel && angle > dumbfireFOV)
                                     {
                                         angle = VectorUtils.Angle(mlauncher.missileTurret.finalTransform.forward, mlauncher.missileTurret.slavedTargetPosition - mlauncher.missileTurret.finalTransform.position);
-                                        mlauncher.missileTurret.slaved = true;
+                                        //mlauncher.missileTurret.slaved = true;
                                         mlauncher.missileTurret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(ml, targetVessel);
-                                        mlauncher.missileTurret.SlavedAim();
+                                        //mlauncher.missileTurret.SlavedAim();
                                         yield return wait;
                                     }
+                                    mlauncher.missileTurret.slavedGuard = false;
                                 }
                                 if (mlauncher.multiLauncher && mlauncher.multiLauncher.turret)
                                 {
+                                    mlauncher.missileTurret.slavedGuard = true;
                                     while (Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && mlauncher && targetVessel && angle > dumbfireFOV)
                                     {
                                         angle = VectorUtils.Angle(mlauncher.multiLauncher.turret.finalTransform.forward, mlauncher.multiLauncher.turret.slavedTargetPosition - mlauncher.multiLauncher.turret.finalTransform.position);
-                                        mlauncher.multiLauncher.turret.slaved = true;
+                                        //mlauncher.multiLauncher.turret.slaved = true;
                                         mlauncher.multiLauncher.turret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(ml, targetVessel);
-                                        mlauncher.multiLauncher.turret.SlavedAim();
+                                        //mlauncher.multiLauncher.turret.SlavedAim();
                                         yield return wait;
                                     }
+                                    mlauncher.missileTurret.slavedGuard = false;
                                 }
                             }
                             yield return wait;
