@@ -97,10 +97,12 @@ namespace BDArmory.Weapons.Missiles
         [KSPField]
         public string lengthTransformName;
         Transform LengthTransform;
+        Vector3 LengthTransformOrigScale;
 
         [KSPField]
         public string scaleTransformName;
         Transform ScaleTransform;
+        Vector3 ScaleTransformOrigScale;
 
         public MissileTurret turret;
 
@@ -325,6 +327,7 @@ namespace BDArmory.Weapons.Missiles
             else
             {
                 ScaleTransform = part.FindModelTransform(scaleTransformName);
+                ScaleTransformOrigScale = ScaleTransform.localScale;
                 UI_FloatRange AWidth = (UI_FloatRange)Fields["Scale"].uiControlEditor;
                 AWidth.maxValue = scaleMax;
                 if (Scale > scaleMax) Scale = scaleMax;
@@ -337,6 +340,7 @@ namespace BDArmory.Weapons.Missiles
             else
             {
                 LengthTransform = part.FindModelTransform(lengthTransformName);
+                LengthTransformOrigScale = LengthTransform.localScale;
                 UI_FloatRange ALength = (UI_FloatRange)Fields["Length"].uiControlEditor;
                 ALength.maxValue = scaleMax;
                 if (Length > scaleMax) Length = scaleMax;
@@ -375,7 +379,7 @@ namespace BDArmory.Weapons.Missiles
 
         public void updateScale(BaseField field, object obj)
         {
-            ScaleTransform.localScale = new Vector3(Scale, Scale, Scale);
+            ScaleTransform.localScale = ScaleTransformOrigScale * Scale;
             using (List<Part>.Enumerator sym = part.symmetryCounterparts.GetEnumerator())
                 while (sym.MoveNext())
                 {
@@ -390,7 +394,7 @@ namespace BDArmory.Weapons.Missiles
         }
         public void updateLength(BaseField field, object obj)
         {
-            LengthTransform.localScale = new Vector3(1, 1, (1 / Scale) * Length);
+            LengthTransform.localScale = new Vector3(LengthTransformOrigScale.x, LengthTransformOrigScale.y, (LengthTransformOrigScale.z / Scale) * Length);
             using (List<Part>.Enumerator sym = part.symmetryCounterparts.GetEnumerator())
                 while (sym.MoveNext())
                 {
@@ -423,9 +427,9 @@ namespace BDArmory.Weapons.Missiles
         public void UpdateLengthAndScale(float scale, float length, float offset)
         {
             if (ScaleTransform != null)
-                ScaleTransform.localScale = new Vector3(scale, scale, scale);
+                ScaleTransform.localScale = ScaleTransformOrigScale * scale;
             if (LengthTransform != null)
-                LengthTransform.localScale = new Vector3(1, 1, (1 / scale) * length);
+                LengthTransform.localScale = new Vector3(LengthTransformOrigScale.x, LengthTransformOrigScale.y, (LengthTransformOrigScale.z / scale) * length);
             if (!string.IsNullOrEmpty(lengthTransformName))
             {
                 for (int i = 0; i < launchTransforms.Length; i++)
@@ -713,7 +717,7 @@ namespace BDArmory.Weapons.Missiles
                     //{
                         // No point in checking since this already creates a new Vector3, may as well just set it...
                         //if (launchTransforms[i].localScale != new Vector3(1 / Scale, 1 / Scale, 1 / (Scale * Length)))
-                        launchTransforms[i].localScale = new Vector3(1 / Scale, 1 / Scale, 1 / (LengthTransform != null ? Length : Scale));
+                        launchTransforms[i].localScale = new Vector3(1f / Scale, 1f / Scale, 1f / (LengthTransform != null ? Length : Scale));
                     //}
                     tubesFired = 0;
                 }
@@ -727,6 +731,8 @@ namespace BDArmory.Weapons.Missiles
                     }
                     GameObject dummy = mslDummyPool[subMunitionPath].GetPooledObject();
                     MissileDummy dummyThis = dummy.GetComponentInChildren<MissileDummy>();
+
+                    launchTransforms[i].localScale = new Vector3(1f / Scale, 1f / Scale, 1f / (LengthTransform != null ? Length : Scale));
 
                     dummy.transform.localScale = dummyScale;
                     dummyThis.AttachAt(part, launchTransforms[i]);
