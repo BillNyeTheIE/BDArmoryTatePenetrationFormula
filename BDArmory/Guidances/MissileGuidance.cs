@@ -1242,7 +1242,7 @@ namespace BDArmory.Guidances
                     float D = deltaVel * T + 0.5f * accel * (T * T); //relative distance covered accelerating to optimum airspeed
                     leadTimeError = -leadTime;
                     if (targetDistance > D) leadTime = (targetDistance - D) / deltaVelOpt + T;
-                    else leadTime = (-deltaVel - BDAMath.Sqrt((deltaVel * deltaVel) + 2 * accel * targetDistance)) / accel;
+                    else leadTime = (-deltaVel - BDAMath.Sqrt((deltaVel * deltaVel) + 2f * accel * targetDistance)) / accel;
                     leadTime = Mathf.Clamp(leadTime, 0f, maxSimTime);
                     leadTimeError += leadTime;
                     leadPosition = AIUtils.PredictPosition(targetPosition, targetVelocity - (inSpace ? vel : Vector3.zero), Vector3.zero, leadTime);
@@ -1273,7 +1273,11 @@ namespace BDArmory.Guidances
                     leadPosition = missile.vessel.CoM + Vector3.RotateTowards(relPos, missile.vessel.upAxis, (theta - angle) * Mathf.Deg2Rad, vertDist);
             }
 
-            return leadPosition;
+            // Don't lead so much you end up leading behind the vehicle...
+            if (Vector3.Dot(targetPosition - missile.vessel.CoM, leadPosition) > 0)
+                return leadPosition;
+            else
+                return targetPosition;
         }
 
         public static Vector3 GetCruiseTarget(Vector3 targetPosition, Vessel missileVessel, float radarAlt)
