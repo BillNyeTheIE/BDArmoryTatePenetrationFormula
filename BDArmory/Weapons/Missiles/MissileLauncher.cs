@@ -1744,8 +1744,9 @@ namespace BDArmory.Weapons.Missiles
         public IEnumerator MissileReload()
         {
             bool redployTurret = false;
+            //TODO: missile reload SFX support?
             MissileTurret turret = multiLauncher ? multiLauncher.turret : missileTurret;
-            if ((turret != null) && (turret.deployBlocksReload && turret.hasDeployAnimation))
+            if ((turret != null) && (turret.deployBlocksReload && turret.hasDeployAnimation)) //change this to an AnimatedReload bool for deploy/reloadAnim support
             {
                 turret.isReloading = true;
                 redployTurret = true;
@@ -2527,7 +2528,7 @@ namespace BDArmory.Weapons.Missiles
 
             if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileLauncher]: Check cruise range trigger range: {BDAMath.Sqrt(sqrRange)}");
 
-            if (sqrRange < cruiseRangeTrigger * cruiseRangeTrigger)
+            if (sqrRange < cruiseRangeTrigger * cruiseRangeTrigger || (!vessel.InVacuum() && vessel.Velocity().sqrMagnitude < optimumAirspeed * optimumAirspeed * 0.5625f))
             {
                 if (cruiseTerminationFrames < 5)
                 {

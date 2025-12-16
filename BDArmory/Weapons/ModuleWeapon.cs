@@ -270,6 +270,7 @@ namespace BDArmory.Weapons
         //module references
         [KSPField] public int turretID = 0;
         public ModuleTurret turret;
+        public List<ModuleCustomTurret> customTurret = new List<ModuleCustomTurret>();
         public MissileFire WeaponManager
         {
             get
@@ -305,18 +306,20 @@ namespace BDArmory.Weapons
 
         public float maxPitch
         {
-            get { return turret ? turret.maxPitch : 0; }
+            get { return turret ? turret.maxPitch : customMaxPitch; }
         }
-
         public float minPitch
         {
-            get { return turret ? turret.minPitch : 0; }
+            get { return turret ? turret.minPitch : customMinPitch; }
         }
-
         public float yawRange
         {
-            get { return turret ? turret.yawRange : 0; }
+            get { return turret ? turret.yawRange : customYaw; }
         }
+        float customYaw = 0;
+        float customMinPitch = 0;
+        float customMaxPitch = 0;
+
 
         //weapon interface
         public WeaponClasses GetWeaponClass()
@@ -478,6 +481,10 @@ namespace BDArmory.Weapons
         private bool spinningDown;
 
         //weapon specifications
+        [KSPField(advancedTweakable = false, isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_TurretID"),//Custom Turret ID
+    UI_FloatRange(minValue = 1f, maxValue = 20f, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+        public float customTurretID = 0;
+
         [KSPField(advancedTweakable = true, isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_FiringPriority"),
             UI_FloatRange(minValue = 0, maxValue = 10, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
         public float priority = 0; //per-weapon priority selection override
@@ -1666,6 +1673,34 @@ namespace BDArmory.Weapons
                     Events["Jettison"].guiActive = false;
                     Actions["AGJettison"].active = false;
                 }
+            }
+            //custom turret setup
+            if (HighLogic.LoadedSceneIsFlight)
+            {
+                float yaw = 0;
+                float minP = 0;
+                float maxP = 0;
+                using (var servo = VesselModuleRegistry.GetModules<ModuleCustomTurret>(vessel).GetEnumerator())
+                    while (servo.MoveNext())
+                    {
+                        if (servo.Current == null) continue;
+                        if ((int)servo.Current.turretID != (int)customTurretID) continue;
+                        customTurret.Add(servo.Current);
+                        servo.Current.SetReferenceTransform(fireTransforms[0]);
+                        if (servo.Current.fullRotation) yaw = 360;
+                        else
+                        {
+                            float tempyaw = servo.Current.maxYaw - servo.Current.minYaw;
+                            if (tempyaw > yaw)
+                                yaw = tempyaw;
+                        }
+                        minP += servo.Current.minPitch;
+                        maxP += servo.Current.maxPitch;
+                    }
+                customYaw = yaw;
+                customMinPitch = minP;
+                customMaxPitch = maxP;
+                Debug.Log($"[ModuleWeapon] custom Min/max Pitch/Yaw vals are :{customMinPitch}; {customMaxPitch}; {customYaw}");
             }
             //setup animations
             if (hasDeployAnim)
@@ -4094,7 +4129,15 @@ namespace BDArmory.Weapons
                     }
                 }
                 if (!targetAcquired)
+                {
                     if (turret) turret.ReturnTurret();
+                    for (int i = 0; i < customTurret.Count; i++)
+                    {
+                        if (customTurret[i] == null) continue;
+                        if (customTurret[i].vessel != vessel) continue;
+                        customTurret[i].ReturnTurret();
+                    }
+                }
             }
             else
             {
@@ -4416,6 +4459,12 @@ namespace BDArmory.Weapons
                 }
                 turret.AimToTarget(finalAimTarget); //no aimbot turrets when target out of sight
                 turret.smoothRotation = origSmooth;
+            }
+            for (int i = 0; i < customTurret.Count; i++)
+            {
+                if (customTurret[i] == null) continue;
+                if (customTurret[i].vessel != vessel) continue;
+                customTurret[i].AimToTarget(finalAimTarget); //no aimbot turrets when target out of sight
             }
         }
 
@@ -6021,6 +6070,13 @@ namespace BDArmory.Weapons
                                                                                      //visualTargetPart = null;
                                                                                      //tgtShell = null;
                                                                                      //tgtRocket = null;
+
+                    for (int i = 0; i < customTurret.Count; i++)
+                    {
+                        if (customTurret[i] == null) continue;
+                        if (customTurret[i].vessel != vessel) continue;
+                        customTurret[i].ReturnTurret();
+                    }
                 }
             }
             return false;
@@ -6217,6 +6273,16 @@ namespace BDArmory.Weapons
             {
                 yield return new WaitForSecondsFixed(0.2f);
                 yield return new WaitWhileFixed(() => !turret.ReturnTurret()); //wait till turret has returned
+            }
+            if (customTurret.Count > 0)
+            {
+                yield return new WaitForSecondsFixed(0.2f);
+                for (int i = 0; i < customTurret.Count; i++)
+                {
+                    if (customTurret[i] == null) continue;
+                    if (customTurret[i].vessel != vessel) continue;
+                    yield return new WaitWhileFixed(() => !customTurret[i].ReturnTurret()); //wait till turret has returned
+                }
             }
             if (hasCharged)
             {

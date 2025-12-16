@@ -9,6 +9,7 @@ using BDArmory.Utils;
 using BDArmory.WeaponMounts;
 using BDArmory.Weapons;
 using BDArmory.Weapons.Missiles;
+using Expansions.Serenity;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -29,8 +30,10 @@ namespace BDArmory.Damage
         public bool isMissile = false;
         private float rebootTimer = 15;
         //if for whatever reason players are manually firing EMPs at targets with AI/WM disabled, don't enable them when vessel reboots
-        IBDAIControl activeAI = null;
-        List<MissileFire> activeWMs = [];
+        private IBDAIControl activeAI = null;
+        private List<MissileFire> activeWMs = [];
+        private List<ModuleRoboticServoHinge> activeHinges = [];
+        private List<ModuleRoboticRotationServo> activeServos = [];
         List<ModuleEngines> activeEngines = [];
         List<PartModule> activeFSEngines = [];
         public enum EMPbuildupTiers
@@ -217,6 +220,18 @@ namespace BDArmory.Damage
                     turret.yawSpeedDPS /= 100;
                     turret.pitchSpeedDPS /= 100;
                 }
+                foreach (var hinge in VesselModuleRegistry.GetModules<ModuleRoboticServoHinge>(vessel))
+                {
+                    if (hinge.servoMotorIsEngaged)
+                        hinge.servoMotorIsEngaged = false;
+                    activeHinges.Add(hinge);
+                }
+                foreach (var servo in VesselModuleRegistry.GetModules<ModuleRoboticRotationServo>(vessel))
+                {
+                    if (servo.servoMotorIsEngaged)
+                        servo.servoMotorIsEngaged = false;
+                    activeServos.Add(servo);
+                }
                 if (BDArmorySettings.DEBUG_DAMAGE) Debug.Log($"[BDArmory.ModuleDrainEC]: Disabling ControlSurfaces on {vessel.GetName()}");
             }
             if (EMPbuildup >= EMPbuildupTiers.Weapons && lastTierTriggered < EMPbuildupTiers.Weapons) //deactivate Weapons
@@ -333,6 +348,8 @@ namespace BDArmory.Damage
                     turret.yawSpeedDPS *= 100;
                     turret.pitchSpeedDPS *= 100;
                 }
+                foreach (var servo in activeServos) servo.servoMotorIsEngaged = true;
+                foreach (var hinge in activeHinges) hinge.servoMotorIsEngaged = true;
             }
             if (EMPbuildup < EMPbuildupTiers.Weapons && lastTierTriggered >= EMPbuildupTiers.Weapons) //reactivate Weapons
             {

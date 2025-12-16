@@ -290,12 +290,17 @@ namespace BDArmory.Radar
             Vector2 currPos = RadarUtils.WorldToRadar(source, referenceTransform, RwrDisplayRect, rwrDisplayRange);
             for (int i = 0; i < dataCount; i++)
             {
-                if (pingsData[i].exists && 
-                    (pingsData[i].pingPosition - currPos).sqrMagnitude < (BDArmorySettings.LOGARITHMIC_RADAR_DISPLAY ? 100f : 900f))    //prevent ping spam
+                TargetSignatureData tempPing = pingsData[i];
+                if (tempPing.exists && 
+                    (tempPing.pingPosition - currPos).sqrMagnitude < (BDArmorySettings.LOGARITHMIC_RADAR_DISPLAY ? 100f : 900f))    //prevent ping spam
                     break;
 
-                if (!pingsData[i].exists && openIndex == -1)
+                if (!tempPing.exists && openIndex == -1)
+                {
+                    // as soon as we have an open index, break
                     openIndex = i;
+                    break;
+                }
             }
 
             if (openIndex >= 0)
@@ -395,20 +400,21 @@ namespace BDArmory.Radar
 
             for (int i = 0; i < dataCount; i++)
             {
-                Vector2 pingPosition = pingsData[i].pingPosition;
+                TargetSignatureData currPing = pingsData[i];
+                Vector2 pingPosition = currPing.pingPosition;
                 //pingPosition = Vector2.MoveTowards(displayRect.center, pingPosition, displayRect.center.x - (pingSize/2));
                 Rect pingRect = new Rect(pingPosition.x - (pingSize / 2), pingPosition.y - (pingSize / 2), pingSize,
                     pingSize);
 
-                if (!pingsData[i].exists) continue;
-                if (pingsData[i].signalStrength == (float)RWRThreatTypes.MissileLock) //Hack! Evil misuse of field signalstrength...
+                if (!currPing.exists) continue;
+                if (currPing.signalType == RWRThreatTypes.MissileLock)
                 {
                     GUI.DrawTexture(pingRect, rwrMissileTexture, ScaleMode.StretchToFill, true);
                 }
                 else
                 {
                     GUI.DrawTexture(pingRect, rwrDiamondTexture, ScaleMode.StretchToFill, true);
-                    GUI.Label(pingRect, iconLabels[Mathf.RoundToInt(pingsData[i].signalStrength)], rwrIconLabelStyle); //Hack! Evil misuse of field signalstrength...
+                    GUI.Label(pingRect, iconLabels[(int)currPing.signalType], rwrIconLabelStyle);
                 }
             }
 

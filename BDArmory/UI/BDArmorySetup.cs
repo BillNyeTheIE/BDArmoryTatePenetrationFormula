@@ -2701,7 +2701,7 @@ namespace BDArmory.UI
                         //     var relativeVelocityDownDirection = Vector3.Cross(relativeVelocityRightDirection, vesselSrfVelDir).normalized;
                         //     var terrainAlertDetectionRadius = 3f * FlightGlobals.ActiveVessel.GetRadius();
                         //     var watch = new System.Diagnostics.Stopwatch();
-                        //     float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+                        //     float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
                         //     watch.Start();
                         //     for (int i = 0; i < N; ++i)
                         //     {
@@ -2711,14 +2711,14 @@ namespace BDArmory.UI
                         //         job.Complete(); // Wait for the job to complete.
                         //     }
                         //     watch.Stop();
-                        //     Debug.Log($"DEBUG Batch RaycastCommand[{debug_numRaycasts}] took {watch.ElapsedTicks * µsResolution / N:G3}µs");
+                        //     Debug.Log($"DEBUG Batch RaycastCommand[{debug_numRaycasts}] took {watch.ElapsedTicks * μsResolution / N:G3}μs");
                         //     RaycastHit rayHit;
                         //     watch.Reset(); watch.Start();
                         //     for (int i = 0; i < N; ++i)
                         //         for (int j = 0; j < debug_numRaycasts; ++j)
                         //             Physics.Raycast(new Ray(vesselPosition, (vesselSrfVelDir + relativeVelocityDownDirection).normalized), out rayHit, terrainAlertDetectionRadius, (int)LayerMasks.Scenery);
                         //     watch.Stop();
-                        //     Debug.Log($"DEBUG {debug_numRaycasts} Raycasts took {watch.ElapsedTicks * µsResolution / N:G3}µs");
+                        //     Debug.Log($"DEBUG {debug_numRaycasts} Raycasts took {watch.ElapsedTicks * μsResolution / N:G3}μs");
                         //     proximityRaycastCommands.Dispose();
                         //     proximityRaycastHits.Dispose();
                         // }
@@ -2730,7 +2730,7 @@ namespace BDArmory.UI
                         // if (GUI.Button(SLineRect(++line), "Test Collider.ClosestPoint[OnBounds]"))
                         // {
                         //     var watch = new System.Diagnostics.Stopwatch();
-                        //     float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+                        //     float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
                         //     int N = 1 << 16;
                         //     Ray ray = FlightCamera.fetch.mainCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
                         //     int layerMask = (int)(LayerMasks.Parts | LayerMasks.EVA | LayerMasks.Wheels | LayerMasks.Scenery);
@@ -2742,7 +2742,7 @@ namespace BDArmory.UI
                         //     {
                         //         watch.Stop();
                         //         var raycastTicks = watch.ElapsedTicks;
-                        //         string raycastString = $"Raycast took {raycastTicks * µsResolution:G3}µs";
+                        //         string raycastString = $"Raycast took {raycastTicks * μsResolution:G3}μs";
                         //         Part partHit = hit.collider.GetComponentInParent<Part>();
                         //         MeshCollider mcol = null;
                         //         bool isMeshCollider = false;
@@ -2761,13 +2761,13 @@ namespace BDArmory.UI
                         //                 closestPoint = hit.collider.ClosestPoint(ray.origin);
                         //         }
                         //         watch.Stop();
-                        //         Debug.Log($"DEBUG {raycastString}, {(isNonConvexMeshCollider ? "ClosestPointOnBounds" : "ClosestPoint")} ({closestPoint}) on{(isMeshCollider ? $" {(isNonConvexMeshCollider ? "non-" : "")}convex mesh" : "")} collider {hit.collider} from camera ({ray.origin}) took {watch.ElapsedTicks * µsResolution / N:G3}µs{(partHit != null ? $", offset from part ({partHit.name}): {closestPoint - partHit.transform.position}" : "")}, offset from hit: {hit.point - closestPoint}");
+                        //         Debug.Log($"DEBUG {raycastString}, {(isNonConvexMeshCollider ? "ClosestPointOnBounds" : "ClosestPoint")} ({closestPoint}) on{(isMeshCollider ? $" {(isNonConvexMeshCollider ? "non-" : "")}convex mesh" : "")} collider {hit.collider} from camera ({ray.origin}) took {watch.ElapsedTicks * μsResolution / N:G3}μs{(partHit != null ? $", offset from part ({partHit.name}): {closestPoint - partHit.transform.position}" : "")}, offset from hit: {hit.point - closestPoint}");
                         //     }
                         // }
                         // if (GUI.Button(SLineRect(++line), "Test 2x Raycast vs RaycastNonAlloc"))
                         // {
                         //     var watch = new System.Diagnostics.Stopwatch();
-                        //     float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+                        //     float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
                         //     int N = 1 << 20;
                         //     Ray ray = FlightCamera.fetch.mainCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
                         //     RaycastHit hit;
@@ -2782,13 +2782,13 @@ namespace BDArmory.UI
                         //         didHit = Physics.Raycast(ray, out hit, dist, layerMask);
                         //     }
                         //     watch.Stop();
-                        //     Debug.Log($"DEBUG Raycast 2x (hit? {didHit}) took {watch.ElapsedTicks * µsResolution / N:G3}µs");
+                        //     Debug.Log($"DEBUG Raycast 2x (hit? {didHit}) took {watch.ElapsedTicks * μsResolution / N:G3}μs");
                         //     int hitCount = 0;
                         //     watch.Reset(); watch.Start();
                         //     for (int i = 0; i < N; ++i)
                         //         hitCount = Physics.RaycastNonAlloc(ray, hits, dist, layerMask);
                         //     watch.Stop();
-                        //     Debug.Log($"DEBUG RaycastNonAlloc ({hitCount} hits) took {watch.ElapsedTicks * µsResolution / N:G3}µs");
+                        //     Debug.Log($"DEBUG RaycastNonAlloc ({hitCount} hits) took {watch.ElapsedTicks * μsResolution / N:G3}μs");
                         // }
                         // if (GUI.Button(SLineRect(++line), "Test GetFrameVelocityV3f"))
                         // {
@@ -4855,19 +4855,19 @@ namespace BDArmory.UI
         {
             Vessel vessel = FlightGlobals.ActiveVessel;
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
             ActiveController activeController = null;
             var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { activeController = vessel.ActiveController(); } };
-            Debug.Log($"DEBUG vessel.ActiveController() took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {activeController} with hash {(uint)activeController.GetHashCode()}");
+            Debug.Log($"DEBUG vessel.ActiveController() took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {activeController} with hash {(uint)activeController.GetHashCode()}");
             MissileFire wm = null;
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { wm = vessel.ActiveController().WM; } };
-            Debug.Log($"DEBUG vessel.ActiveController().WM took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {wm} with hash {(uint)wm.GetHashCode()}");
+            Debug.Log($"DEBUG vessel.ActiveController().WM took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {wm} with hash {(uint)wm.GetHashCode()}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { wm = VesselModuleRegistry.GetMissileFire(vessel); } };
-            Debug.Log($"DEBUG VesselModuleRegistry.GetMissileFire(vessel) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {wm} with hash {(uint)wm.GetHashCode()}");
+            Debug.Log($"DEBUG VesselModuleRegistry.GetMissileFire(vessel) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {wm} with hash {(uint)wm.GetHashCode()}");
             bool same = false;
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { same = wm != null && wm.IsPrimaryWM && wm.vessel == vessel; } };
-            Debug.Log($"DEBUG wm != null && wm.IsPrimaryWM && wm.vessel == vessel took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {same}");
+            Debug.Log($"DEBUG wm != null && wm.IsPrimaryWM && wm.vessel == vessel took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {same}");
             BDModulePilotAI pilotAI = null;
             BDModuleSurfaceAI surfaceAI = null;
             BDModuleVTOLAI vtolAI = null;
@@ -4890,7 +4890,7 @@ namespace BDArmory.UI
                     }
                 }
             };
-            Debug.Log($"DEBUG Multiple AI type selection took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {pilotAI}, {surfaceAI}, {vtolAI}, {orbitalAI}");
+            Debug.Log($"DEBUG Multiple AI type selection took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {pilotAI}, {surfaceAI}, {vtolAI}, {orbitalAI}");
         }
 
         public static void TestAbs()
@@ -4898,20 +4898,20 @@ namespace BDArmory.UI
             Vessel vessel = FlightGlobals.ActiveVessel;
             Vector3 pos = vessel.CoM;
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
             float x = 1.234f, y = -1.234f, zx = 0, zy = 0;
             [MethodImpl(MethodImplOptions.AggressiveInlining)] float Abs(float x) { return x < 0 ? -x : x; }
             var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { zx = Mathf.Abs(x); zy = Mathf.Abs(y); } };
-            Debug.Log($"DEBUG Mathf.Abs took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {zx}, {zy}");
+            Debug.Log($"DEBUG Mathf.Abs took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {zx}, {zy}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { zx = Math.Abs(x); zy = Math.Abs(y); } };
-            Debug.Log($"DEBUG Math.Abs(x) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {zx}, {zy}");
+            Debug.Log($"DEBUG Math.Abs(x) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {zx}, {zy}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { zx = (float)Math.Abs((double)x); zy = (float)Math.Abs((double)y); } };
-            Debug.Log($"DEBUG (float)Math.Abs((double)x) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {zx}, {zy}");
+            Debug.Log($"DEBUG (float)Math.Abs((double)x) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {zx}, {zy}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { zx = Abs(x); zy = Abs(y); } };
-            Debug.Log($"DEBUG Abs(x) {{ return x < 0 ? -x : x; }} took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {zx}, {zy}");
+            Debug.Log($"DEBUG Abs(x) {{ return x < 0 ? -x : x; }} took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {zx}, {zy}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { zx = x < 0 ? -x : x; zy = y < 0 ? -y : y; } };
-            Debug.Log($"DEBUG inline x<0?-x:x took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {zx}, {zy}");
+            Debug.Log($"DEBUG inline x<0?-x:x took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {zx}, {zy}");
         }
 
         // public static void TestAngle()
@@ -4924,17 +4924,17 @@ namespace BDArmory.UI
         //         Debug.Log($"DEBUG angle from v={v} to v rotated by {angle} is {Vector3.Angle(v, v2)} vs {VectorUtils.Angle(v, v2)} vs {(float)Vector3d.Angle(v, v2)}");
         //     }
         //     var watch = new System.Diagnostics.Stopwatch();
-        //     float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-        //     Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+        //     float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+        //     Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
         //     float a = 0;
         //     var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { a = Vector3.Angle(v,v2); } };
-        //     Debug.Log($"DEBUG Vector3.Angle took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {a}");
+        //     Debug.Log($"DEBUG Vector3.Angle took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {a}");
         //     a = 0;
         //     func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { a = VectorUtils.Angle(v,v2); } };
-        //     Debug.Log($"DEBUG VectorUtils.Angle took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {a}");
+        //     Debug.Log($"DEBUG VectorUtils.Angle took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {a}");
         //     a = 0;
         //     func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { a = (float)Vector3d.Angle(v,v2); } };
-        //     Debug.Log($"DEBUG (float)Vector3d.Angle took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {a}");
+        //     Debug.Log($"DEBUG (float)Vector3d.Angle took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {a}");
         // }
 
         public static void TestUp()
@@ -4942,46 +4942,46 @@ namespace BDArmory.UI
             Vessel vessel = FlightGlobals.ActiveVessel;
             Vector3 pos = vessel.CoM;
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
             Vector3 up = default;
             var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { up = vessel.upAxis; } };
-            Debug.Log($"DEBUG vessel.upAxis took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)up}");
+            Debug.Log($"DEBUG vessel.upAxis took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)up}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { up = VectorUtils.GetUpDirection(pos); } };
-            Debug.Log($"DEBUG GetUpDirection took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)up}");
+            Debug.Log($"DEBUG GetUpDirection took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)up}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { up = vessel.up; } };
-            Debug.Log($"DEBUG vessel.up took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)up}");
+            Debug.Log($"DEBUG vessel.up took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)up}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { up = vessel.transform.up; } };
-            Debug.Log($"DEBUG vessel.transform.up took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)up}");
+            Debug.Log($"DEBUG vessel.transform.up took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)up}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { up = -FlightGlobals.getGeeForceAtPosition(pos).normalized; } };
-            Debug.Log($"DEBUG -getGeeForceAtPosition.normalized took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)up}");
+            Debug.Log($"DEBUG -getGeeForceAtPosition.normalized took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)up}");
         }
 
         public static void TestInOnUnitSphere()
         {
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
             Vector3 point = default;
             var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { point = UnityEngine.Random.onUnitSphere; } };
-            Debug.Log($"DEBUG onUnitSphere took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {point}");
+            Debug.Log($"DEBUG onUnitSphere took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {point}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { point = UnityEngine.Random.insideUnitSphere; } };
-            Debug.Log($"DEBUG insideUnitSphere took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {point}");
+            Debug.Log($"DEBUG insideUnitSphere took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {point}");
         }
 
         public static void TestMaxRelSpeed()
         {
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
             var currentPosition = FlightGlobals.ActiveVessel.transform.position;
             var currentVelocity = FlightGlobals.ActiveVessel.rb_velocity + BDKrakensbane.FrameVelocityV3f;
             float maxRelSpeed = 0;
             var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { maxRelSpeed = BDAMath.Sqrt((float)FlightGlobals.Vessels.Where(v => v != null && v.loaded).Max(v => (v.rb_velocity + BDKrakensbane.FrameVelocityV3f - currentVelocity).sqrMagnitude)); } };
-            Debug.Log($"DEBUG Without Dot took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {maxRelSpeed}");
+            Debug.Log($"DEBUG Without Dot took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {maxRelSpeed}");
             maxRelSpeed = 0;
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { maxRelSpeed = BDAMath.Sqrt((float)FlightGlobals.Vessels.Where(v => v != null && v.loaded && Vector3.Dot(v.rb_velocity + BDKrakensbane.FrameVelocityV3f - currentVelocity, v.transform.position - currentPosition) < 0).Select(v => (v.rb_velocity + BDKrakensbane.FrameVelocityV3f - currentVelocity).sqrMagnitude).DefaultIfEmpty(0).Max()); } };
-            Debug.Log($"DEBUG With Dot took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {maxRelSpeed}");
+            Debug.Log($"DEBUG With Dot took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {maxRelSpeed}");
             maxRelSpeed = 0;
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () =>
             {
@@ -5001,7 +5001,7 @@ namespace BDArmory.UI
                     maxRelSpeed = BDAMath.Sqrt(maxRelSpeedSqr);
                 }
             };
-            Debug.Log($"DEBUG Explicit without Dot took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {maxRelSpeed}");
+            Debug.Log($"DEBUG Explicit without Dot took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {maxRelSpeed}");
             maxRelSpeed = 0;
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () =>
             {
@@ -5021,132 +5021,132 @@ namespace BDArmory.UI
                     maxRelSpeed = BDAMath.Sqrt(maxRelSpeedSqr);
                 }
             };
-            Debug.Log($"DEBUG Explicit with Dot took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {maxRelSpeed}");
+            Debug.Log($"DEBUG Explicit with Dot took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {maxRelSpeed}");
         }
 
         public static void TestSqrVsSqr()
         {
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
             float sqr = 0, value = 3.14159f;
             var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { sqr = value.Sqr(); } };
-            Debug.Log($"DEBUG value.Sqr() took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {sqr}");
+            Debug.Log($"DEBUG value.Sqr() took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {sqr}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { sqr = value * value; } };
-            Debug.Log($"DEBUG value * value took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {sqr}");
+            Debug.Log($"DEBUG value * value took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {sqr}");
             Vector3 a = UnityEngine.Random.insideUnitSphere, b = UnityEngine.Random.insideUnitSphere;
             float distance = 0;
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { distance = Vector3.Distance(a, b); } };
-            Debug.Log($"DEBUG Vector3.Distance took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {distance}");
+            Debug.Log($"DEBUG Vector3.Distance took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {distance}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { distance = (a - b).magnitude; } };
-            Debug.Log($"DEBUG magnitude took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {distance}");
+            Debug.Log($"DEBUG magnitude took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {distance}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { distance = (a - b).sqrMagnitude; } };
-            Debug.Log($"DEBUG sqrMagnitude took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {distance}");
+            Debug.Log($"DEBUG sqrMagnitude took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {distance}");
             bool lessThan = false;
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { lessThan = Vector3.Distance(a, b) < 0.5f; } };
-            Debug.Log($"DEBUG Vector3.Distance < v took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {distance}");
+            Debug.Log($"DEBUG Vector3.Distance < v took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {distance}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { lessThan = (a - b).sqrMagnitude < 0.5f * 0.5f; } };
-            Debug.Log($"DEBUG sqrMagnitude < v*v took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {distance}");
+            Debug.Log($"DEBUG sqrMagnitude < v*v took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {distance}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { lessThan = (a - b).sqrMagnitude < 0.5f.Sqr(); } };
-            Debug.Log($"DEBUG sqrMagnitude < v.Sqr() took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {distance}");
+            Debug.Log($"DEBUG sqrMagnitude < v.Sqr() took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {distance}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { lessThan = a.CloserToThan(b, 0.5f); } };
-            Debug.Log($"DEBUG a.CloserToThan(b,f) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {lessThan}");
+            Debug.Log($"DEBUG a.CloserToThan(b,f) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {lessThan}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { lessThan = a.FurtherFromThan(b, 0.5f); } };
-            Debug.Log($"DEBUG a.FurtherFromThan(b,f) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {lessThan}");
+            Debug.Log($"DEBUG a.FurtherFromThan(b,f) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {lessThan}");
         }
 
         public static void TestOrderOfOperations()
         {
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
             float x = UnityEngine.Random.Range(-1f, 1f);
             Vector3 X = UnityEngine.Random.insideUnitSphere;
             Vector3 result = default;
             var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = x * X; } };
-            Debug.Log($"DEBUG x*X took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs");
+            Debug.Log($"DEBUG x*X took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = X * x; } };
-            Debug.Log($"DEBUG X*x took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs");
+            Debug.Log($"DEBUG X*x took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = x * x * X; } };
-            Debug.Log($"DEBUG x*x*X took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs");
+            Debug.Log($"DEBUG x*x*X took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = X * x * x; } };
-            Debug.Log($"DEBUG X*x*x took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs");
+            Debug.Log($"DEBUG X*x*x took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = x * X * x; } };
-            Debug.Log($"DEBUG x*X*x took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs");
+            Debug.Log($"DEBUG x*X*x took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = x * x * x * X; } };
-            Debug.Log($"DEBUG x*x*x*X took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs");
+            Debug.Log($"DEBUG x*x*x*X took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = X * x * x * x; } };
-            Debug.Log($"DEBUG X*x*x*x took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs");
+            Debug.Log($"DEBUG X*x*x*x took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs");
         }
 
         public static void TestMassVsSizePerformance()
         {
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
             var vessel = FlightGlobals.ActiveVessel;
             float mass = 0, size = 0;
             var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { mass = vessel.GetTotalMass(); } };
-            Debug.Log($"DEBUG GetTotalMass took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {mass}");
+            Debug.Log($"DEBUG GetTotalMass took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {mass}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { size = vessel.vesselSize.sqrMagnitude; } };
-            Debug.Log($"DEBUG Size took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {size}");
+            Debug.Log($"DEBUG Size took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {size}");
         }
 
         public static void TestDotNormPerformance()
         {
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
             var v1 = UnityEngine.Random.insideUnitSphere;
             var v2 = UnityEngine.Random.insideUnitSphere;
             float dot = 0;
             var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { dot = Vector3.Dot(v1.normalized, v2.normalized); } };
-            Debug.Log($"DEBUG Dot(v1.norm, v2.norm) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {dot}");
+            Debug.Log($"DEBUG Dot(v1.norm, v2.norm) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {dot}");
             dot = 0;
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { dot = v1.DotNormalized(v2); } };
-            Debug.Log($"DEBUG v1.DotNorm(v2) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {dot}");
+            Debug.Log($"DEBUG v1.DotNorm(v2) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {dot}");
         }
 
         public static void TestNamePerformance()
         {
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
             var v = FlightGlobals.ActiveVessel;
             string vesselName, getName, getDisplayName;
             var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { vesselName = v.vesselName; } };
-            Debug.Log($"DEBUG vesselName took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {v.vesselName}");
+            Debug.Log($"DEBUG vesselName took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {v.vesselName}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { getName = v.GetName(); } };
-            Debug.Log($"DEBUG GetName took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {v.GetName()}");
+            Debug.Log($"DEBUG GetName took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {v.GetName()}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { getDisplayName = v.GetDisplayName(); } };
-            Debug.Log($"DEBUG GetDisplayName took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {v.GetDisplayName()}");
+            Debug.Log($"DEBUG GetDisplayName took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {v.GetDisplayName()}");
         }
 
         public static void TestRandPerformance()
         {
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
             Vector3 result = default;
             var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = VectorUtils.GaussianVector3(); } };
-            Debug.Log($"DEBUG VectorUtils.GaussianVector3() took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG VectorUtils.GaussianVector3() took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = UnityEngine.Random.insideUnitSphere; } };
-            Debug.Log($"DEBUG UnityEngine.Random.insideUnitSphere took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG UnityEngine.Random.insideUnitSphere took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = new Vector3(UnityEngine.Random.value * 2f - 1f, UnityEngine.Random.value * 2f - 1f, UnityEngine.Random.value * 2f - 1f); } };
-            Debug.Log($"DEBUG new Vector3(UnityEngine.Random.value * 2f - 1f, UnityEngine.Random.value * 2f - 1f, UnityEngine.Random.value * 2f - 1f) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG new Vector3(UnityEngine.Random.value * 2f - 1f, UnityEngine.Random.value * 2f - 1f, UnityEngine.Random.value * 2f - 1f) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
             float value = 0;
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { value = UnityEngine.Random.value; } };
-            Debug.Log($"DEBUG UnityEngine.Random.value took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {value}");
+            Debug.Log($"DEBUG UnityEngine.Random.value took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {value}");
             value = 0;
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { value += UnityEngine.Random.insideUnitSphere.magnitude; } };
-            Debug.Log($"DEBUG UnityEngine.Random.insideUnitSphere.magnitude took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {value / PROF_N / PROF_n}");
+            Debug.Log($"DEBUG UnityEngine.Random.insideUnitSphere.magnitude took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {value / PROF_N / PROF_n}");
         }
 
         public static void TestProjectOnPlaneAndPredictPosition()
         {
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
-            Debug.Log($"DEBUG Clock resolution: {µsResolution}µs, {PROF_N} outer loops, {PROF_n} inner loops");
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            Debug.Log($"DEBUG Clock resolution: {μsResolution}μs, {PROF_N} outer loops, {PROF_n} inner loops");
             Vessel vessel = FlightGlobals.ActiveVessel;
             Vector3 p = vessel.CoM, v = vessel.srf_velocity, a = vessel.acceleration;
             Vector3 result = default;
@@ -5154,59 +5154,59 @@ namespace BDArmory.UI
             var upNormal = VectorUtils.GetUpDirection(p);
 
             var func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = AIUtils.PredictPosition(p, v, a, time); } };
-            Debug.Log($"DEBUG AIUtils.PredictPosition(p, v, a, time) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG AIUtils.PredictPosition(p, v, a, time) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
 
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = PredictPositionNoInline(p, v, a, time); } };
-            Debug.Log($"DEBUG PredictPositionNoInline(p, v, a, time) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG PredictPositionNoInline(p, v, a, time) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
 
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = p + time * v + 0.5f * time * time * a; } };
-            Debug.Log($"DEBUG p + time * v + 0.5f * time * time * a took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG p + time * v + 0.5f * time * time * a took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
 
             func = [MethodImpl(MethodImplOptions.NoInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = p + time * v + 0.5f * time * time * a; } };
-            Debug.Log($"DEBUG p + time * v + 0.5f * time * time * a no-inlining took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG p + time * v + 0.5f * time * time * a no-inlining took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
 
             watch.Reset(); watch.Start();
             for (int i = 0; i < PROF_N * PROF_n; ++i) { result = p + time * v + 0.5f * time * time * a; }
             watch.Stop();
-            Debug.Log($"DEBUG fully inlined took {watch.ElapsedTicks * µsResolution / PROF_N / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG fully inlined took {watch.ElapsedTicks * μsResolution / PROF_N / PROF_n:G3}μs to give {(Vector3d)result}");
 
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = Vector3.ProjectOnPlane(v, upNormal); } };
-            Debug.Log($"DEBUG Vector3.ProjectOnPlane(v, upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG Vector3.ProjectOnPlane(v, upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
 
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = v.ProjectOnPlane(upNormal); } };
-            Debug.Log($"DEBUG v.ProjectOnPlane(upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG v.ProjectOnPlane(upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
 
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = ProjectOnPlaneOpt(v, upNormal); } };
-            Debug.Log($"DEBUG ProjectOnPlaneOpt(v, upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG ProjectOnPlaneOpt(v, upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
 
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = v.ProjectOnPlanePreNormalized(upNormal); } };
-            Debug.Log($"DEBUG v.ProjectOnPlanePreNormalized(upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG v.ProjectOnPlanePreNormalized(upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
 
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = ProjectOnPlanePreNorm(v, upNormal); } };
-            Debug.Log($"DEBUG ProjectOnPlanePreNorm(v, upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG ProjectOnPlanePreNorm(v, upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
 
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = ProjectOnPlanePreNormNoInline(v, upNormal); } };
-            Debug.Log($"DEBUG ProjectOnPlanePreNormNoInline(v, upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG ProjectOnPlanePreNormNoInline(v, upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
 
             func = [MethodImpl(MethodImplOptions.AggressiveInlining)] () => { for (int i = 0; i < PROF_n; ++i) { result = v - upNormal * Vector3.Dot(v, upNormal); } };
-            Debug.Log($"DEBUG v - upNormal * Vector3.Dot(v, upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG v - upNormal * Vector3.Dot(v, upNormal) took {ProfileFunc(func, PROF_N) / PROF_n:G3}μs to give {(Vector3d)result}");
 
             watch.Reset(); watch.Start();
             for (int i = 0; i < PROF_N * PROF_n; ++i) { result = v - upNormal * Vector3.Dot(v, upNormal); }
             watch.Stop();
-            Debug.Log($"DEBUG fully inlined took {watch.ElapsedTicks * µsResolution / PROF_N / PROF_n:G3}µs to give {(Vector3d)result}");
+            Debug.Log($"DEBUG fully inlined took {watch.ElapsedTicks * μsResolution / PROF_N / PROF_n:G3}μs to give {(Vector3d)result}");
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         static float ProfileFunc(Action func, int N)
         {
             var watch = new System.Diagnostics.Stopwatch();
-            float µsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
+            float μsResolution = 1e6f / System.Diagnostics.Stopwatch.Frequency;
             func(); // Warm-up
             watch.Start();
             for (int i = 0; i < N; ++i) func();
             watch.Stop();
-            return watch.ElapsedTicks * µsResolution / N;
+            return watch.ElapsedTicks * μsResolution / N;
         }
 
         public static Vector3 PredictPositionNoInline(Vector3 position, Vector3 velocity, Vector3 acceleration, float time)

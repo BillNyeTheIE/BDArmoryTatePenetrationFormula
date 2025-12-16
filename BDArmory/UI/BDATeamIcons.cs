@@ -357,7 +357,7 @@ namespace BDArmory.UI
                                     }
                                     if (BDTISettings.TEAMNAMES)
                                     {
-                                        onScreenLabels.Add((new(guiPos.x + 16 * BDTISettings.ICONSCALE, guiPos.y - 19 * BDTISettings.ICONSCALE, 100, 32), "Team: " + $"{wm.Current.Team.Name}", teamcolor, DropshadowStyle));
+                                        onScreenLabels.Add((new(guiPos.x + 16 * BDTISettings.ICONSCALE, guiPos.y - 19 * BDTISettings.ICONSCALE, 100, 32), $"Team: {wm.Current.Team.Name}", teamcolor, DropshadowStyle));
                                     }
 
                                     if (BDTISettings.SCORE)

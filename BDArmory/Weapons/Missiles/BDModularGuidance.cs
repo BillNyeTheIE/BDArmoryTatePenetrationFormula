@@ -443,6 +443,12 @@ namespace BDArmory.Weapons.Missiles
                 missileCM.RemoveAll(dropper => dropper.vessel != vessel);
         }
 
+        public override void OnAwake()
+        {
+            base.OnAwake();
+            SetPersistantFields(); // Adjust persistency of various fields before they get loaded.
+        }
+
         void Update()
         {
             if (!HighLogic.LoadedSceneIsFlight) return;
@@ -758,15 +764,6 @@ namespace BDArmory.Weapons.Missiles
                 Fields["detonationTime"].guiActiveEditor = false;
             }
 
-            Fields["LoftMaxAltitude"].isPersistant = true;
-            Fields["LoftRangeOverride"].isPersistant = true;
-            Fields["LoftAltitudeAdvMax"].isPersistant = true;
-            Fields["LoftMinAltitude"].isPersistant = true;
-            Fields["LoftAngle"].isPersistant = true;
-            Fields["LoftTermAngle"].isPersistant = true;
-            Fields["LoftRangeFac"].isPersistant = true;
-            Fields["LoftVelComp"].isPersistant = true;
-            Fields["LoftVertVelComp"].isPersistant = true;
             Fields["terminalHomingRange"].guiActiveEditor = false;
 
             Fields["LoftMaxAltitude"].uiControlEditor = (UI_FloatRange)Fields["LoftMaxAltitude"].uiControlFlight;
@@ -813,6 +810,19 @@ namespace BDArmory.Weapons.Missiles
 
             OnStageOnProximity(Fields["StageToTriggerOnProximity"], null);
             InitializeEngagementRange(minStaticLaunchRange, maxStaticLaunchRange);
+        }
+
+        private void SetPersistantFields()
+        {
+            Fields["LoftMaxAltitude"].isPersistant = true;
+            Fields["LoftRangeOverride"].isPersistant = true;
+            Fields["LoftAltitudeAdvMax"].isPersistant = true;
+            Fields["LoftMinAltitude"].isPersistant = true;
+            Fields["LoftAngle"].isPersistant = true;
+            Fields["LoftTermAngle"].isPersistant = true;
+            Fields["LoftRangeFac"].isPersistant = true;
+            Fields["LoftVelComp"].isPersistant = true;
+            Fields["LoftVertVelComp"].isPersistant = true;
         }
 
         private void OnStageOnProximity(BaseField baseField, object o)
