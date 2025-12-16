@@ -711,8 +711,9 @@ namespace BDArmory.Weapons.Missiles
                 {
                     //if (missileSpawner.ammoCount > i || isClusterMissile)
                     //{
-                        if (launchTransforms[i].localScale != new Vector3(1 / Scale, 1 / Scale, 1 / Length))
-                            launchTransforms[i].localScale = new Vector3(1 / Scale, 1 / Scale, 1 / Length);
+                        // No point in checking since this already creates a new Vector3, may as well just set it...
+                        //if (launchTransforms[i].localScale != new Vector3(1 / Scale, 1 / Scale, 1 / (Scale * Length)))
+                        launchTransforms[i].localScale = new Vector3(1 / Scale, 1 / Scale, 1 / (LengthTransform != null ? Length : Scale));
                     //}
                     tubesFired = 0;
                 }
