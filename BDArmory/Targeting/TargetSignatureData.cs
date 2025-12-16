@@ -28,6 +28,7 @@ namespace BDArmory.Targeting
         public Vessel vessel;
         public Part IRSource;
         public bool isDecoy = false;
+        public float range;
         //SEE TODO in CheckJamming
         //public Vector3 jammedGeoPos;
         bool orbital;
@@ -41,7 +42,7 @@ namespace BDArmory.Targeting
                 timeAcquired == other.timeAcquired;
         }
 
-        public TargetSignatureData(Vessel v, float _signalStrength, Part heatpart = null, float _notchMod = 0f)
+        public TargetSignatureData(Vessel v, float _signalStrength, Part heatpart = null, float _notchMod = 0f, float _range = -1f)
         {
             orbital = v.InOrbit();
             orbit = v.orbit;
@@ -54,6 +55,7 @@ namespace BDArmory.Targeting
             acceleration = v.acceleration_immediate;
             exists = true;
             notchMod = _notchMod;
+            range = _range;
 
             signalStrength = _signalStrength;
 

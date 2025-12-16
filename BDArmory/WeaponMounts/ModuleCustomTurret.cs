@@ -22,7 +22,7 @@ namespace BDArmory.WeaponMounts
         /*
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_MissileTurretFireFOV"),
     UI_FloatRange(minValue = 1, maxValue = 180, stepIncrement = 1, scene = UI_Scene.All)]
-        public float fireFOV = 5; // Fire when pointing within 5° of target.
+        public float fireFOV = 5; // Fire when pointing within 5ï¿½ of target.
         */
         [KSPField] public string pitchTransformName = "TopJoint";
         public Transform pitchTransform;
@@ -206,7 +206,6 @@ namespace BDArmory.WeaponMounts
                 {
                     var nonWobblyWay = Vector3.Dot(yawTransform.parent.right, targetDirection + referenceTransform.position - yawTransform.position);
                     //if (float.IsNaN(nonWobblyWay)) return;
-
                     targetYawAngle = 180 * Math.Sign(nonWobblyWay);
                 }
             }

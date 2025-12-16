@@ -696,11 +696,12 @@ namespace BDArmory.Control
                             targetVelocity = MaxSpeed;
                             if (distance > Mathf.Max(MaxEngagementRange / 2, 2000)) orderedToExtend = false;
                             if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine($"Extending: ({distance:F2}/{Mathf.Max(MaxEngagementRange / 2, 2000)})");
+                            SetStatus($"Extending {distance:0}m/{Mathf.Max(MaxEngagementRange / 2, 2000):0}m");
                             return;
                         }
                         else
                         {
-                            if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine($"velAngle: {VectorUtils.Angle(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(vessel.up), vesselTransform.up)}");
+                            if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) DebugLine($"velAngle: {VectorUtils.Angle(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(vessel.up), vesselTransform.up):G3}");
                             extendingTarget = null;
                             targetDirection = vecToTarget.ProjectOnPlanePreNormalized(upDir);
                             if (weaponManager.selectedWeapon != null)
@@ -758,25 +759,48 @@ namespace BDArmory.Control
                             {
                                 if (distance >= MaxEngagementRange)
                                     targetVelocity = MaxSpeed;//out of engagement range, engines ahead full
-                                if (distance <= MinEngagementRange * 1.25f) //coming within minEngagement range
+                                else if (distance <= MinEngagementRange * 1.25f) //coming within minEngagement range
                                 {
                                     if (maintainMinRange) //for some reason ignored if both vessel and targetvessel using Mk2roverCans?
                                     {
                                         //Add LoS provisions if target is behind hill/building?
-                                        if (targetVessel.srfSpeed < 10)
-                                        {
-                                            targetVelocity = 0;
-                                            SetStatus($"Braking");
-                                        }
                                         if (distance <= MinEngagementRange) //rolled to a stop inside minRange/target has encroached
                                         {
                                             //if (Vector3.Dot(vessel.vesselTransform.up, vessel.srf_vel_direction.ProjectOnPlanePreNormalized(upDir)) > 0) //we're still moving forward
                                             //brakes = true;
                                             //else brakes = false;//come to a stop and reversing, stop braking
-                                            doReverse = true;
-                                            targetVelocity = -MaxSpeed;
-                                            SetStatus($"Reversing");
+                                            if (Vector3.Dot(targetDirection, vesselTransform.up) < 0)
+                                            {
+                                                targetVelocity = MaxSpeed;
+                                                targetDirection = -targetDirection;
+                                                extendingTarget = targetVessel;
+                                                SetStatus($"Extending {distance:0}m/{MinEngagementRange:0}m");
+                                            }
+                                            else
+                                            {
+                                                doReverse = true;
+                                                targetVelocity = -MaxSpeed;
+                                                SetStatus($"Reversing");
+                                            }
                                             return;
+                                        }
+                                        else if (vessel.srfSpeed < 0.1f * MaxSpeed && weaponManager && !weaponManager.recentlyFiring)
+                                        {
+                                            if (distance < 1.125f * MinEngagementRange)
+                                            {
+                                                targetVelocity = -0.1f * MaxSpeed;
+                                                doReverse = true;
+                                            }
+                                            else
+                                            {
+                                                targetVelocity = 0.1f * MaxSpeed;
+                                            }
+                                            SetStatus($"Adjusting alignment");
+                                        }
+                                        else if (targetVessel.srfSpeed < 0.1f * MaxSpeed)
+                                        {
+                                            targetVelocity = 0;
+                                            SetStatus($"Braking");
                                         }
                                         return;
                                     }
@@ -898,7 +922,7 @@ namespace BDArmory.Control
             {
                 weaveAdjustment = 0;
             }
-            if ((BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) && weaponManager) DebugLine($"underFire {weaponManager.underFire}, weaveAdjustment {weaveAdjustment}");
+            if ((BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI) && weaponManager) DebugLine($"underFire {weaponManager.underFire}, weaveAdjustment {weaveAdjustment:G3}");
         }
 
         bool PanicModes()
@@ -1000,18 +1024,33 @@ namespace BDArmory.Control
 
             Vector3 yawTarget = targetDirection.ProjectOnPlanePreNormalized(vesselTransform.forward);
 
+            // Invert the yawTarget only if we're deliberately reversing and the target direction is behind us.
+            // This puts the yawTarget ahead of us when we're deliberately reversing no matter the targetDirection.
+            if (doReverse && Vector3.Dot(yawTarget, vesselTransform.up) < 0)
+                yawTarget = -yawTarget;
+
             // limit "aoa" if we're moving
             float driftMult = 1;
             if (SurfaceType != AIUtils.VehicleMovementType.Stationary && vessel.horizontalSrfSpeed * 10 > CruiseSpeed)
             {
-                driftMult = Mathf.Max(VectorUtils.Angle(vessel.srf_velocity, yawTarget) / MaxDrift, 1);
-                yawTarget = Vector3.RotateTowards(vessel.srf_velocity, yawTarget, MaxDrift * Mathf.Deg2Rad, 0);
+                Vector3d tempSrfVel = doReverse ? -vessel.srf_velocity : vessel.srf_velocity;
+                if (Vector3.Dot(tempSrfVel, yawTarget) < 0) tempSrfVel = -tempSrfVel; // Avoid wrenching sideways when switching from forward to reverse and vice-versa.
+                driftMult = Mathf.Max(VectorUtils.Angle(tempSrfVel, yawTarget) / MaxDrift, 1);
+                yawTarget = Vector3.RotateTowards(tempSrfVel, yawTarget, MaxDrift * Mathf.Deg2Rad, 0);
             }
-            bool invertCtrlPoint = SurfaceType != AIUtils.VehicleMovementType.Stationary && VectorUtils.Angle(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(vessel.up), vesselTransform.up) > 90 && Math.Round(vessel.srfSpeed, 1) > 1; //need to flip vessel 'forward' when reversing for proper steerage
-            float yawError = VectorUtils.GetAngleOnPlane(yawTarget, vesselTransform.up, invertCtrlPoint ? -vesselTransform.right : vesselTransform.right) + ((aimingMode & AimingMode.Yaw) > 0 ? 0 : weaveAdjustment);
+
+            float yawError = VectorUtils.GetAngleOnPlane(yawTarget, vesselTransform.up, vesselTransform.right);
+
+            // Reverse the angle if we're going backwards to steer correctly.
+            bool invertCtrlPoint = SurfaceType != AIUtils.VehicleMovementType.Stationary && vessel.srfSpeed > 0.1f && Vector3.Dot(vessel.srf_vel_direction.ProjectOnPlanePreNormalized(vessel.up), vesselTransform.up) < 0;
+            if (invertCtrlPoint) yawError = -yawError;
+
+            // If we don't have a fixed-yaw weapon, add in some weaving.
+            if ((aimingMode & AimingMode.Yaw) == 0) yawError += weaveAdjustment;
+
             if (BDArmorySettings.DEBUG_TELEMETRY || BDArmorySettings.DEBUG_AI)
             {
-                DebugLine($"yaw target: {yawTarget}, yaw error: {yawError}");
+                DebugLine($"yaw target: {yawTarget}, yaw error: {yawError:G3}, invertCtrlPoint: {invertCtrlPoint}");
                 DebugLine($"drift multiplier: {driftMult}");
             }
 

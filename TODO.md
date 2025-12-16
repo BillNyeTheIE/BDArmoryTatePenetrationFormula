@@ -5,6 +5,8 @@
 - Taking off with the global 'P' button for two VTOL craft on the runway disables their engines!
 - WM without AI or with stationary ground AI sometimes just sits there without attacking valid targets.
 
+- Clean up invalid UTF-8 chars by searching for `[^\x00-\x7f±°ñ—α→θψφρqω₀π²·δ↔∫•∈"γgμν‽Δ↕]` (add more to exclude as necessary). Ignore localisation files.
+
 ### TODO (smaller items and specific requests / higher priority)
 - Fix bugs
 	- Sometimes the field toggles in ModuleWeapon (and elsewhere) throw InvalidCast exceptions on startup. Suspect a race condition.
