@@ -26,6 +26,10 @@
 		- EMP buildup now causes increasing penalties/subsystem shutdowns as it accrues in a vessel receiving EMP damage.
 	- Fix hypersonic rounds dealing self damage when fired into something at close range.
 	- External fires from incendiary ammo into flammable hull materials no longer suppressed by Inerted Tanks.
+	- Added a AIMING_VISUAL_MALUS setting (default=0) that applies a malus to aiming at targets with mk1 eyeballs if >0 and the target is within visual range. The malus decreases both with time since target acquisition and shots fired at the target, and resets when changing targets.
+		Weapons configs can be configured with:
+		- 'sightingAccuracy' (default=1 mrad) which represents the limit of visual aiming accounting for scopes and other visual aids.
+		- 'malusReductionPerShot' (default 0.1) which determines how rapidly the malus decreases with each shot at the target.
 	- Missiles:
 		- Add ordnance offset option to non-adjustabeRail reloadable MultiMissileLaunchers that don't come with set missile types.
 		- Fix Nuclear ordnance applying multiple stacks of EMP damage to a single vessel during detonation.
@@ -461,8 +465,6 @@ IMPROVEMENTS / FIXES
 	- Improved performance of bullet firing code.
 	- Fixed issue where slaved turrets would fire at a stale radar contact.
 	- Added "guidanceRange" parameter for guided bullets, determines the range to the target at which the bullet will begin to maneuver, set to -1 for guidance immediately from the muzzle.
-	- Added a AIMING_VISUAL_MALUS setting (default=0) that applies a malus to aiming at targets with mk1 eyeballs.
-		- FIXME Add some details as to how it affects aiming.
 	- Missiles:
 		- Add "cruiseRangeTrigger" field to missiles. Missiles using this will delay firing their cruise motor until within the set distance to target.
 		- Tweak acoustic propagation loss rate for passive acoustic torpedoes, should have a bit further effective detection range now.
