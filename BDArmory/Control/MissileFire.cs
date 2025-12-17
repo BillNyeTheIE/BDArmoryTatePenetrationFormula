@@ -3060,11 +3060,30 @@ namespace BDArmory.Control
 
                             float attemptStartTime = Time.time;
                             float attemptDuration = targetScanInterval * 0.75f;
+                            MissileLauncher mlauncher = ml as MissileLauncher;
+                            MissileTurret mLauncherTurret = mlauncher.missileTurret;
+                            MissileTurret multiLauncherTurret = mlauncher.multiLauncher ? mlauncher.multiLauncher.turret : null;
+                            if (mLauncherTurret) mLauncherTurret.slavedGuard = true;
+                            if (multiLauncherTurret) multiLauncherTurret.slavedGuard = true;
                             while (Time.time - attemptStartTime < attemptDuration && (!antiRadTargetAcquired || !AntiRadDistanceCheck()))
+                            {
+                                // We assume that we know where the target is...
+                                if (mLauncherTurret)
+                                {
+                                    // Point turret towards it if it exists...
+                                    mLauncherTurret.slavedTargetPosition = targetVessel.CoM;
+                                }
+                                if (multiLauncherTurret)
+                                {
+                                    // Point turret towards it if it exists...
+                                    multiLauncherTurret.slavedTargetPosition = targetVessel.CoM;
+                                }
                                 yield return wait;
+                            }
+                            if (mLauncherTurret) mLauncherTurret.slavedGuard = false;
+                            if (multiLauncherTurret) multiLauncherTurret.slavedGuard = false;
 
                             attemptStartTime = Time.time;
-                            MissileLauncher mlauncher = ml as MissileLauncher;
                             if (targetVessel && mlauncher)
                             {
                                 float angle = 999;
