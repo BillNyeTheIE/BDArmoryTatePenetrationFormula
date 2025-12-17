@@ -901,7 +901,7 @@ namespace BDArmory.Weapons.Missiles
                     ml.dropTime = missileLauncher.dropTime;
                     ml.decoupleSpeed = missileLauncher.decoupleSpeed;
                 }
-                ml.DetonateAtMinimumDistance = missileLauncher.DetonateAtMinimumDistance;
+                ml.DetonateAtMinimumDistance = missileLauncher.DetonateAtMinimumDistance && missileLauncher.canDetMinDist;
                 ml.guidanceActive = true;
                 ml.detonationTime = missileLauncher.detonationTime;
                 ml.engageAir = missileLauncher.engageAir;
@@ -917,9 +917,9 @@ namespace BDArmory.Weapons.Missiles
                 if (missileLauncher.GuidanceMode == GuidanceModes.Cruise)
                 {
                     ml.CruiseAltitude = missileLauncher.CruiseAltitude;
-                    ml.CruiseSpeed = missileLauncher.CruiseSpeed;
+                    ml.CruiseSpeed = Mathf.Min(missileLauncher.CruiseSpeed, missileLauncher.maxCruiseSpeed);
                     ml.CruisePredictionTime = missileLauncher.CruisePredictionTime;
-                    ml.CruisePopup = missileLauncher.CruisePopup;
+                    ml.CruisePopup = missileLauncher.CruisePopup && missileLauncher.canCruisePopup;
                 }
 
                 if (BDArmorySettings.DEBUG_MISSILES)
