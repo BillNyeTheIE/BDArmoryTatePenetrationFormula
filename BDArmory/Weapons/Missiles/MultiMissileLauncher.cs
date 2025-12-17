@@ -320,6 +320,9 @@ namespace BDArmory.Weapons.Missiles
                 UI_FloatRange Ammo = (UI_FloatRange)missileSpawner.Fields["railAmmo"].uiControlEditor;
                 Ammo.onFieldChanged = updateOffset;                
             }
+
+            MultiMissileLauncher baseConfig = part.partInfo.partPrefab.FindModuleImplementing<MultiMissileLauncher>();
+
             if (string.IsNullOrEmpty(scaleTransformName))
             {
                 Fields["Scale"].guiActiveEditor = false;
@@ -327,11 +330,14 @@ namespace BDArmory.Weapons.Missiles
             else
             {
                 ScaleTransform = part.FindModelTransform(scaleTransformName);
-                ScaleTransformOrigScale = ScaleTransform.localScale;
-                UI_FloatRange AWidth = (UI_FloatRange)Fields["Scale"].uiControlEditor;
-                AWidth.maxValue = scaleMax;
-                if (Scale > scaleMax) Scale = scaleMax;
-                AWidth.onFieldChanged = updateScale;
+                if (ScaleTransform != null)
+                {
+                    ScaleTransformOrigScale = baseConfig ? ScaleTransform.localScale * (baseConfig.Scale / Scale) : ScaleTransform.localScale;
+                    UI_FloatRange AWidth = (UI_FloatRange)Fields["Scale"].uiControlEditor;
+                    AWidth.maxValue = scaleMax;
+                    if (Scale > scaleMax) Scale = scaleMax;
+                    AWidth.onFieldChanged = updateScale;
+                }
             }
             if (string.IsNullOrEmpty(lengthTransformName))
             {
@@ -340,11 +346,19 @@ namespace BDArmory.Weapons.Missiles
             else
             {
                 LengthTransform = part.FindModelTransform(lengthTransformName);
-                LengthTransformOrigScale = LengthTransform.localScale;
-                UI_FloatRange ALength = (UI_FloatRange)Fields["Length"].uiControlEditor;
-                ALength.maxValue = scaleMax;
-                if (Length > scaleMax) Length = scaleMax;
-                ALength.onFieldChanged = updateLength;
+                if (LengthTransform != null)
+                {
+                    LengthTransformOrigScale = LengthTransform.localScale;
+                    if (baseConfig)
+                    {
+                        float scaleFactor = ScaleTransform ? (Scale * baseConfig.Length / (baseConfig.Scale * Length)) : (baseConfig.Length / Length);
+                        LengthTransformOrigScale = new Vector3(LengthTransformOrigScale.x, LengthTransformOrigScale.y, LengthTransformOrigScale.z * scaleFactor);
+                    }
+                    UI_FloatRange ALength = (UI_FloatRange)Fields["Length"].uiControlEditor;
+                    ALength.maxValue = scaleMax;
+                    if (Length > scaleMax) Length = scaleMax;
+                    ALength.onFieldChanged = updateLength;
+                }
             }
             if (adjustMissileVOffset)
             {
@@ -394,7 +408,7 @@ namespace BDArmory.Weapons.Missiles
         }
         public void updateLength(BaseField field, object obj)
         {
-            LengthTransform.localScale = new Vector3(LengthTransformOrigScale.x, LengthTransformOrigScale.y, (LengthTransformOrigScale.z / Scale) * Length);
+            LengthTransform.localScale = new Vector3(LengthTransformOrigScale.x, LengthTransformOrigScale.y, LengthTransformOrigScale.z * (ScaleTransform ? (Length / Scale) : Length));
             using (List<Part>.Enumerator sym = part.symmetryCounterparts.GetEnumerator())
                 while (sym.MoveNext())
                 {
