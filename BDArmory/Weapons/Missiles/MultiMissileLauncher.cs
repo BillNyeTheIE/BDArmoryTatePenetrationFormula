@@ -321,8 +321,6 @@ namespace BDArmory.Weapons.Missiles
                 Ammo.onFieldChanged = updateOffset;                
             }
 
-            MultiMissileLauncher baseConfig = part.partInfo.partPrefab.FindModuleImplementing<MultiMissileLauncher>();
-
             if (string.IsNullOrEmpty(scaleTransformName))
             {
                 Fields["Scale"].guiActiveEditor = false;
@@ -332,7 +330,7 @@ namespace BDArmory.Weapons.Missiles
                 ScaleTransform = part.FindModelTransform(scaleTransformName);
                 if (ScaleTransform != null)
                 {
-                    ScaleTransformOrigScale = baseConfig ? ScaleTransform.localScale * (baseConfig.Scale / Scale) : ScaleTransform.localScale;
+                    ScaleTransformOrigScale = part.partInfo.partPrefab.FindModelTransform(scaleTransformName).localScale; //baseConfig ? ScaleTransform.localScale * (baseConfig.Scale / Scale) : ScaleTransform.localScale;
                     UI_FloatRange AWidth = (UI_FloatRange)Fields["Scale"].uiControlEditor;
                     AWidth.maxValue = scaleMax;
                     if (Scale > scaleMax) Scale = scaleMax;
@@ -348,12 +346,7 @@ namespace BDArmory.Weapons.Missiles
                 LengthTransform = part.FindModelTransform(lengthTransformName);
                 if (LengthTransform != null)
                 {
-                    LengthTransformOrigScale = LengthTransform.localScale;
-                    if (baseConfig)
-                    {
-                        float scaleFactor = ScaleTransform ? (Scale * baseConfig.Length / (baseConfig.Scale * Length)) : (baseConfig.Length / Length);
-                        LengthTransformOrigScale = new Vector3(LengthTransformOrigScale.x, LengthTransformOrigScale.y, LengthTransformOrigScale.z * scaleFactor);
-                    }
+                    LengthTransformOrigScale = part.partInfo.partPrefab.FindModelTransform(scaleTransformName).localScale;
                     UI_FloatRange ALength = (UI_FloatRange)Fields["Length"].uiControlEditor;
                     ALength.maxValue = scaleMax;
                     if (Length > scaleMax) Length = scaleMax;
