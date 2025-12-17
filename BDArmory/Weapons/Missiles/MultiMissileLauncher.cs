@@ -451,7 +451,7 @@ namespace BDArmory.Weapons.Missiles
                     launchTransforms[i].localPosition = new Vector3(launchTransforms[i].localPosition.x, launchTransforms[i].localPosition.y, attachOffset * Mathf.Max(Scale, Length));
                 }
             }
-            PopulateMissileDummies();
+            PopulateMissileDummies(true);
         }
         private void OnDestroy()
         {
