@@ -2749,12 +2749,34 @@ namespace BDArmory.Control
 
                             float attemptStartTime = Time.time;
                             float attemptDuration = Mathf.Max(targetScanInterval * 0.75f, 5f);
-                            MissileLauncher mlauncher;
+                            MissileLauncher mlauncher = ml as MissileLauncher;
+                            // Have to get both due to the potential for the missile to be a cluster missile on a standard missileTurret
+                            // Also good to have them so we can ensure slavedGuard gets set to false at the end even if ml/mLauncher is destroyed
+                            MissileTurret mLauncherTurret = mlauncher.missileTurret;
+                            MissileTurret multiLauncherTurret = mlauncher.multiLauncher ? mlauncher.multiLauncher.turret : null;
+                            if (mLauncherTurret) mLauncherTurret.slavedGuard = true;
+                            if (multiLauncherTurret) multiLauncherTurret.slavedGuard = true;
                             while (ml && targetVessel && Time.time - attemptStartTime < attemptDuration && (!heatTarget.exists || (heatTarget.predictedPosition - targetVessel.CoM).sqrMagnitude > 40 * 40))
+                            {
+                                // We assume that we know where the target is...
+                                if (mLauncherTurret)
+                                {
+                                    // Point turret towards it if it exists...
+                                    mLauncherTurret.slavedTargetPosition = targetVessel.CoM;
+                                }
+                                if (multiLauncherTurret)
+                                {
+                                    // Point turret towards it if it exists...
+                                    multiLauncherTurret.slavedTargetPosition = targetVessel.CoM;
+                                }
                                 yield return wait;
+                            }
+                            if (mLauncherTurret) mLauncherTurret.slavedGuard = false;
+                            if (multiLauncherTurret) multiLauncherTurret.slavedGuard = false;
+
                             if (BDArmorySettings.DEBUG_MISSILES && CurrentMissile) Debug.Log($"[BDArmory.MissileFire]: {vessel.vesselName}'s {CurrentMissile.GetShortName()} has heatTarget: {heatTarget.exists}");
                             //try uncaged IR lock with radar
-                            if (ml.activeRadarRange > 0) //defaults to 6k for non-radar missiles, using negative value for differentiating passive acoustic vs heater
+                            if (ml && ml.activeRadarRange > 0) //defaults to 6k for non-radar missiles, using negative value for differentiating passive acoustic vs heater
                             {
                                 if (targetVessel && !heatTarget.exists && vesselRadarData)
                                 {
@@ -2792,44 +2814,44 @@ namespace BDArmory.Control
 
                             //wait for missile turret to point at target
                             attemptStartTime = Time.time;
-                            mlauncher = ml as MissileLauncher;
+                            //mlauncher = ml as MissileLauncher;
                             if (targetVessel && mlauncher)
                             {
                                 float angle = 999;
                                 float turretStartTime = attemptStartTime;
-                                if (mlauncher.missileTurret && heatTarget.exists)
+                                if (mLauncherTurret && heatTarget.exists)
                                 {
-                                    mlauncher.missileTurret.slavedGuard = true;
-                                    while (heatTarget.exists && Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && targetVessel && mlauncher && angle > mlauncher.missileTurret.fireFOV)
+                                    mLauncherTurret.slavedGuard = true;
+                                    while (heatTarget.exists && Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && targetVessel && mlauncher && angle > mLauncherTurret.fireFOV)
                                     {
-                                        angle = VectorUtils.Angle(mlauncher.missileTurret.finalTransform.forward, mlauncher.missileTurret.slavedTargetPosition - mlauncher.missileTurret.finalTransform.position);
                                         //mlauncher.missileTurret.slaved = true;
-                                        mlauncher.missileTurret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, heatTarget.predictedPosition, heatTarget.velocity, mlauncher.missileTurret.turretLoft, mlauncher.missileTurret.turretLoftFac);
+                                        mLauncherTurret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, heatTarget.predictedPosition, heatTarget.velocity, mLauncherTurret.turretLoft, mLauncherTurret.turretLoftFac);
                                         //mlauncher.missileTurret.SlavedAim();
                                         yield return wait;
+                                        angle = VectorUtils.Angle(mLauncherTurret.finalTransform.forward, mLauncherTurret.slavedTargetPosition - mLauncherTurret.finalTransform.position);
                                     }
-                                    mlauncher.missileTurret.slavedGuard = false;
+                                    mLauncherTurret.slavedGuard = false;
                                 }
-                                if (mlauncher.multiLauncher && mlauncher.multiLauncher.turret && heatTarget.exists)
+                                if (multiLauncherTurret && heatTarget.exists)
                                 {
-                                    mlauncher.multiLauncher.turret.slavedGuard = true;
-                                    while (heatTarget.exists && Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && targetVessel && mlauncher && angle > mlauncher.multiLauncher.turret.fireFOV)
+                                    multiLauncherTurret.slavedGuard = true;
+                                    while (heatTarget.exists && Time.time - turretStartTime < Mathf.Max(targetScanInterval / 2f, 2) && targetVessel && mlauncher && angle > multiLauncherTurret.fireFOV)
                                     {
-                                        angle = VectorUtils.Angle(mlauncher.multiLauncher.turret.finalTransform.forward, mlauncher.multiLauncher.turret.slavedTargetPosition - mlauncher.multiLauncher.turret.finalTransform.position);
                                         //mlauncher.multiLauncher.turret.slaved = true;
-                                        mlauncher.multiLauncher.turret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, heatTarget.predictedPosition, heatTarget.velocity, mlauncher.multiLauncher.turret.turretLoft, mlauncher.multiLauncher.turret.turretLoftFac);
+                                        multiLauncherTurret.slavedTargetPosition = MissileGuidance.GetAirToAirFireSolution(mlauncher, heatTarget.predictedPosition, heatTarget.velocity, multiLauncherTurret.turretLoft, multiLauncherTurret.turretLoftFac);
                                         //mlauncher.multiLauncher.turret.SlavedAim();
                                         yield return wait;
+                                        angle = VectorUtils.Angle(multiLauncherTurret.finalTransform.forward, multiLauncherTurret.slavedTargetPosition - multiLauncherTurret.finalTransform.position);
                                     }
-                                    mlauncher.multiLauncher.turret.slavedGuard = false;
+                                    multiLauncherTurret.slavedGuard = false;
                                 }
-                                if (mlauncher.multiLauncher && !mlauncher.multiLauncher.turret)
+                                if (mlauncher.multiLauncher && !multiLauncherTurret)
                                     yield return new WaitForSecondsFixed(mlauncher.multiLauncher.deploySpeed);
                             }
 
                             yield return wait;
 
-                            if (heatTarget.exists && heatTarget.signalStrength * ((BDArmorySettings.ASPECTED_IR_SEEKERS && Vector3.Dot(targetVessel.vesselTransform.up, ml.transform.forward) > 0.25f) ? ml.frontAspectHeatModifier : 1) < ml.heatThreshold)
+                            if (ml && heatTarget.exists && heatTarget.signalStrength * ((BDArmorySettings.ASPECTED_IR_SEEKERS && Vector3.Dot(targetVessel.vesselTransform.up, ml.transform.forward) > 0.25f) ? ml.frontAspectHeatModifier : 1) < ml.heatThreshold)
                             {
                                 if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileFire]: Heatseeker heat threashold not met, aborting launch attempt.");
                                 break; //in case rearAspect missile doesn't have a heatTarget, then GMR creates a heatTarget via radar lock in the 'if (targetVessel && !heatTarget.exists && vesselRadarData)' codeblock above
