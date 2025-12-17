@@ -35,6 +35,7 @@
 		- Improve "CLOSlead" debug visualization, now shows the proper, lead-adjusted beam, for easier debugging.
 		- Fixed missile ECM behavior, previously changes to the missile's radar signature due to ECM could be overwritten by the missile going active/passive, causing ECM to seemingly not function.
 		- Missiles with a "cruiseRangeTrigger" will now also fire the cruise motor if the missile's airspeed drops below 75% of its optimum airspeed while in-atmosphere.
+		- AAMLoft settings for modular missiles are now correctly loaded when returning to the SPH.
 		- Fix "guidanceDelay" not working properly
 		- Improve Kappa guidance loft termination, as a result Kappa no longer uses LoftRangeFac and LoftVertVelComp.
 		- Fix CLOS/CLOSthree/CLOSlead guidance failure due to inaccurate determination of "no progress" condition
