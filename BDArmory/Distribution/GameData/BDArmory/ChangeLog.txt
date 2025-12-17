@@ -30,7 +30,7 @@
 	- Fix hypersonic rounds dealing self damage when fired into something at close range.
 	- External fires from incendiary ammo into flammable hull materials no longer suppressed by Inerted Tanks.
 	- Missiles:
-		- Add ordnance offset option to non-adjustabeRail reloadable MultiMissileLaunchers that don't come with set missile types.
+		- Add ordnance offset option to non-adjustableRail reloadable MultiMissileLaunchers that don't come with set missile types.
 		- Fix Nuclear ordnance applying multiple stacks of EMP damage to a single vessel during detonation.
 		- Improve "CLOSlead" debug visualization, now shows the proper, lead-adjusted beam, for easier debugging.
 		- Fixed missile ECM behavior, previously changes to the missile's radar signature due to ECM could be overwritten by the missile going active/passive, causing ECM to seemingly not function.
@@ -41,6 +41,8 @@
 		- "CruisePopup" setting now persistent and editable in the hangar when missile config has "CruisePopup = true"
 		- Missiles will now respect config value of "DetonateAtMinimumDistance" setting, if a missile config does not have this set to true, it cannot be edited/used.
 		- Un-deprecate "proxyDetonate" field, missiles with "proxyDetonate = false" in their configs will be *strictly* impact fuzed.
+		- Fix certain scaling issues with multi-missile launchers
+		- Fix missile turret aiming under Guard Mode control, particularly, turrets with IR missiles will now pre-aim at the target to facilitate acquisition
   - Robotics:
 		- Adds ability to build custom turrets with Breaking Ground Hinges and Servoes.
 			- BG hinges/servoes now have a 'Custom Turret ID' slider; attaching a weapon as a child of the robotic part adds a similar 'Custom Turret ID' slider to the gun.
