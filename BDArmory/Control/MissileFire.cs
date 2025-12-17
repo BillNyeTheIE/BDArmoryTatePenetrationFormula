@@ -65,7 +65,7 @@ namespace BDArmory.Control
         public ModuleWeapon[] pointDefenseWeaponArray;
         private List<MissileBase> pointDefenseMissiles = [];
         public MissileBase[] pointDefenseMissileArray;
-        string[] pointDefenseIRMissileSkipArr;
+        string[] pointDefenseIRMissileSkipArr = [];
         int pointDefenseIRMissileCount = -1;
         float pointDefenseMissileMaxARH = -1f;
         float pointDefenseMissileMaxRange = -1f;
@@ -1372,7 +1372,6 @@ namespace BDArmory.Control
             if (HighLogic.LoadedSceneIsFlight)
             {
                 part.force_activate();
-                pointDefenseIRMissileSkipArr = new string[4];
                 UpdateList();
                 if (weaponArray.Length > 0) selectedWeapon = weaponArray[weaponIndex];
                 selectionMessage = new ScreenMessage("", 2.0f, ScreenMessageStyle.LOWER_CENTER);
@@ -2082,10 +2081,11 @@ namespace BDArmory.Control
 
         private void CalculateMissilesAway() //FIXME - add check for identically named vessels
         {
-            if (!guardMode) return;
+            
             missilesAway.Clear();
             // int tempMissilesAway = 0;
             //firedMissiles = 0;
+            if (!guardMode) return;
             bool sourceVessel;
             MissileBase missileBase;
 

@@ -651,7 +651,7 @@ namespace BDArmory.Weapons.Missiles
 
             weaponClass = WeaponClasses.Missile;
             WeaponName = GetShortName();
-            if (HighLogic.LoadedSceneIsFlight)
+            if (HighLogic.LoadedSceneIsFlight && customTurretID > 0)
             {
                 missileName = shortName;
                 using (var servo = VesselModuleRegistry.GetModules<ModuleCustomTurret>(vessel).GetEnumerator())
@@ -662,6 +662,12 @@ namespace BDArmory.Weapons.Missiles
                         customTurret.Add(servo.Current);
                         servo.Current.SetReferenceTransform(MissileReferenceTransform); //confirm this is pointing in the right direction
                     }
+                if (customTurret.Count == 0) customTurretID = 0;
+            }
+            if (HighLogic.LoadedSceneIsEditor)
+            {
+                GameEvents.onEditorPartPlaced.Add(OnEditorPartPlaced);
+                FindParents(part);
             }
             activeRadarRange = ActiveRadarRange;
             chaffEffectivity = ChaffEffectivity;
@@ -869,12 +875,39 @@ namespace BDArmory.Weapons.Missiles
             GUIUtils.RefreshAssociatedWindows(part);
         }
 
+        void OnEditorPartPlaced(Part p)
+        {
+            if (p = part)
+            {
+                if (part.parent == null) return;
+                FindParents(part.parent);
+            }
+        }
+        private void FindParents(Part parent)
+        {
+            var turr = parent.FindModuleImplementing<ModuleCustomTurret>();
+            if (turr != null)
+            {
+                Fields["customTurretID"].guiActiveEditor = true;
+                return;
+            }
+            else
+            {
+                Fields["customTurretID"].guiActiveEditor = false;
+            }
+            if (parent.parent != null)
+            {
+                FindParents(parent.parent);
+            }
+        }
+
         private void OnDestroy()
         {
             if (vessel) vessel.OnFlyByWire -= GuidanceSteer;
             WeaponNameWindow.OnActionGroupEditorOpened.Remove(OnActionGroupEditorOpened);
             WeaponNameWindow.OnActionGroupEditorClosed.Remove(OnActionGroupEditorClosed);
             GameEvents.onPartDie.Remove(PartDie);
+            GameEvents.onEditorPartPlaced.Remove(OnEditorPartPlaced);
             if (_velocityTransform != null) { Destroy(_velocityTransform.gameObject); }
         }
 

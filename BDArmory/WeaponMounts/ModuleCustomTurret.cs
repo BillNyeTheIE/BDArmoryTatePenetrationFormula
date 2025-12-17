@@ -49,6 +49,7 @@ namespace BDArmory.WeaponMounts
         ModuleRoboticRotationServo Servo;
 
         public Vector3 baseForward;
+        Vector3 pitchForward;
         public Vector3 yawNormal;
 
         public Vector3 slavedTargetPosition;
@@ -67,8 +68,7 @@ namespace BDArmory.WeaponMounts
         MissileFire _weaponManager;
         public override void OnStart(StartState state)
         {
-            base.OnStart(state);
-            if (HighLogic.LoadedSceneIsEditor) GameEvents.onEditorPartPlaced.Add(OnEditorPartPlaced);
+            base.OnStart(state);            
             yawTransform = part.FindModelTransform(yawTransformName);            
             var hinge = part.FindModuleImplementing<ModuleRoboticServoHinge>();
             if (hinge != null)
@@ -124,6 +124,7 @@ namespace BDArmory.WeaponMounts
             yawNormal = yawTransform.up;
             //because ofc Squad can't have consistant standard for servo/hinge axis transform orientation...
             //Also need to account for rotation/facing; ModuleTurret is agnostic, but targetAngle in the hinge module is not.
+            /*
             if (Hinge)
             {
                 yawNormal = Hinge.mainAxis switch
@@ -138,7 +139,14 @@ namespace BDArmory.WeaponMounts
                     "Z" => bottomTransform.forward,
                     _ => -bottomTransform.right
                 };
+                pitchForward = Hinge.mainAxis switch
+                {
+                    "X" => pitchTransform.up,
+                    "Z" => pitchTransform.forward,
+                    _ => -pitchTransform.right
+                };
             }
+            */
         }
 
         void FixedUpdate()
@@ -189,7 +197,7 @@ namespace BDArmory.WeaponMounts
                 return;
             }
             if (!bottomTransform) return;
-
+            yawNormal = yawTransform.up;
             Vector3 yawComponent = targetDirection.ProjectOnPlanePreNormalized(yawNormal);
             Vector3 pitchComponent = targetDirection.ProjectOnPlane(Vector3.Cross(yawComponent, yawNormal));
             //float currentYaw = Hinge ? 0 : Servo ? Servo.currentAngle : 0; //currentAngle for whatever reason only updates when the PAW is open. WTF, KSP.
@@ -227,14 +235,27 @@ namespace BDArmory.WeaponMounts
             }
             if (Hinge)
             {
-                float pitchError = (float)VectorUtils.SignedAngleDP(pitchComponent, yawNormal, Hinge.mainAxis == "X" ? pitchTransform.right : pitchTransform.forward) - (float)VectorUtils.SignedAngleDP(referenceTransform.forward, yawNormal, Hinge.mainAxis == "X" ? pitchTransform.right : pitchTransform.forward);
+                yawNormal = Hinge.mainAxis switch
+                {
+                    "X" => bottomTransform.forward,
+                    "Z" => -bottomTransform.right,
+                    _ => bottomTransform.forward
+                };
+                pitchForward = Hinge.mainAxis switch
+                {
+                    "X" => pitchTransform.up,
+                    "Z" => pitchTransform.forward,
+                    _ => -pitchTransform.right
+                };
+                //float pitchError = (float)VectorUtils.SignedAngleDP(pitchComponent, yawNormal, Hinge.mainAxis == "X" ? pitchTransform.right : pitchTransform.forward) - (float)VectorUtils.SignedAngleDP(referenceTransform.forward, yawNormal, Hinge.mainAxis == "X" ? pitchTransform.right : pitchTransform.forward);
+                float pitchError = (float)Vector3d.Angle(pitchComponent, yawNormal) - (float)Vector3d.Angle(referenceTransform.forward, yawNormal);
                 //float currentPitch = Hinge ? Hinge.currentAngle : Servo ? 0 : 0;
-                float currentPitch = Hinge ? -VectorUtils.SignedAngleDP(baseForward, Hinge.mainAxis == "X" ? pitchTransform.up : Hinge.mainAxis == "Z" ? pitchTransform.forward : -pitchTransform.right,
-                                                                        Hinge.mainAxis == "X" ? pitchTransform.right : pitchTransform.forward) : Servo ? 0 : 0;
-      
-                float targetPitchAngle = (currentPitch + pitchError).ToAngle();
+                //float currentPitch = VectorUtils.SignedAngleDP(baseForward, pitchForward, Hinge.mainAxis == "X" ? pitchTransform.right : pitchTransform.forward);
+                //SignedAngle switches sign a couple of frames every sec or so.
+                float currentPitch = 90 - (float)Vector3d.Angle(pitchForward, yawNormal);
+                float targetPitchAngle = (currentPitch - pitchError).ToAngle();
                 targetPitchAngle = Mathf.Clamp(targetPitchAngle, minPitch, maxPitch); // clamp pitch
-                //Debug.Log($"[BDArmory.ModuleCustomTurret] PitchError: {pitchError}; CurrPitch: {currentPitch}; Target Pitch Angle: {targetPitchAngle}; Hinge Angle {Hinge.currentAngle}");
+                //Debug.Log($"[BDArmory.ModuleCustomTurret] PitchError: {pitchError}; CurrPitch: {currentPitch}; Target Pitch Angle: {targetPitchAngle}");
                 Hinge.targetAngle = targetPitchAngle;
             }
         }
@@ -290,42 +311,6 @@ namespace BDArmory.WeaponMounts
         {
             referenceTransform = t;
         }
-        void OnEditorPartPlaced(Part p = null)
-        {
-            if (part.children.Count == 0) return;
-            FindChildWeapons(part.children); 
-        }
-        private void FindChildWeapons(List<Part> children)
-        {
-            using (List<Part>.Enumerator child = children.GetEnumerator())
-                while (child.MoveNext())
-                {
-                    if (child.Current == null) continue;
-                    if (child.Current.IsWeapon())
-                    {
-                        var gun = child.Current.FindModuleImplementing<ModuleWeapon>();
-                        if (gun != null)
-                        gun.Fields["customTurretID"].guiActiveEditor = true;
-                    }
-                    if (child.Current.IsMissile())
-                    {
-                        var msl = child.Current.FindModuleImplementing<MissileBase>();
-                        if (msl != null)
-                            Fields["customTurretID"].guiActiveEditor = true;
-                    }
-                    //Would result in two fireFOVs, assuming Servo + hinge; just leave as hardcoded 5deg for now.
-                    //only have gun's TurrID slider appear if a child of the turret servo to reduce PAW clutter
-
-                    if (child.Current.children.Count > 0)
-                    {
-                        FindChildWeapons(child.Current.children);
-                    }
-                }
-        }
-        void OnDestroy()
-        {
-            GameEvents.onEditorPartPlaced.Remove(OnEditorPartPlaced);
-        }
         
         void OnGUI()
         {
@@ -364,6 +349,7 @@ namespace BDArmory.WeaponMounts
                         Vector3 forPos = referenceTransform.position + (5 * referenceTransform.forward);
                         GUIUtils.DrawLineBetweenWorldPositions(referenceTransform.position, forPos, 4, Color.blue);
                     }
+                    //GUIUtils.DrawLineBetweenWorldPositions(bottomTransform.position, referenceTransform.position + (1 * baseFor), 10, Color.cyan);
                 }
                 GUIUtils.DrawLineBetweenWorldPositions(yawTransform.position, yawNrm, 4, Color.green);
                 Vector3 baseFor = Hinge.mainAxis switch
@@ -372,7 +358,6 @@ namespace BDArmory.WeaponMounts
                     "Z" => bottomTransform.forward,
                     _ => bottomTransform.right
                 };
-                GUIUtils.DrawLineBetweenWorldPositions(bottomTransform.position, referenceTransform.position + (1 * baseFor), 10, Color.cyan);
             }
         }
         

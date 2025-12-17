@@ -475,7 +475,7 @@ namespace BDArmory.Weapons
 
         //weapon specifications
         [KSPField(advancedTweakable = false, isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_TurretID"),//Custom Turret ID
-    UI_FloatRange(minValue = 1f, maxValue = 20f, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+    UI_FloatRange(minValue = 0f, maxValue = 20f, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
         public float customTurretID = 0;
 
         [KSPField(advancedTweakable = true, isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_FiringPriority"),
@@ -1631,6 +1631,8 @@ namespace BDArmory.Weapons
                         useCustomBelt = false;
                     }
                 }
+                GameEvents.onEditorPartPlaced.Add(OnEditorPartPlaced);
+                FindParents(part);
             }
             //turret setup
             using (List<ModuleTurret>.Enumerator turr = part.FindModulesImplementing<ModuleTurret>().GetEnumerator())
@@ -1660,7 +1662,7 @@ namespace BDArmory.Weapons
                 }
             }
             //custom turret setup
-            if (HighLogic.LoadedSceneIsFlight)
+            if (HighLogic.LoadedSceneIsFlight && customTurretID > 0)
             {
                 float yaw = 0;
                 float minP = 0;
@@ -1681,10 +1683,11 @@ namespace BDArmory.Weapons
                         }
                         minP += servo.Current.minPitch;
                         maxP += servo.Current.maxPitch;
-                    }
+                    }                
                 customYaw = yaw;
                 customMinPitch = minP;
                 customMaxPitch = maxP;
+                if (customTurret.Count == 0) customTurretID = 0;
             }
             //setup animations
             if (hasDeployAnim)
@@ -1926,6 +1929,7 @@ namespace BDArmory.Weapons
             BDArmorySetup.OnVolumeChange -= UpdateVolume;
             WeaponNameWindow.OnActionGroupEditorOpened.Remove(OnActionGroupEditorOpened);
             WeaponNameWindow.OnActionGroupEditorClosed.Remove(OnActionGroupEditorClosed);
+            GameEvents.onEditorPartPlaced.Remove(OnEditorPartPlaced);
             TimingManager.FixedUpdateRemove(TimingManager.TimingStage.FashionablyLate, AimAndFire);
         }
         public void PAWRefresh()
@@ -2055,6 +2059,32 @@ namespace BDArmory.Weapons
             status += "-Lead Offset: " + GetLeadOffset() + "; FinalAimTgt: " + finalAimTarget + "; tgt: " + visualTargetVessel.GetName() + "; tgt Pos: " + targetPosition + "; pointingAtSelf: " + pointingAtSelf + "; tgt CosAngle " + targetCosAngle + "; wpn CosAngle " + targetAdjustedMaxCosAngle + "; Wpn Autofire " + autoFire;
 
             return status;
+        }
+
+        void OnEditorPartPlaced(Part p)
+        {
+            if (p = part)
+            {
+                if (part.parent == null) return;
+                FindParents(part.parent);
+            }
+        }
+        private void FindParents(Part parent)
+        {
+            var turr = parent.FindModuleImplementing<ModuleCustomTurret>();
+            if (turr != null)
+            {
+                Fields["customTurretID"].guiActiveEditor = true;
+                return;
+            }
+            else
+            {
+                Fields["customTurretID"].guiActiveEditor = false;                
+            }
+            if (parent.parent != null)
+            {
+                FindParents(parent.parent);
+            }
         }
 
         bool fireConditionCheck => ((((userFiring || agHoldFiring) && !isAPS) || autoFire) && (!turret || turret.TargetInRange(finalAimTarget, float.MaxValue, 10))) || (BurstFire && RoundsRemaining > 0 && RoundsRemaining < RoundsPerMag);

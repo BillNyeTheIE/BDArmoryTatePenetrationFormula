@@ -1,11 +1,6 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using UnityEngine;
-
+using BDArmory.Bullets;
 using BDArmory.Control;
+using BDArmory.CounterMeasure;
 using BDArmory.Extensions;
 using BDArmory.FX;
 using BDArmory.Guidances;
@@ -15,8 +10,12 @@ using BDArmory.Targeting;
 using BDArmory.UI;
 using BDArmory.Utils;
 using BDArmory.WeaponMounts;
-using BDArmory.Bullets;
-using BDArmory.CounterMeasure;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using UnityEngine;
 
 
 namespace BDArmory.Weapons.Missiles
@@ -721,16 +720,24 @@ namespace BDArmory.Weapons.Missiles
                     reloadableRail = missileSpawner;
                     hasAmmo = true;
                 }
-                using (var servo = VesselModuleRegistry.GetModules<ModuleCustomTurret>(vessel).GetEnumerator())
-                    while (servo.MoveNext())
-                    {
-                        if (servo.Current == null) continue;
-                        if ((int)servo.Current.turretID != (int)customTurretID) continue;
-                        customTurret.Add(servo.Current);
-                        servo.Current.SetReferenceTransform(MissileReferenceTransform);
-                    }
+                if (customTurretID > 0)
+                {
+                    using (var servo = VesselModuleRegistry.GetModules<ModuleCustomTurret>(vessel).GetEnumerator())
+                        while (servo.MoveNext())
+                        {
+                            if (servo.Current == null) continue;
+                            if ((int)servo.Current.turretID != (int)customTurretID) continue;
+                            customTurret.Add(servo.Current);
+                            servo.Current.SetReferenceTransform(MissileReferenceTransform);
+                        }
+                    if (customTurret.Count == 0) customTurretID = 0;
+                }
             }
-
+            if (HighLogic.LoadedSceneIsEditor)
+            {
+                GameEvents.onEditorPartPlaced.Add(OnEditorPartPlaced);
+                FindParents(part);
+            }
             if (deployAnimationName != "")
             {
                 deployStates = GUIUtils.SetUpAnimation(deployAnimationName, part);
@@ -1305,9 +1312,36 @@ namespace BDArmory.Weapons.Missiles
                     if (pe) EffectBehaviour.RemoveParticleEmitter(pe);
             BDArmorySetup.OnVolumeChange -= UpdateVolume;
             GameEvents.onPartDie.Remove(PartDie);
+            GameEvents.onEditorPartPlaced.Remove(OnEditorPartPlaced);
             if (vesselReferenceTransform != null && vesselReferenceTransform.gameObject != null)
             {
                 Destroy(vesselReferenceTransform.gameObject);
+            }
+        }
+
+        void OnEditorPartPlaced(Part p)
+        {
+            if (p = part)
+            {
+                if (part.parent == null) return;
+                FindParents(part.parent);
+            }
+        }
+        private void FindParents(Part parent)
+        {
+            var turr = parent.FindModuleImplementing<ModuleCustomTurret>();
+            if (turr != null)
+            {
+                Fields["customTurretID"].guiActiveEditor = true;
+                return;
+            }
+            else
+            {
+                Fields["customTurretID"].guiActiveEditor = false;
+            }
+            if (parent.parent != null)
+            {
+                FindParents(parent.parent);
             }
         }
 
@@ -3446,20 +3480,24 @@ namespace BDArmory.Weapons.Missiles
         void SLWGuidance()
         {
             Vector3 SLWTarget;
-            float runningDepth = Mathf.Min(-3, (float)FlightGlobals.getAltitudeAtPos(TargetPosition));
-            Vector3 upDir = vessel.upAxis;
+            float runningDepth = torpedo ? Mathf.Min(-3, (float)FlightGlobals.getAltitudeAtPos(TargetPosition)) : (float)vessel.radarAltitude;
+            Vector3 upDir = (vessel.transform.position - vessel.mainBody.transform.position).normalized;
             if (TargetAcquired)
             {
                 //DrawDebugLine(transform.position + (part.rb.velocity * Time.fixedDeltaTime), TargetPosition);
                 float timeToImpact;
-
                 SLWTarget = MissileGuidance.GetAirToAirTarget(TargetPosition, TargetVelocity, TargetAcceleration, vessel, out timeToImpact, optimumAirspeed);
+                if (!torpedo) runningDepth = Mathf.Max(timeToImpact / 5, 0.1f) * 10;
                 if (VectorUtils.Angle(SLWTarget - vessel.CoM, transform.forward) > maxOffBoresight * 0.75f)
                 {
                     SLWTarget = TargetPosition;
                 }
+                if (!torpedo) SLWTarget = SLWTarget - targetVessel.Vessel.up * targetVessel.Vessel.radarAltitude;
+                float longitudinalOffset = 0;
+                if (longitudinalOffset == 0) longitudinalOffset = targetVessel.Vessel.GetRadius() * 0.75f * UnityEngine.Random.Range(-1, 1);
+                SLWTarget += targetVessel.Vessel.vesselTransform.up * longitudinalOffset;
                 SLWTarget = vessel.CoM + (SLWTarget - vessel.CoM).normalized * 100;
-                SLWTarget = (SLWTarget - ((float)FlightGlobals.getAltitudeAtPos(SLWTarget) * upDir)) + upDir * runningDepth;
+                SLWTarget = SLWTarget - ((float)FlightGlobals.getAltitudeAtPos(SLWTarget) * upDir) + upDir * runningDepth;
                 TimeToImpact = timeToImpact;
 
                 /*//proxy detonation
@@ -3483,7 +3521,6 @@ namespace BDArmory.Weapons.Missiles
             }
 
             CheckMiss();
-
         }
 
         void DoAero(Vector3 targetPosition, float currgLimit = -1f, float currAoALimit = -1f)
