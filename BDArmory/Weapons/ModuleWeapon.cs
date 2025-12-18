@@ -1632,7 +1632,7 @@ namespace BDArmory.Weapons
                     }
                 }
                 GameEvents.onEditorPartPlaced.Add(OnEditorPartPlaced);
-                FindParents(part);
+                FindTurretInParents(part);
             }
             //turret setup
             using (List<ModuleTurret>.Enumerator turr = part.FindModulesImplementing<ModuleTurret>().GetEnumerator())

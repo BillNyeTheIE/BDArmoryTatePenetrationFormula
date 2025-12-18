@@ -201,7 +201,7 @@ namespace BDArmory.WeaponMounts
             Vector3 yawComponent = targetDirection.ProjectOnPlanePreNormalized(yawNormal);
             Vector3 pitchComponent = targetDirection.ProjectOnPlane(Vector3.Cross(yawComponent, yawNormal));
             //float currentYaw = Hinge ? 0 : Servo ? Servo.currentAngle : 0; //currentAngle for whatever reason only updates when the PAW is open. WTF, KSP.
-            float currentYaw = Servo ? VectorUtils.SignedAngleDP(bottomTransform.forward, referenceTransform.forward, bottomTransform.right) : 0;
+            float currentYaw = Servo ? VectorUtils.SignedAngleDP(bottomTransform.forward, yawTransform.forward, bottomTransform.right) : 0;
             float yawError = VectorUtils.SignedAngleDP(
                 referenceTransform.forward.ProjectOnPlanePreNormalized(yawNormal),
                 yawComponent,
@@ -230,7 +230,7 @@ namespace BDArmory.WeaponMounts
             {
                 Servo.targetAngle = targetYawAngle;
                 if (Servo.inverted) Servo.targetAngle *= -1;
-                //Debug.Log($"[BDArmory.ModuleCustomTurret] CurrYaw: {currentYaw}; YawError: {yawError}; Servo target Angle {Servo.targetAngle}; Servo Yaw: {Servo.currentAngle}");
+                //Debug.Log($"[BDArmory.ModuleCustomTurret] CurrYaw: {currentYaw}; YawError: {yawError}; Servo target Angle {Servo.targetAngle}");
             }
             if (Hinge)
             {
@@ -351,12 +351,6 @@ namespace BDArmory.WeaponMounts
                     //GUIUtils.DrawLineBetweenWorldPositions(bottomTransform.position, referenceTransform.position + (1 * baseFor), 10, Color.cyan);
                 }
                 GUIUtils.DrawLineBetweenWorldPositions(yawTransform.position, yawNrm, 4, Color.green);
-                Vector3 baseFor = Hinge.mainAxis switch
-                {
-                    "X" => bottomTransform.up,
-                    "Z" => bottomTransform.forward,
-                    _ => bottomTransform.right
-                };
             }
         }
         

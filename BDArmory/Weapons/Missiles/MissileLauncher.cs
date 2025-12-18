@@ -736,7 +736,7 @@ namespace BDArmory.Weapons.Missiles
             if (HighLogic.LoadedSceneIsEditor)
             {
                 GameEvents.onEditorPartPlaced.Add(OnEditorPartPlaced);
-                FindParents(part);
+                FindTurretInParents(part);
             }
             if (deployAnimationName != "")
             {
