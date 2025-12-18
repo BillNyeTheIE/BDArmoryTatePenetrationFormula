@@ -262,10 +262,10 @@ namespace BDArmory.Radar
         /// <summary>
         /// Get a vessel radar siganture, including all modifiers (ECM, stealth, ...)
         /// </summary>
-        public static TargetInfo GetVesselRadarSignature(Vessel v)
+        public static TargetInfo GetVesselRadarSignature(Vessel v, bool updateJammers = true)
         {
             //1. baseSig = GetVesselRadarCrossSection
-            TargetInfo ti = GetVesselRadarCrossSection(v);
+            TargetInfo ti = GetVesselRadarCrossSection(v, updateJammers: updateJammers);
             //2. modifiedSig = GetVesselModifiedSignature(baseSig)    //ECM-jammers with rcs reduction effect; other rcs reductions (stealth)
             ti.radarRCSReducedSignature = ti.radarBaseSignature; //These are needed for Radar functions to work!
             ti.radarModifiedSignature = ti.radarBaseSignature;
@@ -413,7 +413,7 @@ namespace BDArmory.Radar
         /// <summary>
         /// Internal method: get a vessel base radar signature
         /// </summary>
-        private static TargetInfo GetVesselRadarCrossSection(Vessel v, bool force = false)
+        private static TargetInfo GetVesselRadarCrossSection(Vessel v, bool force = false, bool updateJammers = true)
         {
             //read vesseltargetinfo, or render against radar cameras
             TargetInfo ti = v.gameObject.GetComponent<TargetInfo>();
@@ -444,10 +444,13 @@ namespace BDArmory.Radar
                     ti.radarSignatureMatrixNeedsUpdate = false;
                     missile.updateRadarCS = false;
 
-                    // Update ECM impact on RCS if base RCS is modified
-                    VesselECMJInfo jammer = v.gameObject.GetComponent<VesselECMJInfo>();
-                    if (jammer != null)
-                        jammer.UpdateJammerStrength();
+                    if (updateJammers)
+                    {
+                        // Update ECM impact on RCS if base RCS is modified
+                        VesselECMJInfo jammer = v.gameObject.GetComponent<VesselECMJInfo>();
+                        if (jammer != null)
+                            jammer.UpdateJammerStrength();
+                    }
 
                     return ti;
                 }
@@ -482,10 +485,13 @@ namespace BDArmory.Radar
                 ti.alreadyScheduledRCSUpdate = false;
                 ti.radarMassAtUpdate = v.GetTotalMass();
 
-                // Update ECM impact on RCS if base RCS is modified
-                VesselECMJInfo jammer = v.gameObject.GetComponent<VesselECMJInfo>();
-                if (jammer != null)
-                    jammer.UpdateJammerStrength();
+                if (updateJammers)
+                {
+                    // Update ECM impact on RCS if base RCS is modified
+                    VesselECMJInfo jammer = v.gameObject.GetComponent<VesselECMJInfo>();
+                    if (jammer != null)
+                        jammer.UpdateJammerStrength();
+                }
             }
 
             return ti;

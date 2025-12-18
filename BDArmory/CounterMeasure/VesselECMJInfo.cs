@@ -172,7 +172,7 @@ namespace BDArmory.CounterMeasure
                 rcsr = 1f;
             }
 
-            ti = RadarUtils.GetVesselRadarSignature(vessel);
+            ti = RadarUtils.GetVesselRadarSignature(vessel, false);
             if (rcsOverride > 0) ti.radarBaseSignature = rcsOverride;
             ti.radarRCSReducedSignature = ti.radarBaseSignature;
             ti.radarModifiedSignature = ti.radarBaseSignature;
