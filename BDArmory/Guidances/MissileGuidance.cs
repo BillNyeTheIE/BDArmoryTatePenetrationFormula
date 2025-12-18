@@ -1071,7 +1071,12 @@ namespace BDArmory.Guidances
             Vector3 missileVel = missileVessel.Velocity();
             Vector3 relVelocity = targetVelocity - missileVel;
             Vector3 relRange = targetPosition - missileVessel.CoM;
-            Vector3 RotVector = Vector3.Cross(relRange, relVelocity) / Vector3.Dot(relRange, relRange);
+            if (Vector3.Dot(relRange, relVelocity) < 0)
+            {
+                gLimit = -1f;
+                return GetAirToAirTarget(targetPosition, targetVelocity, Vector3.zero, missileVessel, out timeToGo);
+            }
+            Vector3 RotVector = Vector3.Cross(relRange, relVelocity) / relRange.sqrMagnitude;
             Vector3 RefVector = missileVel.normalized;
             Vector3 normalAccel = -N * relVelocity.magnitude * Vector3.Cross(RefVector, RotVector);
             gLimit = normalAccel.magnitude / (float)PhysicsGlobals.GravitationalAcceleration;
@@ -1084,7 +1089,7 @@ namespace BDArmory.Guidances
             Vector3 missileVel = missileVessel.Velocity();
             Vector3 relVelocity = targetVelocity - missileVel;
             Vector3 relRange = targetPosition - missileVessel.CoM;
-            Vector3 RotVector = Vector3.Cross(relRange, relVelocity) / Vector3.Dot(relRange, relRange);
+            Vector3 RotVector = Vector3.Cross(relRange, relVelocity) / relRange.sqrMagnitude;
             Vector3 RefVector = missileVel.normalized;
             Vector3 normalAccel = -N * relVelocity.magnitude * Vector3.Cross(RefVector, RotVector);
             //gLimit = normalAccel.magnitude / (float)PhysicsGlobals.GravitationalAcceleration;
@@ -1274,7 +1279,7 @@ namespace BDArmory.Guidances
             }
 
             // Don't lead so much you end up leading behind the vehicle...
-            if (Vector3.Dot(targetPosition - missile.vessel.CoM, leadPosition) > 0)
+            if (Vector3.Dot(targetPosition - missile.vessel.CoM, leadPosition - missile.vessel.CoM) > 0)
                 return leadPosition;
             else
                 return targetPosition;
