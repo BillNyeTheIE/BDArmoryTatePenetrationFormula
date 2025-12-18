@@ -2570,7 +2570,7 @@ namespace BDArmory.Weapons.Missiles
 
             if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileLauncher]: Check cruise range trigger range: {BDAMath.Sqrt(sqrRange)}");
 
-            if (sqrRange < cruiseRangeTrigger * cruiseRangeTrigger)
+            if (sqrRange < cruiseRangeTrigger * cruiseRangeTrigger || (!vessel.InVacuum() && vessel.Velocity().sqrMagnitude < optimumAirspeed * optimumAirspeed * 0.5625f))
             {
                 if (cruiseTerminationFrames < 5)
                 {

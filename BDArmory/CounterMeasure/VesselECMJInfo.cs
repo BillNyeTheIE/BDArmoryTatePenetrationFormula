@@ -187,7 +187,7 @@ namespace BDArmory.CounterMeasure
             // jammingDistance =  (jammerstrength / baseSig / 100 + 1.0) x js
             ti.radarJammingDistance = ((totaljStrength / ti.radarBaseSignature / 100) + 1.0f) * totaljStrength;
             //4) lockbreaking strength relative to jammer's lockbreak strength in relation to vessel rcs signature:
-            // lockbreak_factor = baseSig/modifiedSig x (1 � lopckBreakStrength/baseSig/100)
+            // lockbreak_factor = baseSig/modifiedSig x (1 - lockBreakStrength/baseSig/100)
             // Use clamp to prevent RCS reduction resulting in increased lockbreak factor, which negates value of RCS reduction)
             ti.radarLockbreakFactor = (ti.radarRCSReducedSignature == 0) ? 0f :
                 Mathf.Max(Mathf.Clamp01(ti.radarRCSReducedSignature / ti.radarModifiedSignature) * (1 - (totalLBstrength / ti.radarRCSReducedSignature / 100)), 0); // 0 is minimum lockbreak factor
