@@ -1455,8 +1455,6 @@ namespace BDArmory.Targeting
             {
                 if (CMSmoke.RaycastSmoke(ray))
                 {
-                    float angle = VectorUtils.FullRangePerlinNoise(0.75f * Time.time, 10) * BDArmorySettings.SMOKE_DEFLECTION_FACTOR;
-                    targetPointPosition = VectorUtils.RotatePointAround(targetPointPosition, ray.origin, vessel.up, angle);
                     surfaceDetected = false;
                 }
             }

@@ -3172,7 +3172,6 @@ namespace BDArmory.Weapons.Missiles
             {
                 Vector3 sensorPos;
                 Vector3 sensorVel;
-                Vector3 targetPos;
                 Vector3 targetVel;
 
                 if (TargetingMode == TargetingModes.Laser)
@@ -3184,7 +3183,6 @@ namespace BDArmory.Weapons.Missiles
                     }
                     sensorVel = targetingPod.vessel.Velocity();
                     sensorPos = targetingPod.cameraParentTransform.position + (sensorVel * Time.fixedDeltaTime);
-                    targetPos = targetingPod.targetPointPosition;
                     if (targetingPod.lockedVessel)
                         targetVel = targetingPod.lockedVessel.Velocity();
                     else
@@ -3205,7 +3203,6 @@ namespace BDArmory.Weapons.Missiles
                     }
                     sensorVel = radarTarget.lockedByRadar.vessel.Velocity();
                     sensorPos = radarTarget.lockedByRadar.transform.position + (sensorVel * Time.fixedDeltaTime);
-                    targetPos = radarTarget.predictedPositionWithChaffFactor(chaffEffectivity);
                     targetVel = radarTarget.velocity;
                 }
                 else
@@ -3237,21 +3234,21 @@ namespace BDArmory.Weapons.Missiles
                 switch (GuidanceMode)
                 {
                     case GuidanceModes.CLOS:
-                        target = MissileGuidance.GetCLOSTarget(sensorPos, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
+                        target = MissileGuidance.GetCLOSTarget(sensorPos, vessel.CoM, vessel.Velocity(), TargetPosition, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
                         break;
                     case GuidanceModes.CLOSThreePoint:
-                        target = MissileGuidance.GetThreePointTarget(sensorPos, sensorVel, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
+                        target = MissileGuidance.GetThreePointTarget(sensorPos, sensorVel, vessel.CoM, vessel.Velocity(), TargetPosition, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
                         break;
                     case GuidanceModes.CLOSLead:
-                        target = MissileGuidance.GetCLOSLeadTarget(sensorPos, sensorVel, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, beamLeadFactor, out currgLimit, this);
+                        target = MissileGuidance.GetCLOSLeadTarget(sensorPos, sensorVel, vessel.CoM, vessel.Velocity(), TargetPosition, targetVel, beamCorrectionFactor, tempPronavGain, beamLeadFactor, out currgLimit, this);
                         break;
 
                     default:
-                        target = MissileGuidance.GetCLOSTarget(sensorPos, vessel.CoM, vessel.Velocity(), targetPos, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
+                        target = MissileGuidance.GetCLOSTarget(sensorPos, vessel.CoM, vessel.Velocity(), TargetPosition, targetVel, beamCorrectionFactor, tempPronavGain, out currgLimit);
                         break;
                 }
                 
-                if (!(GuidanceMode == GuidanceModes.CLOSLead)) DrawDebugLine(sensorPos, targetPos);
+                if (!(GuidanceMode == GuidanceModes.CLOSLead)) DrawDebugLine(sensorPos, TargetPosition);
             }
             else
             {
