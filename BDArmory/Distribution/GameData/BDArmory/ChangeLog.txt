@@ -36,7 +36,7 @@
 		- Missiles with a "cruiseRangeTrigger" will now also fire the cruise motor if the missile's airspeed drops below 75% of its optimal airspeed while in-atmosphere.
 		- AAMLoft settings for modular missiels are now correctly loaded when returning to the SPH.
   Robotics:
-		- !!Experimental!! Adds ability to build custom turrets with Breaking Ground Hinges and Servoes (motors and pistons currently not supported). BG hinges/servoes now have a 'Custom Turret ID' slider; attaching a weapon as a 
+		- !!Experimental!! Adds ability to build custom turrets with Breaking Ground Hinges and Servos (motors and pistons currently not supported). BG hinges/servoes now have a 'Custom Turret ID' slider; attaching a weapon as a 
 		child of the robotic part adds a similar 'Custom Turret ID' slider to the gun. Setting both to the same value will enable the gun to use BG robotics to slew/traverse
 		the attached weapon (and any other parts attached to the robotics) as if it were a standard BDA turret. Turret ID = 0 is an Off value, and will not link weapons to a servo.
 		Pressing F2 to bring up the Weapon Alignment in the SPH/VAB will draw a Pitch/yaw Blue/Green alignment line for all enabled servoes. All servoes in a custom turret should 

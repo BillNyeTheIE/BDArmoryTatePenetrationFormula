@@ -1318,31 +1318,24 @@ namespace BDArmory.Weapons.Missiles
                 Destroy(vesselReferenceTransform.gameObject);
             }
         }
-
         void OnEditorPartPlaced(Part p)
         {
-            if (p = part)
-            {
-                if (part.parent == null) return;
-                FindParents(part.parent);
-            }
+            if (p = part) FindTurretInParents(part);
         }
-        private void FindParents(Part parent)
+        private void FindTurretInParents(Part p)
         {
-            var turr = parent.FindModuleImplementing<ModuleCustomTurret>();
-            if (turr != null)
+            if (p == null)
+            {
+                Fields["customTurretID"].guiActiveEditor = false;
+                return;
+            }
+            var turret = p.FindModuleImplementing<ModuleCustomTurret>();
+            if (turret != null)
             {
                 Fields["customTurretID"].guiActiveEditor = true;
                 return;
             }
-            else
-            {
-                Fields["customTurretID"].guiActiveEditor = false;
-            }
-            if (parent.parent != null)
-            {
-                FindParents(parent.parent);
-            }
+            FindTurretInParents(p.parent);
         }
 
         public override float GetBlastRadius()
