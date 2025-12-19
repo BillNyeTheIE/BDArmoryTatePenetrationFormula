@@ -27,6 +27,10 @@
 		- EMP buildup now causes increasing penalties/subsystem shutdowns as it accrues in a vessel receiving EMP damage.
 	- Fix hypersonic rounds dealing self damage when fired into something at close range.
 	- External fires from incendiary ammo into flammable hull materials no longer suppressed by Inerted Tanks.
+	- Added a AIMING_VISUAL_MALUS setting (default=0) that applies a malus to aiming at targets with mk1 eyeballs if >0 and the target is within visual range. The malus decreases both with time since target acquisition and shots fired at the target, and resets when changing targets.
+		Weapons configs can be configured with:
+		- 'sightingAccuracy' (default=1 mrad) which represents the limit of visual aiming accounting for scopes and other visual aids.
+		- 'malusReductionPerShot' (default 0.1) which determines how rapidly the malus decreases with each shot at the target.
 	- Missiles:
 		- Add ordnance offset option to non-adjustabeRail reloadable MultiMissileLaunchers that don't come with set missile types.
 		- Fix Nuclear ordnance applying multiple stacks of EMP damage to a single vessel during detonation.

@@ -3701,6 +3701,8 @@ namespace BDArmory.UI
                         RWPSettings.SyncWithGameSettings();
                     }
                 }
+                GUI.Label(SLeftSliderRect(++line), $"{StringUtils.Localize("#LOC_BDArmory_Settings_AimingVisualMalus")}: ({BDArmorySettings.AIMING_VISUAL_MALUS:G2})", leftLabel); // Aiming Visual Malus
+                BDArmorySettings.AIMING_VISUAL_MALUS = BDAMath.RoundToUnit(GUI.HorizontalSlider(SRightSliderRect(line), BDArmorySettings.AIMING_VISUAL_MALUS, 0f, 1f), 0.01f);
                 // Resource steal
                 BDArmorySettings.RESOURCE_STEAL_ENABLED = GUI.Toggle(SLeftRect(++line), BDArmorySettings.RESOURCE_STEAL_ENABLED, StringUtils.Localize("#LOC_BDArmory_Settings_ResourceSteal"));//"Resource Steal"
                 if (BDArmorySettings.RESOURCE_STEAL_ENABLED)
