@@ -594,7 +594,7 @@ namespace BDArmory.Utils
                                                                                      //and have armor degredation solely represented by armor integrity.
                 if (BDArmorySettings.DEBUG_ARMOR)
                 {
-                    Debug.Log("[BDArmory.ProjectileUtils{CalculateExplosiveArmorDamage}]: Beginning ExplosiveArmorDamage(); " + hitPart.name + ", ArmorType:" + Armor.ArmorTypeNum + "; Armor Thickness: " + Armor.Armor + "mm; BlastPressure: " + BlastPressure + "; BlowthroughFactor: " + blowthroughFactor); ;
+                    Debug.Log($"[BDArmory.ProjectileUtils{{CalculateExplosiveArmorDamage}}]: Beginning ExplosiveArmorDamage(); {hitPart.name}, ArmorType: {Armor.ArmorTypeNum}; Armor Thickness: {Armor.Armor}mm; BlastPressure: {BlastPressure}; BlowthroughFactor: {blowthroughFactor}"); ;
                 }
                 //is BlastUtils maxpressure in MPa? confirm blast pressure from ExplosionUtils on same scale/magnitude as armorTolerance
 
@@ -758,7 +758,7 @@ namespace BDArmory.Utils
                     }
                 }
             }
-            return false;
+            return true;
         }
         /*
         public static float CalculatePenetration(float caliber, float projMass, float impactVel, float apBulletMod = 1)
