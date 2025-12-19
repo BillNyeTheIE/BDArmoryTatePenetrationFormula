@@ -1624,6 +1624,22 @@ namespace BDArmory.Weapons
                     if (!string.IsNullOrEmpty(ammoBelt) && ammoBelt != "def")
                     {
                         customAmmoBelt = BDAcTools.ParseNames(ammoBelt);
+                        customAmmoBeltIndexes = new int[customAmmoBelt.Count];
+                        int currIndex = -1;
+                        for (int i = 0; i < customAmmoBelt.Count; ++i)
+                        {
+                            currIndex = ammoList.IndexOf(customAmmoBelt[i]);
+                            if (currIndex < 0)
+                            {
+                                Debug.LogWarning($"[BDArmory.ModuleWeapon] Invalid ammo type {customAmmoBelt[i]} at position {i} in ammo belt of {WeaponName} on {vessel.vesselName}! reverting to valid ammo type {ammoList[0]}");
+                                customAmmoBelt[i] = ammoList[0];
+                                customAmmoBeltIndexes[i] = 0;
+                            }
+                            else
+                            {
+                                customAmmoBeltIndexes[i] = currIndex;
+                            }
+                        }
                         baseBulletVelocity = BulletInfo.bullets[customAmmoBelt[0].ToString()].bulletVelocity;
                     }
                     else
