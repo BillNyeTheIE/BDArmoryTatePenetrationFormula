@@ -4,6 +4,8 @@
 - Changing the slider resolution sometimes triggers clamping of unclamped values
 - Taking off with the global 'P' button for two VTOL craft on the runway disables their engines!
 - WM without AI or with stationary ground AI sometimes just sits there without attacking valid targets.
+- Check whether `base.OnStart(state);` in `MissileLauncher.OnStart` can be re-enabled and some common stuff be moved to MissileBase.cs.
+- Improve custom turret aiming.
 
 - Clean up invalid UTF-8 chars by searching for `[^\x00-\x7f±°ñ—α→θψφρqω₀π²·δ↔∫•∈"γgμν‽Δ↕]` (add more to exclude as necessary). Ignore localisation files.
 
