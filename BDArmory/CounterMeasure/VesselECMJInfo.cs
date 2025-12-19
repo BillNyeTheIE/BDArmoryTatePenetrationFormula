@@ -113,7 +113,7 @@ namespace BDArmory.CounterMeasure
             UpdateJammerStrength();
         }
 
-        public void UpdateJammerStrength()
+        public void UpdateJammerStrength(TargetInfo tInfoIn = null)
         {
             if (jammers is null && !Setup())
             {
@@ -172,7 +172,11 @@ namespace BDArmory.CounterMeasure
                 rcsr = 1f;
             }
 
-            ti = RadarUtils.GetVesselRadarSignature(vessel, false);
+            if (tInfoIn == null)
+                ti = RadarUtils.GetVesselRadarSignature(vessel, false);
+            else
+                ti = tInfoIn;
+
             if (rcsOverride > 0) ti.radarBaseSignature = rcsOverride;
             ti.radarRCSReducedSignature = ti.radarBaseSignature;
             ti.radarModifiedSignature = ti.radarBaseSignature;

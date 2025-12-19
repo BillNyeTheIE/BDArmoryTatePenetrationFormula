@@ -449,8 +449,12 @@ namespace BDArmory.Radar
                         // Update ECM impact on RCS if base RCS is modified
                         VesselECMJInfo jammer = v.gameObject.GetComponent<VesselECMJInfo>();
                         if (jammer != null)
-                            jammer.UpdateJammerStrength();
+                            jammer.UpdateJammerStrength(ti);
                     }
+                    else
+                        // NOTE: This might be called on startup depending on who initializes first, if VesselECMJInfo calls
+                        // UpdateJammerStrength before tInfo gets constructed, then this will get triggered.
+                        Debug.LogWarning($"[BDArmory.RadarUtils] DETECTED INFINITE LOOP! Missile: {missile.shortName} on vessel: {(v ? v.vesselName : "null")} caused infinite loop for some reason!");
 
                     return ti;
                 }
@@ -461,6 +465,8 @@ namespace BDArmory.Radar
             // Run intensive RCS rendering if 1. It has not been done yet, 2. If the competition just started (capture vessel changes such as gear-raise or robotics)
             if (force || ti.radarBaseSignature == -1 || ti.radarBaseSignatureNeedsUpdate || (BDArmorySettings.ASPECTED_RCS && ti.radarSignatureMatrixNeedsUpdate))
             {
+                if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[BDArmory.RadarUtils] Performing RCS Rendering! Vessel: {(v ? v.vesselName : "null")}, with mass: {ti.radarMassAtUpdate}, force: {force}, ti.radarBaseSignature: {ti.radarBaseSignature}, radarBaseSignatureNeedsUpdate: {ti.radarBaseSignatureNeedsUpdate} and radarSignatureMatrixNeedsUpdate: {ti.radarSignatureMatrixNeedsUpdate}.");
+
                 // is it just some debris? then dont bother doing a real rcs rendering and just fake it with the parts mass
                 if (VesselModuleRegistry.IgnoredVesselTypes.Contains(v.vesselType) || !v.IsControllable)
                 {
@@ -490,8 +496,12 @@ namespace BDArmory.Radar
                     // Update ECM impact on RCS if base RCS is modified
                     VesselECMJInfo jammer = v.gameObject.GetComponent<VesselECMJInfo>();
                     if (jammer != null)
-                        jammer.UpdateJammerStrength();
+                        jammer.UpdateJammerStrength(ti);
                 }
+                else
+                    // NOTE: This might be called on startup depending on who initializes first, if VesselECMJInfo calls
+                    // UpdateJammerStrength before tInfo gets constructed, then this will get triggered.
+                    Debug.LogWarning($"[BDArmory.RadarUtils] DETECTED INFINITE LOOP! Vessel: {(v ? v.vesselName : "null")}, with mass: {ti.radarMassAtUpdate}, ti.radarBaseSignature: {ti.radarBaseSignature}, radarBaseSignatureNeedsUpdate: {ti.radarBaseSignatureNeedsUpdate} and radarSignatureMatrixNeedsUpdate: {ti.radarSignatureMatrixNeedsUpdate} caused infinite loop for some reason!");
             }
 
             return ti;
