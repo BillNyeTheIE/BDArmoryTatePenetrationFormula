@@ -18,7 +18,7 @@
 	- Targeting Camera terrain collision detection no longer starts 50m forward of the lens.
 	- Targeting Camera will no longer lock on to its parent vessel or missiles fired by its parent vessel.
 	- Prevent errors in radar code from potentially causing game freezes.
-	- "DynamicRadar" setting (AI will automatically disable radars when under attack by an anti-radiation missile) in radars will now default to "false", this can be toggled per-radar or turned on for the entire vessel from the Weapon Manager.
+	- Radar 'auto-disable vs incoming Antirad missiles' default has been changed to Off. This can be toggled per-radar or turned on for the entire vessel from the Weapon Manager.
 - Weapons:
 	- Add conical beam weapon implementation for creating microwave drone zappers, War of the Worlds heatrays, tractor beams, etc.
 		- Adds new weapon.cfg fields: 'conicAoE' = T/F to enable conic field of fire for Laser class weapons.
@@ -32,10 +32,15 @@
 	- Fix explosion damage affecting armored parts which should be able to resist them.
 	- Fix incorrect application of certain shaped charge logic to continuous rod warheads.
 	- External fires from incendiary ammo into flammable hull materials no longer suppressed by Inerted Tanks.
+	- Added a AIMING_VISUAL_MALUS setting (default=0) that applies a malus to aiming at targets with mk1 eyeballs if >0 and the target is within visual range. The malus decreases both with time since target acquisition and shots fired at the target, and resets when changing targets.
+		Weapons configs can be configured with:
+		- 'sightingAccuracy' (default=1 mrad) which represents the limit of visual aiming accounting for scopes and other visual aids.
+		- 'malusReductionPerShot' (default 0.1) which determines how rapidly the malus decreases with each shot at the target.
 	- Missiles:
 		- Add ordnance offset option to non-adjustableRail reloadable MultiMissileLaunchers that don't come with set missile types.
 		- Fix Nuclear ordnance applying multiple stacks of EMP damage to a single vessel during detonation.
 		- Improve "CLOSlead" debug visualization, now shows the proper, lead-adjusted beam, for easier debugging.
+		- Add new "adjustMissileVOffset = T/F field for MultimissileLauncher.cfgs to set if missiles should automatically adjust mount position based on missile diameter (missile rails, etc) or not (VLS cells).
 		- Fixed missile ECM behavior, previously changes to the missile's radar signature due to ECM could be overwritten by the missile going active/passive, causing ECM to seemingly not function.
 		- Missiles with a "cruiseRangeTrigger" will now also fire the cruise motor if the missile's airspeed drops below 75% of its optimum airspeed while in-atmosphere.
 		- AAMLoft settings for modular missiles are now correctly loaded when returning to the SPH.
@@ -48,9 +53,13 @@
 		- Fix certain scaling issues with multi-missile launchers
 		- Fix missile turret aiming under Guard Mode control, particularly, turrets with IR, laser and anti-radiation missiles will now pre-aim at the target to facilitate acquisition
   - Robotics:
-		- Adds ability to build custom turrets with Breaking Ground Hinges and Servoes.
-			- BG hinges/servoes now have a 'Custom Turret ID' slider; attaching a weapon as a child of the robotic part adds a similar 'Custom Turret ID' slider to the gun.
+		- !!Experimental!! Adds ability to build custom turrets with Breaking Ground Hinges and Servoes.
+			- BG hinges/servos now have a 'Custom Turret ID' slider; attaching a weapon as a child of the robotic part adds a similar 'Custom Turret ID' slider to the gun.
 			- Setting both to the same value will enable the gun to use BG robotics to slew/traverse the attached weapon (and any other parts attached to the robotics) as if it were a standard BDA turret.
+			- Turret ID = 0 is an Off value, and will not link weapons to a servo.
+			- Pressing F2 to bring up the Weapon Alignment in the SPH/VAB will draw a Pitch/yaw Blue/Green alignment line for all enabled servos.
+			- All servos in a custom turret should have aligned forward and Up directions.
+			- Attached weapons should be placed in the forward direction for optimal operation.
 - Competition:
 	- Allow warping to morning for waypoints tournaments.
 	- Show the waypoint name (if it exists) in the VS status during waypoint competitions.

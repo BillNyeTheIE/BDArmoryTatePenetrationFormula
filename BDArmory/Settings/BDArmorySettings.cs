@@ -266,6 +266,7 @@ namespace BDArmory.Settings
         public static bool _PART_GLIMIT = false; // Part G-force limits.
         public static bool _KERB_GLIMIT = false; // Kerbal G-force limits.
         public static float _G_TOLERANCE = 1f;   // Adjust the GToleranceMult to set Max G endurance of all kerbs to a desired amount
+        [BDAPersistentSettingsField] public static float AIMING_VISUAL_MALUS = 0; // Malus to visual aiming with a mk1 eyeball.
         #endregion
 
         #region Battle Damage settings

@@ -512,11 +512,11 @@ namespace BDArmory.UI
                 line++;
                 GUI.Label(new Rect(10, line * lineHeight, 300, lineHeight), $"{StringUtils.Localize("#LOC_BDArmory_ArmorWingLoading")}:", style);
                 line++;
-                GUI.Label(new Rect(10, line * lineHeight, 300, lineHeight), $"   - {StringUtils.Localize("#autoLOC_6001895")}: {wingLoadingWet:0.0} ({WLRatioWet:F2} kg/m2)", style);
+                GUI.Label(new Rect(10, line * lineHeight, 300, lineHeight), $"   - {StringUtils.Localize("#autoLOC_6001895")}: {wingLoadingWet:0.00} ({WLRatioWet:F2} kg/m2)", style);
                 line++;
-                GUI.Label(new Rect(10, line * lineHeight, 300, lineHeight), $"   - {StringUtils.Localize("#autoLOC_6001896")}: {wingLoadingDry:0.0} ({WLRatioDry:F2} kg/m2)", style);
+                GUI.Label(new Rect(10, line * lineHeight, 300, lineHeight), $"   - {StringUtils.Localize("#autoLOC_6001896")}: {wingLoadingDry:0.00} ({WLRatioDry:F2} kg/m2)", style);
                 line++;
-                GUI.Label(new Rect(10, line * lineHeight, 300, lineHeight), $"{StringUtils.Localize("#LOC_BDArmory_ArmorLiftStacking")}: {totalLiftStackRatio:0%}", style);
+                GUI.Label(new Rect(10, line * lineHeight, 300, lineHeight), $"{StringUtils.Localize("#LOC_BDArmory_ArmorLiftStacking")}: {totalLiftStackRatio:0.0%}", style);
                 line++;
 #if DEBUG
                 line += 0.5f;

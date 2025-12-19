@@ -1,11 +1,7 @@
-using KSP.UI.Screens;
-using System.Collections.Generic;
-using System;
-using UniLinq;
-using UnityEngine;
-
 using BDArmory.Control;
+using BDArmory.CounterMeasure;
 using BDArmory.Extensions;
+using BDArmory.FX;
 using BDArmory.Guidances;
 using BDArmory.Radar;
 using BDArmory.Settings;
@@ -13,8 +9,12 @@ using BDArmory.Targeting;
 using BDArmory.UI;
 using BDArmory.Utils;
 using BDArmory.VesselSpawning;
-using BDArmory.FX;
-using BDArmory.CounterMeasure;
+using BDArmory.WeaponMounts;
+using KSP.UI.Screens;
+using System;
+using System.Collections.Generic;
+using UniLinq;
+using UnityEngine;
 
 namespace BDArmory.Weapons.Missiles
 {
@@ -657,7 +657,24 @@ namespace BDArmory.Weapons.Missiles
 
             weaponClass = WeaponClasses.Missile;
             WeaponName = GetShortName();
-            if (HighLogic.LoadedSceneIsFlight) missileName = shortName;
+            if (HighLogic.LoadedSceneIsFlight && customTurretID > 0)
+            {
+                missileName = shortName;
+                using (var servo = VesselModuleRegistry.GetModules<ModuleCustomTurret>(vessel).GetEnumerator())
+                    while (servo.MoveNext())
+                    {
+                        if (servo.Current == null) continue;
+                        if ((int)servo.Current.turretID != (int)customTurretID) continue;
+                        customTurret.Add(servo.Current);
+                        servo.Current.SetReferenceTransform(MissileReferenceTransform); //confirm this is pointing in the right direction
+                    }
+                if (customTurret.Count == 0) customTurretID = 0;
+            }
+            if (HighLogic.LoadedSceneIsEditor)
+            {
+                GameEvents.onEditorPartPlaced.Add(OnEditorPartPlaced);
+                FindTurretInParents(part);
+            }
             activeRadarRange = ActiveRadarRange;
             chaffEffectivity = ChaffEffectivity;
             missileCMRange = MissileCMRange;
@@ -868,12 +885,33 @@ namespace BDArmory.Weapons.Missiles
             GUIUtils.RefreshAssociatedWindows(part);
         }
 
+        void OnEditorPartPlaced(Part p)
+        {
+            if (p = part) FindTurretInParents(part);
+        }
+        private void FindTurretInParents(Part p)
+        {
+            if (p == null)
+            {
+                Fields["customTurretID"].guiActiveEditor = false;
+                return;
+            }
+            var turret = p.FindModuleImplementing<ModuleCustomTurret>();
+            if (turret != null)
+            {
+                Fields["customTurretID"].guiActiveEditor = true;
+                return;
+            }
+            FindTurretInParents(p.parent);
+        }
+
         private void OnDestroy()
         {
             if (vessel) vessel.OnFlyByWire -= GuidanceSteer;
             WeaponNameWindow.OnActionGroupEditorOpened.Remove(OnActionGroupEditorOpened);
             WeaponNameWindow.OnActionGroupEditorClosed.Remove(OnActionGroupEditorClosed);
             GameEvents.onPartDie.Remove(PartDie);
+            GameEvents.onEditorPartPlaced.Remove(OnEditorPartPlaced);
             if (_velocityTransform != null) { Destroy(_velocityTransform.gameObject); }
         }
 

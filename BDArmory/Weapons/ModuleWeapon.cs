@@ -169,6 +169,8 @@ namespace BDArmory.Weapons
         private Vector3 smoothedPartAcceleration; // Also apply smoothing to the part's acceleration, required for long-range aiming.
         readonly SmoothingV3 partAccelerationSmoothing = new(); // Smoothing for the part's acceleration, required for long-range aiming.
         readonly SmoothingV3 smoothedRelativeFinalTarget = new(0.5f); // Smoothing for the finalTarget aim-point: half-life of 1 frame. This seems good. More than 5 frames (0.1s) seems too slow.
+        public int shotsFiredSinceAcquiringTarget = 0;
+        public float targetAcquisitionTime = 0;
         public bool targetIsLandedOrSplashed = false; // Used in the targeting simulations to know whether to separate gravity from other acceleration.
         private float lastTimeToCPA = -1, deltaTimeToCPA = 0;
         float bulletTimeToCPA; // Time until the bullet is expected to reach the closest point to the target. Used for timing-based bullet detonation.
@@ -181,7 +183,11 @@ namespace BDArmory.Weapons
                 if (_visualTargetVessel != null && !_visualTargetVessel.gameObject.activeInHierarchy) _visualTargetVessel = null;
                 return _visualTargetVessel;
             }
-            set { _visualTargetVessel = value; }
+            set
+            {
+                lastVisualTargetVessel = _visualTargetVessel;
+                _visualTargetVessel = value;
+            }
         }
         Vessel _visualTargetVessel;
         public Vessel lastVisualTargetVessel
@@ -211,6 +217,7 @@ namespace BDArmory.Weapons
 
         private int targetID = 0;
         bool targetAcquired;
+        public bool targetInVisualRange = false;
 
         public bool targetCOM = true;
         public bool targetCockpits = false;
@@ -475,7 +482,7 @@ namespace BDArmory.Weapons
 
         //weapon specifications
         [KSPField(advancedTweakable = false, isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_TurretID"),//Custom Turret ID
-    UI_FloatRange(minValue = 1f, maxValue = 20f, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+    UI_FloatRange(minValue = 0f, maxValue = 20f, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
         public float customTurretID = 0;
 
         [KSPField(advancedTweakable = true, isPersistant = true, guiActive = false, guiActiveEditor = false, guiName = "#LOC_BDArmory_FiringPriority"),
@@ -1037,6 +1044,13 @@ namespace BDArmory.Weapons
         public string APSType = "missile"; //missile/ballistic/omni
 
         private float delayTime = -1;
+
+        [KSPField]
+        public float sightingAccuracy = 1f; // In milliradians (for the visual aiming malus).
+        float malusSightingAccuracy = 0.01f; // 10 * tan(sightingAccuracy / 1000). The bounded slow random walk that the malus performs reaches approx 0.1 this size.
+        [KSPField]
+        public float malusReductionPerShot = 0.1f; // Scale the per shot reduction in the visual aiming malus.
+        public float malusReduction = 1f;
 
         IEnumerator IncrementRippleIndex(float delay)
         {
@@ -1647,7 +1661,10 @@ namespace BDArmory.Weapons
                         useCustomBelt = false;
                     }
                 }
+                GameEvents.onEditorPartPlaced.Add(OnEditorPartPlaced);
+                FindTurretInParents(part);
             }
+            malusSightingAccuracy = 10f * Mathf.Tan(sightingAccuracy / 1000f);
             //turret setup
             using (List<ModuleTurret>.Enumerator turr = part.FindModulesImplementing<ModuleTurret>().GetEnumerator())
                 while (turr.MoveNext())
@@ -1676,7 +1693,7 @@ namespace BDArmory.Weapons
                 }
             }
             //custom turret setup
-            if (HighLogic.LoadedSceneIsFlight)
+            if (HighLogic.LoadedSceneIsFlight && customTurretID > 0)
             {
                 float yaw = 0;
                 float minP = 0;
@@ -1697,11 +1714,11 @@ namespace BDArmory.Weapons
                         }
                         minP += servo.Current.minPitch;
                         maxP += servo.Current.maxPitch;
-                    }
+                    }                
                 customYaw = yaw;
                 customMinPitch = minP;
                 customMaxPitch = maxP;
-                Debug.Log($"[ModuleWeapon] custom Min/max Pitch/Yaw vals are :{customMinPitch}; {customMaxPitch}; {customYaw}");
+                if (customTurret.Count == 0) customTurretID = 0;
             }
             //setup animations
             if (hasDeployAnim)
@@ -1943,6 +1960,7 @@ namespace BDArmory.Weapons
             BDArmorySetup.OnVolumeChange -= UpdateVolume;
             WeaponNameWindow.OnActionGroupEditorOpened.Remove(OnActionGroupEditorOpened);
             WeaponNameWindow.OnActionGroupEditorClosed.Remove(OnActionGroupEditorClosed);
+            GameEvents.onEditorPartPlaced.Remove(OnEditorPartPlaced);
             TimingManager.FixedUpdateRemove(TimingManager.TimingStage.FashionablyLate, AimAndFire);
         }
         public void PAWRefresh()
@@ -2072,6 +2090,26 @@ namespace BDArmory.Weapons
             status += "-Lead Offset: " + GetLeadOffset() + "; FinalAimTgt: " + finalAimTarget + "; tgt: " + visualTargetVessel.GetName() + "; tgt Pos: " + targetPosition + "; pointingAtSelf: " + pointingAtSelf + "; tgt CosAngle " + targetCosAngle + "; wpn CosAngle " + targetAdjustedMaxCosAngle + "; Wpn Autofire " + autoFire;
 
             return status;
+        }
+
+        void OnEditorPartPlaced(Part p)
+        {
+            if (p = part) FindTurretInParents(part);
+        }
+        private void FindTurretInParents(Part p)
+        {
+            if (p == null)
+            {
+                Fields["customTurretID"].guiActiveEditor = false;
+                return;
+            }
+            var turret = p.FindModuleImplementing<ModuleCustomTurret>();
+            if (turret != null)
+            {
+                Fields["customTurretID"].guiActiveEditor = true;
+                return;
+            }
+            FindTurretInParents(p.parent);
         }
 
         bool fireConditionCheck => ((((userFiring || agHoldFiring) && !isAPS) || autoFire) && (!turret || turret.TargetInRange(finalAimTarget, float.MaxValue, 10))) || (BurstFire && RoundsRemaining > 0 && RoundsRemaining < RoundsPerMag);
@@ -2316,10 +2354,18 @@ namespace BDArmory.Weapons
             if (BDArmorySettings.DEBUG_LINES && BDArmorySettings.DEBUG_WEAPONS && (weaponState == WeaponStates.Enabled || weaponState == WeaponStates.EnabledForSecondaryFiring) && vessel && !vessel.packed && !MapView.MapIsEnabled)
             {
                 GUIUtils.MarkPosition(debugTargetPosition, transform, Color.grey); //lets not have two MarkPositions use the same color...
-                GUIUtils.DrawLineBetweenWorldPositions(debugTargetPosition, debugTargetPosition + debugRelVelAdj, 2, Color.green);
-                GUIUtils.DrawLineBetweenWorldPositions(debugTargetPosition + debugRelVelAdj, debugTargetPosition + debugRelVelAdj + debugAccAdj, 2, Color.magenta);
-                GUIUtils.DrawLineBetweenWorldPositions(debugTargetPosition + debugRelVelAdj + debugAccAdj, debugTargetPosition + debugRelVelAdj + debugAccAdj + debugGravAdj, 2, Color.yellow);
+                Vector3 pos = debugTargetPosition;
+                GUIUtils.DrawLineBetweenWorldPositions(pos, pos + debugRelVelAdj, 2, Color.green);
+                pos += debugRelVelAdj;
+                GUIUtils.DrawLineBetweenWorldPositions(pos, pos + debugAccAdj, 2, Color.magenta);
+                pos += debugAccAdj;
+                GUIUtils.DrawLineBetweenWorldPositions(pos, pos + debugGravAdj, 2, Color.yellow);
                 GUIUtils.MarkPosition(finalAimTarget, transform, Color.cyan, size: 4);
+                if (targetInVisualRange && BDArmorySettings.AIMING_VISUAL_MALUS > 0)
+                {
+                    pos += debugGravAdj;
+                    GUIUtils.DrawLineBetweenWorldPositions(pos, pos + BDArmorySettings.AIMING_VISUAL_MALUS * kinematicAimMalus, 2, Color.black);
+                }
             }
         }
 
@@ -4060,6 +4106,8 @@ namespace BDArmory.Weapons
         #endregion Audio
 
         #region Targeting
+        public Vector3 kinematicAimMalus = default, kinematicAimMalusDelta = default;
+        // float rangeAimMalus = 0;
         void Aim()
         {
             var wm = WeaponManager;
@@ -4248,7 +4296,8 @@ namespace BDArmory.Weapons
                     targetVelocity += 0.5f * Time.fixedDeltaTime * (supported ? targetAcceleration : targetAcceleration - (Vector3)FlightGlobals.getGeeForceAtPosition(targetPosition));
                     // There is no equivalent correction for the weapon part due to our specific placement of the bullet with the given velocity.
                 }
-                targetDistance = Vector3.Distance(targetPosition, fireTransform.parent.position);
+                Vector3 firePosition = fireTransform.position;
+                targetDistance = Vector3.Distance(targetPosition, firePosition);
                 origTargetDistance = targetDistance;
 
                 RunTrajectorySimulation(); // Run the trajectory sim after picking a target for this frame, otherwise a bunch of stuff is reset between frames. This is required for the rocket aiming.
@@ -4285,7 +4334,7 @@ namespace BDArmory.Weapons
                                     TimeWarp.fixedDeltaTime :
                                     TimeWarp.fixedDeltaTime - (TimeWarp.fixedDeltaTime + timeGap - timeSinceFired) % TimeWarp.fixedDeltaTime; // This is the iTime correction for the frame that the gun will actually fire on.
                                 if (iTime < 1e-4f) iTime = TimeWarp.fixedDeltaTime; // Avoid jitter by aliasing iTime < 1e-4 to TimeWarp.fixedDeltaTime for the frame after.
-                                var firePosition = AIUtils.PredictPosition(fireTransforms[0].position, smoothedPartVelocity, smoothedPartAcceleration, Time.fixedDeltaTime); // Position of the end of the barrel at the start of the next frame.
+                                firePosition = AIUtils.PredictPosition(fireTransforms[0].position, smoothedPartVelocity, smoothedPartAcceleration, Time.fixedDeltaTime); // Position of the end of the barrel at the start of the next frame.
 
                                 firingDirection = smoothedRelativeFinalTarget.At(Time.fixedDeltaTime).normalized; // Estimate of the current firing direction for this frame based on the previous frames.
                                 bulletAcceleration = bulletDrop ? (Vector3)FlightGlobals.getGeeForceAtPosition(firePosition) : Vector3.zero; // Acceleration at the start point.
@@ -4382,8 +4431,8 @@ namespace BDArmory.Weapons
                                     // Debug.Log($"DEBUG {count} iterations for convergence in aiming loop");
                                     debugTargetPosition = targetPosition;
                                     debugLastTargetPosition = debugTargetPosition;
-                                    debugRelVelAdj = (targetVelocity - smoothedPartVelocity) * timeToCPA;
-                                    debugAccAdj = 0.5f * targetAcceleration * timeToCPA * timeToCPA;
+                                    debugRelVelAdj = timeToCPA * (targetVelocity - smoothedPartVelocity);
+                                    debugAccAdj = 0.5f * timeToCPA * timeToCPA * targetAcceleration;
                                     debugGravAdj = bulletDropOffset;
                                     // var missDistance = AIUtils.PredictPosition(relativePosition, bulletRelativeVelocity, bulletRelativeAcceleration, timeToCPA);
                                     // if (BDArmorySettings.DEBUG_WEAPONS) Debug.Log("DEBUG δt: " + timeToCPA + ", miss: " + missDistance + ", bullet drop: " + bulletDropOffset + ", final: " + finalTarget + ", target: " + targetPosition + ", " + targetVelocity + ", " + targetAcceleration + ", distance: " + targetDistance);
@@ -4393,11 +4442,37 @@ namespace BDArmory.Weapons
                         case WeaponTypes.Rocket: //Rocket targeting
                             {
                                 finalTarget = AIUtils.PredictPosition(targetPosition, targetVelocity, targetAcceleration, predictedFlightTime) + trajectoryOffset;
-                                targetDistance = Mathf.Clamp(Vector3.Distance(targetPosition, fireTransform.parent.position), 0, maxTargetingRange);
+                                targetDistance = Mathf.Clamp(Vector3.Distance(targetPosition, firePosition), 0, maxTargetingRange);
                             }
                             break;
                     }
                 }
+                if (targetInVisualRange && BDArmorySettings.AIMING_VISUAL_MALUS > 0) // Apply a malus to visual aiming from mk1 eyeballs.
+                {
+                    // We want a slow random walk that improves rapidly with shots fired.
+                    // float size = BDArmorySettings.AIMING_VISUAL_MALUS * ((smoothedPartVelocity - targetVelocity).OneNorm() / (1 + shotsFiredSinceAcquiringTarget) + BDArmorySettings.AIMING_VISUAL_MALUS * (smoothedPartAcceleration - targetAcceleration).OneNorm());
+                    // kinematicAimMalus = factor * kinematicAimMalus + (1f - factor) * size * UnityEngine.Random.insideUnitSphere;
+                    malusReduction = (1f + Mathf.Min(malusReductionPerShot * shotsFiredSinceAcquiringTarget, 99f)) * (1f + Mathf.Min(Time.time - targetAcquisitionTime, 9f));
+                    float size = malusSightingAccuracy * targetDistance * ((smoothedPartVelocity - targetVelocity).OneNorm() + 1f) / malusReduction + (smoothedPartAcceleration - targetAcceleration).OneNorm();
+                    kinematicAimMalusDelta = 0.99f * kinematicAimMalusDelta + 0.01f * size * UnityEngine.Random.insideUnitSphere;
+                    kinematicAimMalus = 0.9f * kinematicAimMalus + 0.1f / malusReduction * kinematicAimMalusDelta;
+                    // rangeAimMalus = factor * rangeAimMalus + (1f - factor) / (1 + shotsFiredSinceAcquiringTarget) * UnityEngine.Random.Range(-0.01f, 0.01f);
+                    finalTarget += BDArmorySettings.AIMING_VISUAL_MALUS * kinematicAimMalus;
+                    fixedLeadOffset = originalTarget - finalTarget;
+                    // fixedLeadOffset *= 1f + rangeAimMalus; // Implicitly affected by targetDistance.
+                    finalAimTarget = originalTarget - fixedLeadOffset;
+                    targetDistance = Mathf.Clamp(Vector3.Distance(targetPosition, firePosition), 0, maxTargetingRange); // Move firePosition declaration outside the aim assist logic and set it for both rockets and guns.
+                }
+                else
+                {
+                    fixedLeadOffset = originalTarget - finalTarget; //for aiming fixed guns to moving target
+                    finalAimTarget = finalTarget;
+                }
+                staleFinalAimTarget = finalAimTarget;
+                staleTargetVelocity = targetVelocity + BDKrakensbane.FrameVelocityV3f;
+                staleTargetAcceleration = targetAcceleration;
+                stalePartVelocity = smoothedPartVelocity + BDKrakensbane.FrameVelocityV3f;
+                staleGoodTargetTime = Time.time;
                 //airdetonation
                 if (eFuzeType == BulletFuzeTypes.Timed || eFuzeType == BulletFuzeTypes.Flak)
                 {
@@ -4410,13 +4485,6 @@ namespace BDArmory.Weapons
                         defaultDetonationRange = maxEffectiveDistance; //airburst at max range
                     }
                 }
-                fixedLeadOffset = originalTarget - finalTarget; //for aiming fixed guns to moving target
-                finalAimTarget = finalTarget;
-                staleFinalAimTarget = finalAimTarget;
-                staleTargetVelocity = targetVelocity + BDKrakensbane.FrameVelocityV3f;
-                staleTargetAcceleration = targetAcceleration;
-                stalePartVelocity = smoothedPartVelocity + BDKrakensbane.FrameVelocityV3f;
-                staleGoodTargetTime = Time.time;
             }
 
             //final turret aiming
@@ -5325,8 +5393,17 @@ namespace BDArmory.Weapons
             }
             if (targetAcquired)
             {
-                bool reset = lastTargetAcquisitionType != targetAcquisitionType || (targetAcquisitionType == TargetAcquisitionType.Visual && lastVisualTargetVessel != visualTargetVessel);
+                bool reset = (lastTargetAcquisitionType != targetAcquisitionType) || (targetAcquisitionType == TargetAcquisitionType.Visual && lastVisualTargetVessel != visualTargetVessel);
                 SmoothTargetKinematics(targetPosition, targetVelocity, targetAcceleration, targetIsLandedOrSplashed, reset);
+                if (reset && BDArmorySettings.AIMING_VISUAL_MALUS > 0)
+                {
+                    shotsFiredSinceAcquiringTarget = (targetAcquisitionType == TargetAcquisitionType.Radar || targetAcquisitionType == TargetAcquisitionType.Slaved) ? 4 : 0; // Radar/slaved gives an initial starting bonus
+                    targetAcquisitionTime = Time.time;
+                    float size = malusSightingAccuracy * (targetPosition - transform.position).magnitude * ((smoothedPartVelocity - targetVelocity).OneNorm() + 1f) + (smoothedPartAcceleration - targetAcceleration).OneNorm();
+                    kinematicAimMalusDelta = 0.1f * size * UnityEngine.Random.insideUnitSphere;
+                    kinematicAimMalus = 0.1f * size * UnityEngine.Random.insideUnitSphere; // This is about the typical size that the malus peaks at during the bounded slow random walk.
+                    // rangeAimMalus = UnityEngine.Random.Range(-0.01f, 0.01f);
+                }
             }
 
             Aim();
@@ -5420,6 +5497,7 @@ namespace BDArmory.Weapons
                                 FireRocket();
                                 break;
                         }
+                        ++shotsFiredSinceAcquiringTarget; // Overflow shouldn't be an issue.
                     }
                 }
             }
@@ -5656,6 +5734,7 @@ namespace BDArmory.Weapons
         void UpdateTargetVessel()
         {
             targetAcquired = false;
+            targetInVisualRange = false;
             slaved = false;
             GPSTarget = false;
             radarTarget = false;
@@ -5678,14 +5757,12 @@ namespace BDArmory.Weapons
                     targetAcquisitionType = TargetAcquisitionType.None;
                 }
             }
-            lastVisualTargetVessel = visualTargetVessel;
 
             if (weaponManager)
             {
-                bool visRange = false;
                 if (visualTargetVessel)
                 {
-                    visRange = (visualTargetVessel.transform.position - transform.position).sqrMagnitude < weaponManager.guardRange * weaponManager.guardRange;
+                    targetInVisualRange = (visualTargetVessel.transform.position - transform.position).sqrMagnitude < weaponManager.guardRange * weaponManager.guardRange;
                 }
                 if (weaponManager.vesselRadarData && weaponManager.vesselRadarData.locked) // && weaponManager.slavedPosition != Vector3.zero)
                 {
@@ -5725,7 +5802,7 @@ namespace BDArmory.Weapons
                     else //no lock for our secondary target/fixed gun/no multitargeting? slave weapon to primary lock
                     {
                         bool isVessel = weaponManager.slavedTarget.vessel != null;
-                        if (!isVessel || !(visRange && RadarUtils.GetVesselChaffFactor(weaponManager.slavedTarget.vessel) < 1f))
+                        if (!isVessel || !(targetInVisualRange && RadarUtils.GetVesselChaffFactor(weaponManager.slavedTarget.vessel) < 1f))
                         {
                             if (weaponManager.slavingTurrets) slaved = true;
                             targetRadius = isVessel ? weaponManager.slavedTarget.vessel.GetRadius() : 35f;
@@ -5759,7 +5836,7 @@ namespace BDArmory.Weapons
                     return;
                 }
                 // within visual range and no radar aiming/need precision visual targeting of specific subsystems
-                if (aiControlled && visualTargetVessel && visRange)
+                if (aiControlled && visualTargetVessel && targetInVisualRange)
                 {
                     //targetRadius = visualTargetVessel.GetRadius();
 

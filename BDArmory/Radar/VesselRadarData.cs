@@ -1064,7 +1064,9 @@ namespace BDArmory.Radar
 
             return fov;
         }
-
+        /// <summary>
+        /// Slew any Targeting Cameras to the radarlocked position
+        /// </summary>
         public void SlaveTurrets()
         {
             var targetingCameras = VesselModuleRegistry.GetModules<ModuleTargetingCamera>(vessel);

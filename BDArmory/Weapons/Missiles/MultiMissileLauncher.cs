@@ -65,7 +65,7 @@ namespace BDArmory.Weapons.Missiles
         public ModuleMissileRearm missileSpawner = null;
         MissileLauncher missileLauncher = null;
         [KSPField] public bool adjustMissileVOffset = false; //should missile vertical offset dynamically adjust based on missile diameter (for MMLs on adjustable rails, etc)
-        float attachedMissileDia = 0;
+        [KSPField(isPersistant = true)] float attachedMissileDiameter = 0;
         MissileFire FiredByWM = null; // Assigned when fired and then not updated even if the parent craft changes their primary WM.
         private int tubesFired = 0;
         [KSPField(isPersistant = true)]
@@ -353,7 +353,7 @@ namespace BDArmory.Weapons.Missiles
                     ALength.onFieldChanged = updateLength;
                 }
             }
-            if (adjustMissileVOffset)
+            if (adjustMissileVOffset || !string.IsNullOrEmpty(lengthTransformName))
             {
                 UI_FloatRange AOffset = (UI_FloatRange)Fields["attachOffset"].uiControlEditor;
                 AOffset.maxValue = offsetMax;
@@ -488,7 +488,7 @@ namespace BDArmory.Weapons.Missiles
                                     if (adjustMissileVOffset)
                                     {
                                         var missileCOL = missile.GetComponentInChildren<Collider>();
-                                        if (missileCOL) attachedMissileDia = Mathf.Min(missileCOL.bounds.size.x, missileCOL.bounds.size.y, missileCOL.bounds.size.z);
+                                        if (missileCOL) attachedMissileDiameter = Mathf.Min(missileCOL.bounds.size.x, missileCOL.bounds.size.y, missileCOL.bounds.size.z);
                                     }
                                     PopulateMissileDummies(true);
                                     MissileLauncher MLConfig = missile.FindModuleImplementing<MissileLauncher>();
@@ -743,7 +743,7 @@ namespace BDArmory.Weapons.Missiles
 
                     dummy.transform.localScale = dummyScale;
                     dummyThis.AttachAt(part, launchTransforms[i]);
-                    if (adjustMissileVOffset && attachedMissileDia > 0) dummyThis.transform.localPosition = new Vector3(attachedMissileDia / 2, 0, 0);
+                    if (adjustMissileVOffset && attachedMissileDiameter > 0) dummyThis.transform.localPosition = new Vector3(attachedMissileDiameter / 2, 0, 0);
                     var mslAnim = dummy.GetComponentInChildren<Animation>();
                     if (mslAnim != null) mslAnim.enabled = false;
                     if (!displayOrdinanceHasColliders)
