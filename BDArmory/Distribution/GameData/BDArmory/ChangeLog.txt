@@ -53,7 +53,7 @@ IMPROVEMENTS / FIXES
 		- Un-deprecate "proxyDetonate" field, missiles with "proxyDetonate = false" in their configs will be *strictly* impact fuzed.
 		- Fix certain scaling issues with multi-missile launchers.
 		- Fix missile turret aiming under Guard Mode control, particularly, turrets with IR, laser and anti-radiation missiles will now pre-aim at the target to facilitate acquisition.
-  - Robotics:
+	- Robotics:
 		- !!Experimental!! Adds ability to build custom turrets with Breaking Ground Hinges and Servos.
 			- BG hinges/servos now have a 'Custom Turret ID' slider; attaching a weapon as a child of the robotic part adds a similar 'Custom Turret ID' slider to the gun.
 			- Setting both to the same value will enable the gun to use BG robotics to slew/traverse the attached weapon (and any other parts attached to the robotics) as if it were a standard BDA turret.
