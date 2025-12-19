@@ -16,7 +16,8 @@
 	- Radar and RWR code optimizations.
 	- Fix smooth slewing of the targeting camera when clicking on the GUI buttons when a target is locked.
 	- Targeting Camera terrain collision detection no longer starts 50m forward of the lens.
-	- Targeting Camera will no longer lock on to its parent vessel
+	- Targeting Camera will no longer lock on to its parent vessel or missiles fired by its parent vessel.
+	- Prevent errors in radar code from potentially causing game freezes.
 	- "DynamicRadar" setting (AI will automatically disable radars when under attack by an anti-radiation missile) in radars will now default to "false", this can be toggled per-radar or turned on for the entire vessel from the Weapon Manager.
 - Weapons:
 	- Add conical beam weapon implementation for creating microwave drone zappers, War of the Worlds heatrays, tractor beams, etc.
@@ -28,6 +29,8 @@
 		- EMP missile/Nuke EMP burst/conicAoE EMP lasers resisted by craft bulk and conductive armor occluding cockpits from emission source.
 		- EMP buildup now causes increasing penalties/subsystem shutdowns as it accrues in a vessel receiving EMP damage.
 	- Fix hypersonic rounds dealing self damage when fired into something at close range.
+	- Fix explosion damage affecting armored parts which should be able to resist them.
+	- Fix incorrect application of certain shaped charge logic to continuous rod warheads.
 	- External fires from incendiary ammo into flammable hull materials no longer suppressed by Inerted Tanks.
 	- Missiles:
 		- Add ordnance offset option to non-adjustableRail reloadable MultiMissileLaunchers that don't come with set missile types.
