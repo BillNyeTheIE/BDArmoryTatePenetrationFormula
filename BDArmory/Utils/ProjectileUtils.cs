@@ -578,7 +578,7 @@ namespace BDArmory.Utils
                 float Strength = Armor.Strength;
                 float Density = Armor.Density;
 
-                float ArmorTolerance = (((Strength * (1 + ductility)) + Density) / 1000) * (float)hitPart.GetArmorThickness(); //either this or blowthrough factor should probably get reviewed at some point
+                float ArmorTolerance = (((Strength * (1 + ductility)) + Density) / 1000f) * (float)hitPart.GetArmorThickness(); //either this or blowthrough factor should probably get reviewed at some point
 
                 ArmorTolerance *= BDArmorySettings.EXP_PEN_RESIST_MULT;
 
