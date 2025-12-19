@@ -1,4 +1,5 @@
-﻿IMPROVEMENTS / FIXES
+﻿v1.12.0.0
+IMPROVEMENTS / FIXES
 - UI:
 	- Adjust the "Steel Equivalent Thickness" display in the armor GUI to show a more intuitive value.
 - AI / WM:
