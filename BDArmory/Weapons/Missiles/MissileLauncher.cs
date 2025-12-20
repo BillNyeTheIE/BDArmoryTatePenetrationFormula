@@ -43,6 +43,12 @@ namespace BDArmory.Weapons.Missiles
         public float gMargin = -1;
 
         [KSPField]
+        public bool torqueLimiter = true;
+
+        [KSPField]
+        public float torqueMargin = 0.1f;
+
+        [KSPField]
         public string targetingType = "none";
 
         [KSPField]
@@ -1783,6 +1789,8 @@ namespace BDArmory.Weapons.Missiles
 
                 CruiseSpeed = Mathf.Min(CruiseSpeed, maxCruiseSpeed);
                 CruisePopup = canCruisePopup && CruisePopup;
+                torqueMargin = Mathf.Clamp01(torqueMargin);
+
                 if (!proxyDetonate)
                 {
                     DetonationDistance = 0f;
@@ -2308,14 +2316,14 @@ namespace BDArmory.Weapons.Missiles
                         }
                     }
                     else
-                        aeroTorque = MissileGuidance.DoAeroForces(this, TargetPosition, currLiftArea, currDragArea, .25f, aeroTorque, currMaxTorque, currMaxTorqueAero, 0.1f, MissileGuidance.DefaultLiftCurve, MissileGuidance.DefaultDragCurve);
+                        aeroTorque = MissileGuidance.DoAeroForces(this, TargetPosition, currLiftArea, currDragArea, .25f, aeroTorque, currMaxTorque, currMaxTorqueAero, 0.1f, MissileGuidance.DefaultLiftCurve, MissileGuidance.DefaultDragCurve, torqueLimiter, torqueMargin);
                 }
                 else
                 {
                     CheckMiss();
                     if (aero)
                     {
-                        aeroTorque = MissileGuidance.DoAeroForces(this, TargetPosition, currLiftArea, currDragArea, .25f, aeroTorque, currMaxTorque, currMaxTorqueAero, 0.1f, MissileGuidance.DefaultLiftCurve, MissileGuidance.DefaultDragCurve);
+                        aeroTorque = MissileGuidance.DoAeroForces(this, TargetPosition, currLiftArea, currDragArea, .25f, aeroTorque, currMaxTorque, currMaxTorqueAero, 0.1f, MissileGuidance.DefaultLiftCurve, MissileGuidance.DefaultDragCurve, torqueLimiter, torqueMargin);
                     }
                 }
 
@@ -3578,7 +3586,7 @@ namespace BDArmory.Weapons.Missiles
                 //if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileLauncher]: maxAoA: {maxAoA}, currAoALimit: {currAoALimit}, currgLimit: {currgLimit}");
             }
 
-            aeroTorque = MissileGuidance.DoAeroForces(this, targetPosition, currLiftArea, currDragArea, controlAuthority * currSteerMult, aeroTorque, finalMaxTorque, currMaxTorqueAero, currAoALimit, MissileGuidance.DefaultLiftCurve, MissileGuidance.DefaultDragCurve);
+            aeroTorque = MissileGuidance.DoAeroForces(this, targetPosition, currLiftArea, currDragArea, controlAuthority * currSteerMult, aeroTorque, finalMaxTorque, currMaxTorqueAero, currAoALimit, MissileGuidance.DefaultLiftCurve, MissileGuidance.DefaultDragCurve, torqueLimiter, torqueMargin);
         }
 
         void AGMBallisticGuidance()

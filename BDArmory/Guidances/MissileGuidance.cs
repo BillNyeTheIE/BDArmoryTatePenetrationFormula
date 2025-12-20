@@ -1809,7 +1809,7 @@ namespace BDArmory.Guidances
 
             // Divide out the dynamic pressure and CoLDist components of torque
             maxTorque /= q * CoLDist;
-            maxTorque *= 0.9f; // Let's only go up to 90% of maxTorque to leave some leeway
+            //maxTorque *= 0.9f; // Let's only go up to 90% of maxTorque to leave some leeway
 
             int LHS = 0;
             int RHS = 7;
@@ -1902,11 +1902,11 @@ namespace BDArmory.Guidances
             FloatCurve dragCurve = DefaultDragCurve;
 
             return DoAeroForces(ml, targetPosition, liftArea, dragArea, steerMult, previousTorque, maxTorque, maxAoA, maxTorqueAero,
-                liftCurve, dragCurve);
+                liftCurve, dragCurve, true, 0.9f);
         }
 
         public static Vector3 DoAeroForces(MissileLauncher ml, Vector3 targetPosition, float liftArea, float dragArea, float steerMult,
-            Vector3 previousTorque, float maxTorque, float maxTorqueAero, float maxAoA, FloatCurve liftCurve, FloatCurve dragCurve)
+            Vector3 previousTorque, float maxTorque, float maxTorqueAero, float maxAoA, FloatCurve liftCurve, FloatCurve dragCurve, bool torqueLimiter, float torqueMargin)
         {
             Rigidbody rb = ml.part.rb;
             if (rb == null || rb.mass == 0) return Vector3.zero;
@@ -1982,7 +1982,7 @@ namespace BDArmory.Guidances
                 Vector3 finalTorque = Vector3.Lerp(previousTorque, torqueDirection * torque, 1).ProjectOnPlanePreNormalized(Vector3.forward);
                 */
 
-                float AoALim = Mathf.Min(maxAoA + Mathf.Min(0.1f * maxAoA, 2f), getTorqueAoALimit(ml, liftArea, dragArea, maxTorque));
+                float AoALim = torqueLimiter ? Mathf.Min(maxAoA + Mathf.Min(0.1f * maxAoA, 2f), getTorqueAoALimit(ml, liftArea, dragArea, (1f - torqueMargin) * maxTorque)) : maxAoA + Mathf.Min(0.1f * maxAoA, 2f);
                 //if (ml.torqueAoALimit.x > 0)
                 //    AoALim = Mathf.Min(maxAoA + Mathf.Min(0.1f * maxAoA, 2f), 1.2f * ml.torqueAoALimit.x * ml.torqueAoALimit.y / (float)airSpeed * BDAMath.Sqrt(ml.torqueAoALimit.z / (float)airDensity));
 
