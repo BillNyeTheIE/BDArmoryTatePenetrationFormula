@@ -77,6 +77,7 @@ namespace BDArmory.FX
         public static List<Part> IgnoreParts;
         public static List<DestructibleBuilding> IgnoreBuildings;
         internal static readonly float ExplosionVelocity = 422.75f;
+        internal static readonly float SCVelocity = 5000f;
         internal static float KerbinSeaLevelAtmDensity
         {
             get
@@ -493,7 +494,7 @@ namespace BDArmory.FX
             }
         }
 
-        private bool ProcessPartEvent(Part part, float hitDist, string sourceVesselName, List<BlastHitEvent> eventList, List<Part> partsAdded, bool angleOverride = false, Vector3 direction = default, bool directionOverride = false)
+        private bool ProcessPartEvent(Part part, float hitDist, string sourceVesselName, List<BlastHitEvent> eventList, List<Part> partsAdded, bool angleOverride = false, Vector3 direction = default, bool directionOverride = false, bool shapedChargeRay = false)
         {
             RaycastHit hit;
             float distance;
@@ -508,7 +509,7 @@ namespace BDArmory.FX
                     {
                         Distance = distance,
                         Part = part,
-                        TimeToImpact = distance / ExplosionVelocity,
+                        TimeToImpact = distance / (shapedChargeRay ? SCVelocity : ExplosionVelocity),
                         HitPoint = hit.point,
                         Hit = hit,
                         SourceVesselName = sourceVesselName,
@@ -629,6 +630,10 @@ namespace BDArmory.FX
                     {
                         var partHP = partHit.Damage();
                         if (ProjectileUtils.IsArmorPart(partHit)) partHP = 100f;
+
+                        // Ignore parts that are already dead but not yet removed from the game or have already been added.
+                        if (partHP <= 0 || _LoSIntermediateParts.Contains(partHit)) continue;
+
                         //var partArmour = partHit.GetArmorThickness();
                         float partArmour = 0f;
                         var Armor = partHit.FindModuleImplementing<HitpointTracker>();
@@ -636,16 +641,9 @@ namespace BDArmory.FX
                         {
                             Vector3 correctedDirection = hit.point + partHit.Rigidbody.velocity * TimeIndex - Position;
                             float armorCos = Mathf.Abs(Vector3.Dot(correctedDirection.sqrMagnitude < 1E-10f ? partRay.direction : correctedDirection.normalized, -hit.normal));
-                            partArmour = ProjectileUtils.CalculateThickness(part, armorCos);
+                            partArmour = ProjectileUtils.CalculateThickness(partHit, armorCos);
 
-                            if (warheadType == WarheadTypes.ShapedCharge)
-                            {
-                                partArmour *= Armor.HEATEquiv;
-                            }
-                            else
-                            {
-                                partArmour *= Armor.HEEquiv;
-                            }
+                            partArmour *= warheadType == WarheadTypes.ShapedCharge ? Armor.HEATEquiv : Armor.HEEquiv;
 
                             //if (BDArmorySettings.DEBUG_WEAPONS)
                             //{
@@ -677,11 +675,9 @@ namespace BDArmory.FX
                                 }
                             }
                         }
-                        if (partHP > 0 && !_LoSIntermediateParts.Contains(partHit)) // Ignore parts that are already dead but not yet removed from the game or have already been added.
-                        {
-                            LoSIntermediateParts.Add((hit.distance, partHP, partArmour));
-                            _LoSIntermediateParts.Add(partHit);
-                        }
+
+                        LoSIntermediateParts.Add((hit.distance, partHP, partArmour));
+                        _LoSIntermediateParts.Add(partHit);
                     }
                 }
             }
@@ -1027,9 +1023,13 @@ namespace BDArmory.FX
 
                                         for (int ii = 0; ii < eventToExecute.IntermediateParts.Count; ii++)
                                         {
-                                            ECurr = EPrev - 6f * 1.25f * eventToExecute.IntermediateParts[ii].Item3 / penetration;
+                                            // Minimum efficiency is 8, 14 - 8 -> 6
+                                            // We lose 1.05 * thickness / pen for every part we hit
+                                            ECurr = EPrev - 6f * 1.05f * eventToExecute.IntermediateParts[ii].Item3 / penetration;
                                             if (ECurr < 8f)
                                                 ECurr = 8f;
+                                            // And we calculate the distance offset we'd need to be at the new curve
+                                            // to match the value on the old curve
                                             kOffset = (EPrev - ECurr) * (eventToExecute.IntermediateParts[ii].Item1 - kOffset) / EPrev + kOffset;
                                             if (ECurr == 8f)
                                                 break;
@@ -1100,7 +1100,7 @@ namespace BDArmory.FX
                                         ProjectileUtils.CalculateArmorDamage(part, penetrationFactor, Caliber * 2.5f, hardness, Ductility, Density,
                                             warheadType switch
                                             {
-                                                WarheadTypes.ShapedCharge => 5000f,
+                                                WarheadTypes.ShapedCharge => SCVelocity,
                                                 WarheadTypes.Kinetic => ImpactSpeed,
                                                 _ => ExplosionVelocity
                                             },
@@ -1119,7 +1119,7 @@ namespace BDArmory.FX
                                     damage = part.AddBallisticDamage(warheadType == WarheadTypes.ShapedCharge ? Power * 0.0555f : ProjMass, Caliber, 1f, penetrationFactor, dmgMult,
                                         warheadType switch
                                         {
-                                            WarheadTypes.ShapedCharge => 5000f,
+                                            WarheadTypes.ShapedCharge => SCVelocity,
                                             WarheadTypes.Kinetic => ImpactSpeed,
                                             _ => ExplosionVelocity //technically this should be the sum vector of the explosion vel (perpendicular to missile vel), and missile vel since the rods are physical projectiles that would be inheriting their parent's vel
                                         },
@@ -1345,7 +1345,7 @@ namespace BDArmory.FX
             {
                 case WarheadTypes.ShapedCharge:
                 case WarheadTypes.ContinuousRod:
-                    eFx.penetration = ProjectileUtils.CalculatePenetration(eFx.Caliber, eFx.warheadType == WarheadTypes.ShapedCharge ? 5000f : ExplosionVelocity, eFx.warheadType == WarheadTypes.ShapedCharge ? tntMassEquivalent * 0.0555f : eFx.ProjMass, apMod);
+                    eFx.penetration = ProjectileUtils.CalculatePenetration(eFx.Caliber, eFx.warheadType == WarheadTypes.ShapedCharge ? SCVelocity : ExplosionVelocity, eFx.warheadType == WarheadTypes.ShapedCharge ? tntMassEquivalent * 0.0555f : eFx.ProjMass, apMod);
                     // Approximate fitting of mass to tntMass for modern shaped charges was done,
                     // giving the estimate of 0.0555*tntMass which works surprisingly well for modern
                     // warheads. 5000 m/s is around the average velocity of the jet. In reality, the

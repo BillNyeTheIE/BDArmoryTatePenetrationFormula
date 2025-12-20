@@ -1333,7 +1333,7 @@ namespace BDArmory.Targeting
                     if (p && p.vessel)
                     {
                         TargetInfo pInfo;
-                        if (p.vessel != lockedVessel && (pInfo = vessel.gameObject.GetComponent<TargetInfo>()) != null && pInfo.isMissile && pInfo.MissileBaseModule.FiredByWM == WeaponManager)
+                        if (p.vessel != lockedVessel && (pInfo = p.vessel.gameObject.GetComponent<TargetInfo>()) != null && pInfo.isMissile && pInfo.MissileBaseModule.FiredByWM == WeaponManager)
                         {
                             return;
                         }
@@ -1415,7 +1415,7 @@ namespace BDArmory.Targeting
 
             Part p = rayHit.collider.GetComponentInParent<Part>();
             TargetInfo pInfo;
-            if (p && p.vessel == vessel || (p.vessel != lockedVessel && (pInfo = vessel.gameObject.GetComponent<TargetInfo>()) != null && pInfo.isMissile && pInfo.MissileBaseModule.FiredByWM == WeaponManager))
+            if (p && p.vessel == vessel || (p.vessel != lockedVessel && (pInfo = p.vessel.gameObject.GetComponent<TargetInfo>()) != null && pInfo.isMissile && pInfo.MissileBaseModule.FiredByWM == WeaponManager))
             {
                 targetPointPosition = cameraParentTransform.position + (maxRayDistance * cameraParentTransform.forward);
                 surfaceDetected = false;
