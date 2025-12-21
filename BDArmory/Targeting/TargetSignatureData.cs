@@ -147,7 +147,7 @@ namespace BDArmory.Targeting
             notchMod = 0f;
         }
 
-        public TargetSignatureData(Vector3 _position, Vector2 _pingPosition, bool _exists, RadarWarningReceiver.RWRThreatTypes _signalType)
+        public TargetSignatureData(Vector3 _position, Vector2 _pingPosition, bool _exists, RadarWarningReceiver.RWRThreatTypes _signalType, Vessel _vessel)
         {
             velocity = Vector3.zero;
             geoPos = VectorUtils.WorldPositionToGeoCoords(_position, FlightGlobals.currentMainBody);
@@ -162,7 +162,7 @@ namespace BDArmory.Targeting
             orbital = false;
             orbit = null;
             lockedByRadar = null;
-            vessel = null;
+            vessel = _vessel;
             IRSource = null;
             notchMod = 0f;
         }

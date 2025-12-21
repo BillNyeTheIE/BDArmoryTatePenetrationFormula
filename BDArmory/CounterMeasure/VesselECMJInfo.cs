@@ -210,7 +210,7 @@ namespace BDArmory.CounterMeasure
                         float distance = (loadedvessels.Current.CoM - vessel.CoM).magnitude;
                         if (distance < jStrength * 10)
                         {
-                            RadarWarningReceiver.PingRWR(loadedvessels.Current, vessel.CoM, RadarWarningReceiver.RWRThreatTypes.Jamming, 0.2f);
+                            RadarWarningReceiver.PingRWR(loadedvessels.Current, vessel.CoM, RadarWarningReceiver.RWRThreatTypes.Jamming, 0.2f, vessel);
                             //Debug.Log($"[ECMDebug]: jammer on {vessel.GetName()} active! Pinging RWR on {loadedvessels.Current.GetName()}");
                         }
                     }

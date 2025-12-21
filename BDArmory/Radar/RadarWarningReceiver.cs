@@ -9,16 +9,18 @@ using BDArmory.Targeting;
 using BDArmory.UI;
 using BDArmory.Utils;
 using BDArmory.Extensions;
+using BDArmory.Weapons.Missiles;
+using BDArmory.Weapons;
 
 namespace BDArmory.Radar
 {
     public class RadarWarningReceiver : PartModule
     {
-        public delegate void RadarPing(Vessel v, Vector3 source, RWRThreatTypes type, float persistTime);
+        public delegate void RadarPing(Vessel v, Vector3 source, RWRThreatTypes type, float persistTime, Vessel vSource);
 
         public static event RadarPing OnRadarPing;
 
-        public delegate void MissileLaunchWarning(Vector3 source, Vector3 direction, bool radar);
+        public delegate void MissileLaunchWarning(Vector3 source, Vector3 direction, bool radar, Vessel vSource);
 
         public static event MissileLaunchWarning OnMissileLaunch;
 
@@ -34,7 +36,8 @@ namespace BDArmory.Radar
             Sonar = 6,
             Torpedo = 7,
             TorpedoLock = 8,
-            Jamming = 9
+            Jamming = 9,
+            MWS = 10,
         }
 
         string[] iconLabels = new string[] { "S", "F", "A", "M", "M", "D", "So", "T", "T", "J" };
@@ -45,8 +48,16 @@ namespace BDArmory.Radar
         [KSPField(isPersistant = true)] public bool omniDetection = true;
 
         [KSPField] public float fieldOfView = 360; //for if making separate RWR and WM for mod competitions, etc.
-        // This field was added to separate RWR active status from the display of the RWR.  the RWR should be running all the time...
-        public bool displayRWR = false;
+
+        [KSPField] public float RWRMWSRange = 20000; //range of the MWS in m
+        [KSPField] public float RWRMWSUpdateRate = 0.5f; //interval in s between MWS updates,
+        //only here for performance and spam reasons, human pilot won't need a super high
+        //update rate and we don't want the warning sound to be played at every frame
+        
+        public bool performMWSCheck = true;
+        public float TimeOfLastMWSUpdate = -1f;
+
+        public bool displayRWR = false; // This field was added to separate RWR active status from the display of the RWR.  the RWR should be running all the time...
         internal static bool resizingWindow = false;
 
         public Rect RWRresizeRect = new Rect(
@@ -174,7 +185,7 @@ namespace BDArmory.Radar
             }
         }
 
-        void UpdateReferenceTransform()
+        public void UpdateReferenceTransform()
         {
             if (TimeSinceReferenceUpdate < Time.fixedDeltaTime)
                 return;
@@ -207,6 +218,106 @@ namespace BDArmory.Radar
             BDArmorySetup.OnVolumeChange -= UpdateVolume;
         }
 
+        public override void OnFixedUpdate()
+        {
+            base.OnFixedUpdate();
+
+            if (!(HighLogic.LoadedSceneIsFlight && FlightGlobals.ready)) return;
+
+            if (!omniDetection || !rwrEnabled || !performMWSCheck || (Time.fixedTime - TimeOfLastMWSUpdate < RWRMWSUpdateRate)) return;
+
+            TimeOfLastMWSUpdate = Time.fixedTime;
+
+            float sqrDist = float.PositiveInfinity;
+
+            UpdateReferenceTransform();
+
+            for (int i = 0; i < BDATargetManager.FiredMissiles.Count; i++)
+            {
+                MissileBase currMissile = BDATargetManager.FiredMissiles[i] as MissileBase;
+
+                if (PerformMWSCheck(currMissile, out float currSqrDist) && sqrDist < currSqrDist)
+                {
+                    sqrDist = currSqrDist;
+                }
+            }
+
+            if (!float.IsPositiveInfinity(sqrDist))
+            {
+                PlayWarningSound(RWRThreatTypes.MWS, sqrDist);
+            }
+        }
+
+        public bool PerformMWSCheck(MissileBase currMissile, out float currSqrDist, bool addTarget = true)
+        {
+            currSqrDist = -1f;
+
+            // No nulls and no torps!
+            if (currMissile == null || currMissile.vessel == null || currMissile.SourceVessel == vessel || currMissile.GetWeaponClass() == WeaponClasses.SLW) return false;
+
+            float currRange = RWRMWSRange;
+
+            if (BDArmorySettings.VARIABLE_MISSILE_VISIBILITY) // assume same detectability logic as visual detection, does mean the MWS is implied to be IR based
+            {
+                currRange *= (currMissile.MissileState == MissileBase.MissileStates.Boost ? 1 : (currMissile.MissileState == MissileBase.MissileStates.Cruise ? 0.75f : 0.33f));
+            }
+
+            Vector3 relativePos = vessel.CoM - currMissile.vessel.CoM;
+
+            currSqrDist = relativePos.sqrMagnitude;
+
+            // Are we out of range?
+            if (currRange * currRange < currSqrDist) return false;
+
+            // Is the missile facing us?
+            if (Vector3.Dot(relativePos, currMissile.GetForwardTransform()) < 0) return false;
+
+            if (!addTarget) return true;
+
+            int openIndex = -1;
+            bool foundPing = false;
+            Vector2 currPos = RadarUtils.WorldToRadar(currMissile.vessel.CoM, referenceTransform, RwrDisplayRect, rwrDisplayRange);
+            for (int i = 0; i < pingsData.Length; i++)
+            {
+                TargetSignatureData tempPing = pingsData[i];
+                if (!tempPing.exists)
+                {
+                    // as soon as we have an open index, break
+                    openIndex = i;
+                    break;
+                }
+
+                // Consider swapping this to a vessel check, since we know the vessel anyways.
+                if ((tempPing.pingPosition - currPos).sqrMagnitude < (BDArmorySettings.LOGARITHMIC_RADAR_DISPLAY ? 100f : 900f))    //prevent ping spam
+                {
+                    foundPing = true;
+                    break;
+                }
+            }
+
+            if (openIndex >= 0)
+            {
+                pingsData[openIndex] = new TargetSignatureData(currMissile.vessel.CoM, currPos, true, RWRThreatTypes.MWS, currMissile.vessel);
+                //pingWorldPositions[openIndex] = source; //FIXME source is improperly defined
+                StartCoroutine(PingLifeRoutine(openIndex, RWRMWSUpdateRate));
+
+                return true;
+            }
+
+            return foundPing;
+        }
+
+        public bool IsVesselDetected(Vessel v)
+        {
+            for (int i = 0; i < pingsData.Length; i++)
+            {
+                // Should account for the noTarget values as well as those have vessel == null
+                if (pingsData[i].vessel == v) return true;
+            }
+
+            return false;
+        }
+
         IEnumerator PingLifeRoutine(int index, float lifeTime)
         {
             yield return new WaitForSecondsFixed(Mathf.Clamp(lifeTime - 0.04f, minPingInterval, lifeTime));
@@ -220,7 +331,7 @@ namespace BDArmory.Radar
             launchWarnings.Remove(data);
         }
 
-        void ReceiveLaunchWarning(Vector3 source, Vector3 direction, bool radar)
+        void ReceiveLaunchWarning(Vector3 source, Vector3 direction, bool radar, Vessel vSource)
         {
             if (referenceTransform == null) return;
             if (part == null || !part.isActiveAndEnabled) return;
@@ -233,12 +344,12 @@ namespace BDArmory.Radar
             Vector3 currPos = part.transform.position;
             float sqrDist = (currPos - source).sqrMagnitude;
             //if ((weaponManager && weaponManager.guardMode) && (sqrDist > (weaponManager.guardRange * weaponManager.guardRange))) return; //doesn't this clamp the RWR to visual view range, not radar/RWR range?
-            if (sqrDist < BDArmorySettings.MAX_ENGAGEMENT_RANGE * BDArmorySettings.MAX_ENGAGEMENT_RANGE && sqrDist > 10000f && VectorUtils.Angle(direction, currPos - source) < 15f)
+            if ((radar || sqrDist < RWRMWSRange * RWRMWSRange) && sqrDist > 10000f && VectorUtils.Angle(direction, currPos - source) < 15f)
             {
                 StartCoroutine(
                     LaunchWarningRoutine(new TargetSignatureData(source,
                         RadarUtils.WorldToRadar(source, referenceTransform, RwrDisplayRect, rwrDisplayRange),
-                        true, RWRThreatTypes.MissileLaunch)));
+                        true, RWRThreatTypes.MissileLaunch, vSource)));
                 PlayWarningSound(RWRThreatTypes.MissileLaunch);
 
                 if (weaponManager.guardMode)
@@ -250,7 +361,7 @@ namespace BDArmory.Radar
             }
         }
 
-        void ReceivePing(Vessel v, Vector3 source, RWRThreatTypes type, float persistTime)
+        void ReceivePing(Vessel v, Vector3 source, RWRThreatTypes type, float persistTime, Vessel vSource)
         {
             if (v == null || v.packed || !v.loaded || !v.isActiveAndEnabled || v != vessel) return;
             if (referenceTransform == null) return;
@@ -272,7 +383,7 @@ namespace BDArmory.Radar
                 StartCoroutine(
                     LaunchWarningRoutine(new TargetSignatureData(source,
                         RadarUtils.WorldToRadar(source, referenceTransform, RwrDisplayRect, rwrDisplayRange),
-                        true, type)));
+                        true, type, vSource)));
                 PlayWarningSound(type, (source - vessel.CoM).sqrMagnitude);
                 return;
             }
@@ -288,24 +399,26 @@ namespace BDArmory.Radar
 
             int openIndex = -1;
             Vector2 currPos = RadarUtils.WorldToRadar(source, referenceTransform, RwrDisplayRect, rwrDisplayRange);
-            for (int i = 0; i < dataCount; i++)
+            for (int i = 0; i < pingsData.Length; i++)
             {
                 TargetSignatureData tempPing = pingsData[i];
-                if (tempPing.exists && 
-                    (tempPing.pingPosition - currPos).sqrMagnitude < (BDArmorySettings.LOGARITHMIC_RADAR_DISPLAY ? 100f : 900f))    //prevent ping spam
-                    break;
 
-                if (!tempPing.exists && openIndex == -1)
+                if (!tempPing.exists)
                 {
                     // as soon as we have an open index, break
                     openIndex = i;
                     break;
                 }
+                
+                // Consider swapping this to a vessel check, since we know the vessel anyways.
+                if (tempPing.exists && 
+                    (tempPing.pingPosition - currPos).sqrMagnitude < (BDArmorySettings.LOGARITHMIC_RADAR_DISPLAY ? 100f : 900f))    //prevent ping spam
+                    break;
             }
 
             if (openIndex >= 0)
             {
-                pingsData[openIndex] = new TargetSignatureData(source, currPos, true, type);
+                pingsData[openIndex] = new TargetSignatureData(source, currPos, true, type, vSource);
                 //pingWorldPositions[openIndex] = source; //FIXME source is improperly defined
                 if (weaponManager.hasAntiRadiationOrdnance)
                 {
@@ -317,7 +430,7 @@ namespace BDArmory.Radar
             }
         }
 
-        void PlayWarningSound(RWRThreatTypes type, float sqrDistance = 0f)
+        public void PlayWarningSound(RWRThreatTypes type, float sqrDistance = 0f)
         {
             if (vessel.isActiveVessel && audioSourceRepeatDelay <= 0f)
             {
@@ -350,6 +463,7 @@ namespace BDArmory.Radar
                         break;
 
                     case RWRThreatTypes.MissileLock:
+                    case RWRThreatTypes.MWS:
                         if (audioSource.isPlaying)
                             break;
                         audioSource.clip = (missileLockSound);
@@ -398,7 +512,7 @@ namespace BDArmory.Radar
             GUI.DrawTexture(RwrDisplayRect, VesselRadarData.omniBgTexture, ScaleMode.StretchToFill, false);
             float pingSize = 32 * BDArmorySettings.RWR_WINDOW_SCALE;
 
-            for (int i = 0; i < dataCount; i++)
+            for (int i = 0; i < pingsData.Length; i++)
             {
                 TargetSignatureData currPing = pingsData[i];
                 Vector2 pingPosition = currPing.pingPosition;
@@ -407,7 +521,7 @@ namespace BDArmory.Radar
                     pingSize);
 
                 if (!currPing.exists) continue;
-                if (currPing.signalType == RWRThreatTypes.MissileLock)
+                if (currPing.signalType == RWRThreatTypes.MissileLock || currPing.signalType == RWRThreatTypes.MWS)
                 {
                     GUI.DrawTexture(pingRect, rwrMissileTexture, ScaleMode.StretchToFill, true);
                 }
@@ -454,15 +568,15 @@ namespace BDArmory.Radar
             GUIUtils.RepositionWindow(ref BDArmorySetup.WindowRectRwr);
         }
 
-        public static void PingRWR(Vessel v, Vector3 source, RWRThreatTypes type, float persistTime)
+        public static void PingRWR(Vessel v, Vector3 source, RWRThreatTypes type, float persistTime, Vessel vSource)
         {
             if (OnRadarPing != null)
             {
-                OnRadarPing(v, source, type, persistTime);
+                OnRadarPing(v, source, type, persistTime, vSource);
             }
         }
 
-        public static void PingRWR(Ray ray, float fov, RWRThreatTypes type, float persistTime)
+        public static void PingRWR(Ray ray, float fov, RWRThreatTypes type, float persistTime, Vessel vSource)
         {
             using (var vessel = FlightGlobals.Vessels.GetEnumerator())
                 while (vessel.MoveNext())
@@ -472,14 +586,14 @@ namespace BDArmory.Radar
                     Vector3 dirToVessel = vessel.Current.CoM - ray.origin;
                     if (VectorUtils.Angle(ray.direction, dirToVessel) < fov * 0.5f)
                     {
-                        PingRWR(vessel.Current, ray.origin, type, persistTime);
+                        PingRWR(vessel.Current, ray.origin, type, persistTime, vSource);
                     }
                 }
         }
 
-        public static void WarnMissileLaunch(Vector3 source, Vector3 direction, bool radarMissile)
+        public static void WarnMissileLaunch(Vector3 source, Vector3 direction, bool radarMissile, Vessel vSource)
         {
-            OnMissileLaunch?.Invoke(source, direction, radarMissile);
+            OnMissileLaunch?.Invoke(source, direction, radarMissile, vSource);
         }
     }
 }

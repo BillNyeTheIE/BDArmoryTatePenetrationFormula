@@ -817,6 +817,7 @@ namespace BDArmory.Control
                     while (weapon.MoveNext())
                     {
                         if (weapon.Current == null) continue;
+                        if (weapon.Current.GetWeaponChannel() > weaponChannel) continue;
                         weapon.Current.visualTargetVessel = null;
                         weapon.Current.visualTargetPart = null;
                         weapon.Current.autoFire = false;
@@ -826,9 +827,20 @@ namespace BDArmory.Control
                 if (vesselRadarData) vesselRadarData.UnslaveTurrets(); // Unslave the turrets so that manual firing works.
                 weaponIndex = 0;
                 selectedWeapon = null;
+                CurrentMissile = null;
+                ToggleTurret();
+                SetMissileTurrets();
+                SetDeployableRails();
+                SetRotaryRails();
                 if (IsPrimaryWM) // Disabling guard mode on the primary disables guard mode on any non-primary WMs on the craft.
                     foreach (var wm in VesselModuleRegistry.GetMissileFires(vessel).Where(wm => !wm.IsPrimaryWM && wm.guardMode))
                         wm.ToggleGuardMode();
+
+                if (rwr)
+                {
+                    // If we use nonGuardModeCMs, UpdateGuardScan will still run, making MWS check unnecessary
+                    rwr.performMWSCheck = !nonGuardModeCMs;
+                }
             }
             else
             {
@@ -879,10 +891,18 @@ namespace BDArmory.Control
                             }
                         }
                 }
-                if (hasAntiRadiationOrdnance)
+                if (rwr)
                 {
-                    if (rwr && !rwr.rwrEnabled) rwr.EnableRWR();
-                    if (rwr && rwr.rwrEnabled && !rwr.displayRWR) rwr.displayRWR = true;
+                    if (!rwr.rwrEnabled)
+                    {
+                        rwr.EnableRWR();
+                    }
+                    else if (!rwr.displayRWR)
+                    {
+                        rwr.displayRWR = true;
+                    }
+
+                    rwr.performMWSCheck = false;
                 }
                 if (_radarsEnabled || _irstsEnabled)
                     StartCoroutine(SetMaxRadarRangeRoutine());
@@ -8917,7 +8937,8 @@ namespace BDArmory.Control
                 if (rwr && (rwr.omniDetection || results.foundRadarMissile)) //enable omniRWRs for all incoming threats. Moving this here as RWRs would be detecting missiles before they reached danger close
                 {
                     if (!rwr.rwrEnabled) rwr.EnableRWR();
-                    if (rwr.rwrEnabled && !rwr.displayRWR) rwr.displayRWR = true;
+                    else if (!rwr.displayRWR) rwr.displayRWR = true;
+                    rwr.performMWSCheck = false;
                 }
             }
             if (results.foundMissile && (results.incomingMissiles[0].distance < guardRange || results.incomingMissiles[0].time < Mathf.Max(cmThreshold, evadeThreshold))) //RWR detects things beyond visual range, allow reaction to detected high-velocity missiles where waiting till visrange would leave very little time to react
@@ -8962,9 +8983,10 @@ namespace BDArmory.Control
                         }
                     }
                     //passive missiles
-                    if (results.foundHeatMissile || results.foundAntiRadiationMissile || results.foundGPSMissile)
+                    if (results.foundHeatMissile || results.foundAntiRadiationMissile || results.foundGPSMissile || results.foundPassiveMissile)
                     {
-                        if (rwr && rwr.omniDetection)
+                        // foundPassiveMissile is ONLY true if no MWS is onboard and we visually detected the missile
+                        if (!results.foundPassiveMissile)
                         {
                             if (results.foundHeatMissile)
                             {
