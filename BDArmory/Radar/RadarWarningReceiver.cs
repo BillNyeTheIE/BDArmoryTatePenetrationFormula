@@ -56,6 +56,8 @@ namespace BDArmory.Radar
         
         public bool performMWSCheck = true;
         public float TimeOfLastMWSUpdate = -1f;
+        private TargetSignatureData[] MWSData;
+        private int MWSSlots = 0;
 
         public bool displayRWR = false; // This field was added to separate RWR active status from the display of the RWR.  the RWR should be running all the time...
         internal static bool resizingWindow = false;
@@ -136,6 +138,7 @@ namespace BDArmory.Radar
             if (HighLogic.LoadedSceneIsFlight)
             {
                 pingsData = new TargetSignatureData[dataCount];
+                MWSData = new TargetSignatureData[dataCount];
                 //pingWorldPositions = new Vector3[dataCount];
                 TargetSignatureData.ResetTSDArray(ref pingsData);
                 launchWarnings = new List<TargetSignatureData>();
@@ -226,6 +229,8 @@ namespace BDArmory.Radar
 
             if (!omniDetection || !rwrEnabled || !performMWSCheck || (Time.fixedTime - TimeOfLastMWSUpdate < RWRMWSUpdateRate)) return;
 
+            MWSSlots = 0;
+
             TimeOfLastMWSUpdate = Time.fixedTime;
 
             float sqrDist = float.PositiveInfinity;
@@ -246,6 +251,11 @@ namespace BDArmory.Radar
             {
                 PlayWarningSound(RWRThreatTypes.MWS, sqrDist);
             }
+        }
+        
+        public void ResetMWSSlots()
+        {
+            MWSSlots = 0;
         }
 
         public bool PerformMWSCheck(MissileBase currMissile, out float currSqrDist, bool addTarget = true)
@@ -274,7 +284,15 @@ namespace BDArmory.Radar
 
             if (!addTarget) return true;
 
-            int openIndex = -1;
+            if (MWSSlots < MWSData.Length)
+            {
+                Vector2 currPos = RadarUtils.WorldToRadar(currMissile.vessel.CoM, referenceTransform, RwrDisplayRect, rwrDisplayRange);
+                MWSData[MWSSlots] = new TargetSignatureData(currMissile.vessel.CoM, currPos, true, RWRThreatTypes.MWS, currMissile.vessel);
+                //pingWorldPositions[openIndex] = source; //FIXME source is improperly defined
+                ++MWSSlots;
+            }
+
+            /*int openIndex = -1;
             bool foundPing = false;
             Vector2 currPos = RadarUtils.WorldToRadar(currMissile.vessel.CoM, referenceTransform, RwrDisplayRect, rwrDisplayRange);
             for (int i = 0; i < pingsData.Length; i++)
@@ -302,9 +320,9 @@ namespace BDArmory.Radar
                 StartCoroutine(PingLifeRoutine(openIndex, RWRMWSUpdateRate));
 
                 return true;
-            }
+            }*/
 
-            return foundPing;
+            return true;
         }
 
         public bool IsVesselDetected(Vessel v)
@@ -530,6 +548,20 @@ namespace BDArmory.Radar
                     GUI.DrawTexture(pingRect, rwrDiamondTexture, ScaleMode.StretchToFill, true);
                     GUI.Label(pingRect, iconLabels[(int)currPing.signalType], rwrIconLabelStyle);
                 }
+            }
+
+            // Tell the compiler to not worry about bounds checking
+            for (int i = 0; i < MWSData.Length; i++)
+            {
+                // Actual end of for loop
+                if (i + 1 > MWSSlots) break;
+                TargetSignatureData currPing = MWSData[i];
+                Vector2 pingPosition = currPing.pingPosition;
+                //pingPosition = Vector2.MoveTowards(displayRect.center, pingPosition, displayRect.center.x - (pingSize/2));
+                Rect pingRect = new Rect(pingPosition.x - (pingSize / 2), pingPosition.y - (pingSize / 2), pingSize,
+                    pingSize);
+
+                GUI.DrawTexture(pingRect, rwrMissileTexture, ScaleMode.StretchToFill, true);
             }
 
             List<TargetSignatureData>.Enumerator lw = launchWarnings.GetEnumerator();

@@ -2297,6 +2297,7 @@ namespace BDArmory.Radar
                 if (Time.fixedTime - RWR.TimeOfLastMWSUpdate > RWR.RWRMWSUpdateRate)
                 {
                     MWSAddTargets = true;
+                    RWR.ResetMWSSlots();
                     RWR.TimeOfLastMWSUpdate = Time.fixedTime;
                 }
                 else
