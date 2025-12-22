@@ -757,7 +757,7 @@ namespace BDArmory.Radar
                 currPosition = referenceTransform.position;
                 referenceTransform.rotation =
                     Quaternion.LookRotation(VectorUtils.GetNorthVector(currPosition, vessel.mainBody),
-                        VectorUtils.GetUpDirection(currPosition));
+                        vessel.up);
             }
             else
             {
@@ -767,7 +767,7 @@ namespace BDArmory.Radar
                 // We assume the radar can *always* roll such that the up direction is the projection of
                 // the up vector onto the radarTransform up plane.
                 referenceTransform.rotation = Quaternion.LookRotation(radarTransform.up,
-                    VectorUtils.GetUpDirection(currPosition).ProjectOnPlanePreNormalized(radarTransform.up).normalized);
+                    vessel.up.ProjectOnPlanePreNormalized(radarTransform.up).normalized);
             }
             currForward = referenceTransform.forward;
             currUp = referenceTransform.up;
@@ -997,6 +997,9 @@ namespace BDArmory.Radar
             // to determine if an update is needed based on fixedTime elapsed since
             // the last update.
             //UpdateReferenceTransform();
+            // Ensure cache locality
+            Vector3 forwardVector = currForward;
+            Vector3 rightVector = currRight;
 
             //Vector3 targetPlanarDirection = (position - referenceTransform.position).ProjectOnPlanePreNormalized(referenceTransform.up);
             //float angle = VectorUtils.Angle(targetPlanarDirection, referenceTransform.forward);
@@ -1012,7 +1015,7 @@ namespace BDArmory.Radar
             // Note this would typically be the wrong way around, however because our radar code uses
             // negative angles for the left and positive angles for the right, may as well take advantage
             // of that fact.
-            float azimuthAngle = VectorUtils.GetAngleOnPlane(relativePosition, currForward, currRight);
+            float azimuthAngle = VectorUtils.GetAngleOnPlane(relativePosition, forwardVector, rightVector);
             float elevationAngle = VectorUtils.GetElevation(relativePosition, currUp);
 
             TargetSignatureData.ResetTSDArray(ref attemptedLocks);
@@ -1031,7 +1034,7 @@ namespace BDArmory.Radar
                     if (!locked && !omnidirectional)
                     {
                         // Note this would typically give the opposite of the desired sign, but because radar convention is reversed this is correct.
-                        float targetAngle = VectorUtils.GetAngleOnPlane((attemptedLocks[i].position - currPosition), currForward, currRight);
+                        float targetAngle = VectorUtils.GetAngleOnPlane((attemptedLocks[i].position - currPosition), forwardVector, rightVector);
                         currentAngle = targetAngle;
                     }
                     lockedTargets.Add(attemptedLocks[i]);

@@ -14,24 +14,29 @@ namespace BDArmory.Utils
         // Link: http://www.rasrinitiative.org/pdfs/AASTP-1-Ed1-Chge-3-Public-Release-110810.pdf
         public static BlastInfo CalculatePartBlastEffects(Part part, float distanceToHit, double vesselMass, float explosiveMass, float range)
         {
-            float clampedMinDistanceToHit = ClampRange(explosiveMass, distanceToHit);
+            double cubeRootExplosiveMass = Math.Pow(explosiveMass, 1f / 3f);
+            float cubeRootExplosiveMassFloat = (float)cubeRootExplosiveMass;
+
+            float clampedMinDistanceToHit = ClampRange(cubeRootExplosiveMassFloat, distanceToHit);
 
             var minPressureDistance = distanceToHit + part.GetAverageBoundSize();
 
             double minPressurePerMs = 0;
 
-            float clampedMaxDistanceToHit = ClampRange(explosiveMass, minPressureDistance);
-            double maxScaledDistance = CalculateScaledDistance(explosiveMass, clampedMaxDistanceToHit);
-            double maxDistPositivePhase = CalculatePositivePhaseTime(maxScaledDistance, explosiveMass);
+            float clampedMaxDistanceToHit = ClampRange(cubeRootExplosiveMassFloat, minPressureDistance);
+            double maxScaledDistance = CalculateScaledDistance(cubeRootExplosiveMassFloat, clampedMaxDistanceToHit);
+            double tmax = Math.Log10(maxScaledDistance);
+            double maxDistPositivePhase = CalculatePositivePhaseTime(maxScaledDistance, cubeRootExplosiveMass, tmax);
 
             if (minPressureDistance <= range)
             {
-                minPressurePerMs = CalculateIncidentImpulse(maxScaledDistance, explosiveMass);
+                minPressurePerMs = CalculateIncidentImpulse(maxScaledDistance, cubeRootExplosiveMass, tmax);
             }
 
-            double minScaledDistance = CalculateScaledDistance(explosiveMass, clampedMinDistanceToHit);
-            double maxPressurePerMs = CalculateIncidentImpulse(minScaledDistance, explosiveMass);
-            double minDistPositivePhase = CalculatePositivePhaseTime(minScaledDistance, explosiveMass);
+            double minScaledDistance = CalculateScaledDistance(cubeRootExplosiveMassFloat, clampedMinDistanceToHit);
+            double tmin = Math.Log10(minScaledDistance);
+            double maxPressurePerMs = CalculateIncidentImpulse(minScaledDistance, cubeRootExplosiveMass, tmin);
+            double minDistPositivePhase = CalculatePositivePhaseTime(minScaledDistance, cubeRootExplosiveMass, tmin);
 
             double totalDamage = (maxPressurePerMs + minPressurePerMs);// * 2 / 2 ;
 
@@ -76,22 +81,22 @@ namespace BDArmory.Utils
             return Mathf.Clamp(circularArea, 0f, part.GetArea() * 0.40f);
         }
 
-        private static double CalculateScaledDistance(float explosiveCharge, float distanceToHit)
+        private static double CalculateScaledDistance(float cubeRootExplosiveMass, float distanceToHit)
         {
-            return (distanceToHit / Math.Pow(explosiveCharge, 1f / 3f));
+            return (distanceToHit / cubeRootExplosiveMass);
         }
 
-        private static float ClampRange(float explosiveCharge, float distanceToHit)
+        private static float ClampRange(float cubeRootOfChargeWeight, float distanceToHit)
         {
-            float cubeRootOfChargeWeight = (float)Math.Pow(explosiveCharge, 1f / 3f);
+            //float cubeRootOfChargeWeight = (float)Math.Pow(explosiveCharge, 1f / 3f);
 
             return Mathf.Clamp(distanceToHit, 0.0674f * cubeRootOfChargeWeight, 40f * cubeRootOfChargeWeight);
         }
 
-        private static double CalculateIncidentImpulse(double scaledDistance, float explosiveCharge)
+        private static double CalculateIncidentImpulse(double scaledDistance, double cubeRootOfChargeWeight, double t)
         {
-            double t = Math.Log(scaledDistance) / Math.Log(10);
-            double cubeRootOfChargeWeight = Math.Pow(explosiveCharge, 0.3333333);
+            //double t = Math.Log10(scaledDistance); //Math.Log(scaledDistance) / Math.Log(10);
+            //double cubeRootOfChargeWeight = Math.Pow(explosiveCharge, 0.3333333);
             double ii = 0;
             if (scaledDistance <= 0.955)
             { //NATO version
@@ -128,11 +133,11 @@ namespace BDArmory.Utils
         }
 
         // Calculate positive phase time in ms from AASTP-1
-        private static double CalculatePositivePhaseTime(double scaledDistance, float explosiveCharge)
+        private static double CalculatePositivePhaseTime(double scaledDistance, double cubeRootOfChargeWeight, double t)
         {
             scaledDistance = Math.Min(Math.Max(scaledDistance, 0.178), 40); // Formula only valid for scaled distances between 0.178 and 40 m
-            double t = Math.Log(scaledDistance) / Math.Log(10);
-            double cubeRootOfChargeWeight = Math.Pow(explosiveCharge, 0.3333333);
+            //double t = Math.Log10(scaledDistance); //Math.Log(scaledDistance) / Math.Log(10);
+            //double cubeRootOfChargeWeight = Math.Pow(explosiveCharge, 0.3333333);
             double ii = 0;
 
             if (scaledDistance <= 1.01)
@@ -193,7 +198,7 @@ namespace BDArmory.Utils
             range = ClampRange(tntMass, range);
             double scaledDistance = CalculateScaledDistance(tntMass, range);
 
-            double t = Math.Log(scaledDistance) / Math.Log(10);
+            double t = Math.Log10(scaledDistance); //Math.Log(scaledDistance) / Math.Log(10);
             double cubeRootOfChargeWeight = Math.Pow(tntMass, 0.3333333);
             double ii = 0;
 
