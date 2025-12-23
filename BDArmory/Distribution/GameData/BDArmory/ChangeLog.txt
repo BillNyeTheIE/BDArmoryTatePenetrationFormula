@@ -1,4 +1,18 @@
-﻿v1.12.0.0
+﻿IMPROVEMENTS / FIXES
+- Sensors:
+	- Totally rework RWR system. New fields "RWRMWSRange" (range of MWS system in m) and "RWRMWSUpdateRate" (purely visual update interval in s for MWS system) added.
+		- Modified Guard Mode scan code to take advantage of these changes.
+	- Fix targeting pod NRE when not targeting vessels.
+- Weapons:
+	- Explosions:
+		- Slight efficiency improvements in explosion code.
+		- Fix incorrect armor thickness being used in explosion code.
+	- Missiles:
+		- Add "torqueLimiter" bool and "torqueMargin" fields to missiles.
+			- Setting "torqueLimiter" to false disables the torque-based AoA limiter (The BDA+ dev team does not take responsability for any wobbliness caused by this!)
+			- "torqueMargin" is a value between 0 and 1 that represents the torque withheld to deal with the missile overshooting the requested AoA. Defaults to 0.1, reducing this value may increase missile performance but also could lead to wobbles.
+
+v1.12.0.0
 IMPROVEMENTS / FIXES
 - UI:
 	- Adjust the "Steel Equivalent Thickness" display in the armor GUI to show a more intuitive value.
