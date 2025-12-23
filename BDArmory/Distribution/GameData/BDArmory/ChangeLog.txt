@@ -1,4 +1,5 @@
-﻿IMPROVEMENTS / FIXES
+﻿v1.12.0.0
+IMPROVEMENTS / FIXES
 - UI:
 	- Adjust the "Steel Equivalent Thickness" display in the armor GUI to show a more intuitive value.
 - AI / WM:
@@ -11,7 +12,7 @@
 	- Slightly better AI radar management behavior (pending a bigger overhaul), AI will no longer try to lock targets if it'll unlock the radar's current radar target (due to it being outside of multiLockFOV) if it's being used for guidance.
 	- Improved AI weapon selection, AI should be a tiny bit smarter about what weapon it picks, as well as not dumping all anti-radiation missiles at once.
 	- Fix surface AI reversing behavior, surface AI should now reverse more smoothly.
-	- Fix DEBUG_LINES causing NREs for vessels attacking targets beyond visual range which have not previously seen a target within visual range
+	- Fix DEBUG_LINES causing NREs for vessels attacking targets beyond visual range which have not previously seen a target within visual range.
 - Sensors:
 	- Radar and RWR code optimizations.
 	- Fix smooth slewing of the targeting camera when clicking on the GUI buttons when a target is locked.
@@ -44,16 +45,16 @@
 		- Fixed missile ECM behavior, previously changes to the missile's radar signature due to ECM could be overwritten by the missile going active/passive, causing ECM to seemingly not function.
 		- Missiles with a "cruiseRangeTrigger" will now also fire the cruise motor if the missile's airspeed drops below 75% of its optimum airspeed while in-atmosphere.
 		- AAMLoft settings for modular missiles are now correctly loaded when returning to the SPH.
-		- Fix "guidanceDelay" not working properly
+		- Fix "guidanceDelay" not working properly.
 		- Improve Kappa guidance loft termination, as a result Kappa no longer uses LoftRangeFac and LoftVertVelComp.
-		- Fix CLOS/CLOSthree/CLOSlead guidance failure due to inaccurate determination of "no progress" condition
-		- "CruisePopup" setting now persistent and editable in the hangar when missile config has "CruisePopup = true"
+		- Fix CLOS/CLOSthree/CLOSlead guidance failure due to inaccurate determination of "no progress" condition.
+		- "CruisePopup" setting now persistent and editable in the hangar when missile config has "CruisePopup = true".
 		- Missiles will now respect config value of "DetonateAtMinimumDistance" setting, if a missile config does not have this set to true, it cannot be edited/used.
 		- Un-deprecate "proxyDetonate" field, missiles with "proxyDetonate = false" in their configs will be *strictly* impact fuzed.
-		- Fix certain scaling issues with multi-missile launchers
-		- Fix missile turret aiming under Guard Mode control, particularly, turrets with IR, laser and anti-radiation missiles will now pre-aim at the target to facilitate acquisition
-  - Robotics:
-		- !!Experimental!! Adds ability to build custom turrets with Breaking Ground Hinges and Servoes.
+		- Fix certain scaling issues with multi-missile launchers.
+		- Fix missile turret aiming under Guard Mode control, particularly, turrets with IR, laser and anti-radiation missiles will now pre-aim at the target to facilitate acquisition.
+	- Robotics:
+		- !!Experimental!! Adds ability to build custom turrets with Breaking Ground Hinges and Servos.
 			- BG hinges/servos now have a 'Custom Turret ID' slider; attaching a weapon as a child of the robotic part adds a similar 'Custom Turret ID' slider to the gun.
 			- Setting both to the same value will enable the gun to use BG robotics to slew/traverse the attached weapon (and any other parts attached to the robotics) as if it were a standard BDA turret.
 			- Turret ID = 0 is an Off value, and will not link weapons to a servo.
