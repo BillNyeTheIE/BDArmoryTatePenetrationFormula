@@ -4044,6 +4044,8 @@ namespace BDArmory.Control
         public bool isECMJamming;
         public bool isCloaking;
 
+        Coroutine ECMroutine;
+
         bool isLegacyCMing;
 
         int cmCounter;
@@ -4061,7 +4063,26 @@ namespace BDArmory.Control
         {
             if (!isECMJamming)
             {
-                StartCoroutine(ECMRoutine(duration));
+                ECMroutine = StartCoroutine(ECMRoutine(duration));
+            }
+        }
+
+        public void StopECM()
+        {
+            if (isECMJamming)
+            {
+                // Disable ECM
+                if (ECMroutine != null)
+                    StopCoroutine(ECMroutine);
+                isECMJamming = false;
+
+                using (var ecm1 = VesselModuleRegistry.GetModules<ModuleECMJammer>(vessel).GetEnumerator())
+                    while (ecm1.MoveNext())
+                    {
+                        if (ecm1.Current == null) continue;
+                        if (!ecm1.Current.manuallyEnabled)
+                            ecm1.Current.DisableJammer();
+                    }
             }
         }
 
@@ -8951,11 +8972,12 @@ namespace BDArmory.Control
                 missileIsIncoming = true;
                 incomingMissileLastDetected = Time.time;
                 // Assign the closest missile as the main threat. FIXME In the future, we could do something more complex to handle all the incoming missiles.
-                incomingMissileDistance = results.incomingMissiles[0].distance;
-                incomingMissileTime = results.incomingMissiles[0].time;
-                incomingThreatPosition = results.incomingMissiles[0].position;
-                incomingThreatVessel = results.incomingMissiles[0].vessel;
-                incomingMissileVessel = results.incomingMissiles[0].vessel;
+                IncomingMissile closestMissile = results.incomingMissiles[0];
+                incomingMissileDistance = closestMissile.distance;
+                incomingMissileTime = closestMissile.time;
+                incomingThreatPosition = closestMissile.position;
+                incomingThreatVessel = closestMissile.vessel;
+                incomingMissileVessel = closestMissile.vessel;
                 //radar missiles
                 if (!results.foundTorpedo)
                 {
@@ -8985,31 +9007,30 @@ namespace BDArmory.Control
                     //passive missiles
                     if (results.foundHeatMissile || results.foundAntiRadiationMissile || results.foundGPSMissile || results.foundPassiveMissile)
                     {
-                        // foundPassiveMissile is ONLY true if no MWS is onboard and we visually detected the missile
-                        if (!results.foundPassiveMissile)
+                        // foundHeatMissile, foundAntiRadiationMissile and foundGPSMissile will be true
+                        // if the missile has been identified!
+                        if (results.foundHeatMissile)
                         {
-                            if (results.foundHeatMissile)
-                            {
-                                FireFlares();
-                                FireOCM(true);
-                            }
-                            if (results.foundAntiRadiationMissile)
-                            {
-                                using (List<ModuleRadar>.Enumerator rd = radars.GetEnumerator())
-                                    while (rd.MoveNext())
-                                    {
-                                        if (rd.Current != null && (rd.Current.DynamicRadar || DynamicRadarOverride))
-                                            rd.Current.DisableRadar();
-                                        _radarsEnabled = false;
-                                    }                                
-                                FireECM(0); //disable jammers
-                            }
-
-                            if (results.foundGPSMissile)
-                                FireECM(cmThreshold);
-                            //StartCoroutine(UnderAttackRoutine());
+                            FireFlares();
+                            FireOCM(true);
                         }
-                        else //one passive missile is going to be indistinguishable from another, until it gets close enough to evaluate
+                        if (results.foundAntiRadiationMissile)
+                        {
+                            using (List<ModuleRadar>.Enumerator rd = radars.GetEnumerator())
+                                while (rd.MoveNext())
+                                {
+                                    if (rd.Current != null && (rd.Current.DynamicRadar || DynamicRadarOverride))
+                                        rd.Current.DisableRadar();
+                                    _radarsEnabled = false;
+                                }
+                            StopECM(); //disable jammers
+                        }
+                        if (results.foundGPSMissile)
+                            FireECM(cmThreshold);
+                        //StartCoroutine(UnderAttackRoutine());
+
+                        // If we've found a passive missile that we haven't identified...
+                        if (results.foundPassiveMissile) //one passive missile is going to be indistinguishable from another, until it gets close enough to evaluate
                         {
                             if (vessel.LandedOrSplashed) //assume antirads against ground targets
                             {
@@ -9023,8 +9044,10 @@ namespace BDArmory.Control
                                             _radarsEnabled = false;
                                         }
                                 }
+                                StopECM();//uh oh, blip ECM!
 
-                                if (incomingMissileDistance <= guardRange * 0.33f) //within ID range?
+                                // Code for within ID-range is handled in RadarUtils!
+                                /*if (incomingMissileDistance <= guardRange * 0.33f) //within ID range?
                                 {
                                     if (results.foundGPSMissile)
                                         FireECM(cmThreshold); //try to jam datalink to launcher/GPS
@@ -9033,11 +9056,12 @@ namespace BDArmory.Control
                                         FireFlares();
                                         FireOCM(true);
                                     }
-                                }
+                                }*/
                             }
                             else //likely a heatseeker, but could be an AA HARM...
                             {
-                                if (incomingMissileDistance <= guardRange * 0.33f) //within ID range?
+                                // Code for within ID-range is handled in RadarUtils!
+                                /*if (incomingMissileDistance <= guardRange * 0.33f) //within ID range?
                                 {
                                     if (results.foundHeatMissile)
                                     {
@@ -9067,7 +9091,11 @@ namespace BDArmory.Control
                                 {
                                     FireFlares();
                                     FireOCM(true);
-                                }
+                                }*/
+
+                                //assume heater
+                                FireFlares();
+                                FireOCM(true);
                             }
                             //StartCoroutine(UnderAttackRoutine());
                         }
@@ -9090,7 +9118,7 @@ namespace BDArmory.Control
                                     }
                                 _sonarsEnabled = false;
                             }
-                            FireECM(0); // kill active noisemakers
+                            StopECM(); // kill active noisemakers
                             FireDecoys();
                         }
                     }

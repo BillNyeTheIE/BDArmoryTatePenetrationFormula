@@ -2411,8 +2411,13 @@ namespace BDArmory.Radar
                             });
                             switch (missileBase.TargetingMode)
                             {
+                                // We hardcode identification within 0.33 * maxViewDistance, if not
+                                // detected by MWS or indentified, passive missiles are unidentified
+                                
+                                // This does leave radar missiles in a weird spot where a RWR-less
+                                // vessel can tell it's a radar missile from > ID range...
                                 case MissileBase.TargetingModes.Heat:
-                                    if (MWSDetected)
+                                    if (MWSDetected || vesselDistanceSqr < 0.1089f * maxViewDistance * maxViewDistance)
                                         results.foundHeatMissile = true;
                                     else
                                         results.foundPassiveMissile = true;
@@ -2424,14 +2429,14 @@ namespace BDArmory.Radar
                                     results.foundAGM = true;
                                     break;
                                 case MissileBase.TargetingModes.AntiRad: //How does one differentiate between a passive IR sensor and a passive AR sensor?
-                                    if (MWSDetected)
+                                    if (MWSDetected || vesselDistanceSqr < 0.1089f * maxViewDistance * maxViewDistance)
                                         results.foundAntiRadiationMissile = true; //admittedly, combining the two would result in launching flares at ARMs and turning off radar when having incoming heaters...
                                     else
                                         results.foundPassiveMissile = true;
                                     break;
                                 case MissileBase.TargetingModes.Gps:
                                 case MissileBase.TargetingModes.Inertial:
-                                    if (MWSDetected)
+                                    if (MWSDetected || vesselDistanceSqr < 0.1089f * maxViewDistance * maxViewDistance)
                                         results.foundGPSMissile = true;
                                     else
                                         results.foundPassiveMissile = true;
