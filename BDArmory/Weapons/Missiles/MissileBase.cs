@@ -72,7 +72,7 @@ namespace BDArmory.Weapons.Missiles
         [KSPField]
         public string missileType = "missile";
 
-        public enum MissileType { None = -1, Missile, Bomb, Torpedo, DepthCharge, ASWMissile };
+        public enum MissileType { None = -1, Missile, Bomb, Torpedo, DepthCharge, ASWMissile, SensorMissile, DroppableSensor };
 
         protected MissileType _missileType = MissileType.Missile;
 
@@ -648,6 +648,8 @@ namespace BDArmory.Weapons.Missiles
                 "torpedo" => MissileType.Torpedo,
                 "depthcharge" => MissileType.DepthCharge,
                 "aswmissile" => MissileType.ASWMissile,
+                "sensormissile" => MissileType.SensorMissile,
+                "droppablesensor" => MissileType.DroppableSensor,
                 _ => MissileType.Missile
             };
         }
@@ -1639,7 +1641,7 @@ namespace BDArmory.Weapons.Missiles
         {
             Vector3 TargetCoords_;
             Vector3 TargetLead;
-            ModuleRadar detectedByRadar = null;
+            ModuleSensor detectedByRadar = null;
             bool activeDatalink = false;
             if (!setInertialTarget)
             {
@@ -1674,14 +1676,11 @@ namespace BDArmory.Weapons.Missiles
                     {
                         if (FiredByWM._radarsEnabled || weaponClass == WeaponClasses.SLW && FiredByWM._sonarsEnabled)
                         {
-                            (INStarget, radarLocked) = FiredByWM.vesselRadarData.detectedRadarTargetGetRadar(targetVessel.Vessel, FiredByWM); //is the target tracked by radar or ISRT?
+                            (INStarget, detectedByRadar, radarLocked) = FiredByWM.vesselRadarData.detectedRadarTargetGetRadar(targetVessel.Vessel, FiredByWM); //is the target tracked by radar or ISRT?
                         }
-                        if (INStarget.exists)
+                        if (!INStarget.exists)
                         {
-                            detectedByRadar = INStarget.lockedByRadar;
-                        }
-                        else
-                        {
+                            detectedByRadar = null; // Should be null, but just to make sure
                             if (FiredByWM._irstsEnabled) INStarget = FiredByWM.vesselRadarData.activeIRTarget(targetVessel.Vessel, FiredByWM, true);
                         }
                     }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -314,7 +314,7 @@ namespace BDArmory.UI
                     else
                         rcsGCF = 1.0f;
 
-                    if (selected_radar.canScan)
+                    if (selected_radar.CanScan)
                     {
                         for (float distance = selected_radar.radarMaxDistanceDetect; distance >= 0; distance--)
                         {
@@ -331,7 +331,7 @@ namespace BDArmory.UI
                         text_detection = "Detection: This radar does not have detection capabilities.";
                     }
 
-                    if (selected_radar.canLock)
+                    if (selected_radar.CanLock)
                     {
                         text_locktrack = $"Lock/Track: untrackable by this radar.";
                         for (float distance = selected_radar.radarMaxDistanceLockTrack; distance >= 0; distance--)

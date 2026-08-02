@@ -618,6 +618,9 @@ namespace BDArmory.Control
 
         #region KSPFields,events,actions
 
+        [KSPField(isPersistant = true)]
+        public string linkedExternalSensors;
+
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "#LOC_BDArmory_FiringInterval"),//Firing Interval
             UI_FloatRange(minValue = 0.5f, maxValue = 60f, stepIncrement = 0.5f, scene = UI_Scene.All)]
         public float targetScanInterval = 1;
@@ -898,22 +901,22 @@ namespace BDArmory.Control
                     using (List<ModuleRadar>.Enumerator rd = radars.GetEnumerator())
                         while (rd.MoveNext())
                         {
-                            if (rd.Current != null || rd.Current.canLock)
+                            if (rd.Current != null || rd.Current.CanLock)
                             {
-                                if (rd.Current.sonarMode == ModuleRadar.SonarModes.None)
+                                // Only enable radars and passive sonar, wouldn't want to ping the enemy
+                                if (rd.Current.sonarMode != ModuleRadar.SonarModes.Active)
                                 {
                                     rd.Current.EnableRadar();
                                     float scanSpeed = rd.Current.radarAzFOV / rd.Current.scanRotationSpeed * 2;
                                     if (GpsUpdateMax > 0 && scanSpeed < GpsUpdateMax) GpsUpdateMax = scanSpeed;
-                                    _radarsEnabled = true;
-                                }
-                                else if (rd.Current.sonarMode == ModuleRadar.SonarModes.passive)
-                                // Only enable passive sonar, wouldn't want to ping the enemy
-                                {
-                                    rd.Current.EnableRadar();
-                                    float scanSpeed = rd.Current.radarAzFOV / rd.Current.scanRotationSpeed * 2;
-                                    if (GpsUpdateMax > 0 && scanSpeed < GpsUpdateMax) GpsUpdateMax = scanSpeed;
-                                    //_sonarsEnabled = true;
+                                    if (rd.Current.sonarMode == ModuleRadar.SonarModes.None)
+                                    {
+                                        _radarsEnabled = true;
+                                    }
+                                    //else
+                                    //{
+                                    //    _sonarsEnabled = true;
+                                    //}
                                 }
                             }
                         }
@@ -2674,7 +2677,7 @@ namespace BDArmory.Control
                         using (List<ModuleRadar>.Enumerator rd = radars.GetEnumerator())
                             while (rd.MoveNext())
                             {
-                                if ((rd.Current != null || rd.Current.canLock) && rd.Current.sonarMode == ModuleRadar.SonarModes.None)
+                                if ((rd.Current != null || rd.Current.CanLock) && rd.Current.sonarMode == ModuleRadar.SonarModes.None)
                                 {
                                     rd.Current.EnableRadar();
                                     _radarsEnabled = true;
@@ -5640,7 +5643,7 @@ namespace BDArmory.Control
                 using (List<ModuleRadar>.Enumerator rd = _radars.GetEnumerator())
                     while (rd.MoveNext())
                     {
-                        if (rd.Current != null && rd.Current.canLock)
+                        if (rd.Current != null && rd.Current.CanLock)
                         {
                             if (rd.Current.maxLocks > 0) MaxRadarLocks += rd.Current.maxLocks;
                         }
@@ -5648,7 +5651,7 @@ namespace BDArmory.Control
                 using (List<ModuleRadar>.Enumerator rd = _radars.GetEnumerator()) //now refresh lock array size with new maxradarLock value
                     while (rd.MoveNext())
                     {
-                        if (rd.Current != null && rd.Current.canLock)
+                        if (rd.Current != null && rd.Current.CanLock)
                         {
                             rd.Current.RefreshLockArray();
                         }
@@ -8060,7 +8063,7 @@ namespace BDArmory.Control
                                 using (List<ModuleRadar>.Enumerator rd = radars.GetEnumerator())
                                     while (rd.MoveNext())
                                     {
-                                        if (rd.Current != null && rd.Current.canLock && rd.Current.sonarMode == ModuleRadar.SonarModes.None)
+                                        if (rd.Current != null && rd.Current.CanLock && rd.Current.sonarMode == ModuleRadar.SonarModes.None)
                                         {
                                             if (results.foundAntiRadiationMissile && rd.Current.DynamicRadar) continue;
                                             rd.Current.EnableRadar();
@@ -8122,7 +8125,7 @@ namespace BDArmory.Control
                                         using (List<ModuleRadar>.Enumerator rd = radars.GetEnumerator())
                                             while (rd.MoveNext())
                                             {
-                                                if (rd.Current != null && rd.Current.canLock && rd.Current.sonarMode == ModuleRadar.SonarModes.None)
+                                                if (rd.Current != null && rd.Current.CanLock && rd.Current.sonarMode == ModuleRadar.SonarModes.None)
                                                 {
                                                     if (results.foundAntiRadiationMissile && rd.Current.DynamicRadar) continue;
                                                     rd.Current.EnableRadar();

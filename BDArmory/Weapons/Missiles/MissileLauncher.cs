@@ -2028,8 +2028,8 @@ namespace BDArmory.Weapons.Missiles
                     }
                         
                 }
-                    
 
+                
                 StartCoroutine(MissileRoutine());
                 List<BDWarheadBase> tntList = part.FindModulesImplementing<BDWarheadBase>();
                 foreach (BDWarheadBase tnt in tntList)
@@ -2037,6 +2037,13 @@ namespace BDArmory.Weapons.Missiles
                     tnt.Team = Team;
                     tnt.sourcevessel = SourceVessel;
                 }
+
+                List<ModuleExternalSensor> externalSensors = part.FindModulesImplementing<ModuleExternalSensor>();
+                foreach (ModuleExternalSensor sensor in externalSensors)
+                {
+                    sensor.ArmSensor();
+                }
+
                 if (BDArmorySettings.DEBUG_MISSILES) Debug.Log($"[BDArmory.MissileLauncher]: {Time.time} Missile Launched!");
                 if (BDArmorySettings.CAMERA_SWITCH_INCLUDE_MISSILES && SourceVessel.isActiveVessel) LoadedVesselSwitcher.Instance.ForceSwitchVessel(vessel);
             }
@@ -3082,7 +3089,7 @@ namespace BDArmory.Weapons.Missiles
         IEnumerator updateCrashTolerance()
         {
             yield return new WaitForSecondsFixed(0.5f); //wait half sec after boost motor fires, then set crashTolerance to 1. Torps have already waited until splashdown before this is called.
-            part.crashTolerance = 1;
+            part.crashTolerance = (_missileType == MissileType.DroppableSensor) ? 9999 : 1;
             if (useSimpleDragTemp)
             {
                 yield return new WaitForSecondsFixed((clearanceLength * 1.2f) / 2);
