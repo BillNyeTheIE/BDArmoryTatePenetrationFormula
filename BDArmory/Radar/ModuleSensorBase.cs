@@ -11,27 +11,24 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using static BDArmory.Radar.ModuleRadar;
 using static UnityEngine.GraphicsBuffer;
 
 namespace BDArmory.Radar
 {
-    public abstract class ModuleSensor : PartModule
+    public abstract class ModuleSensorBase : PartModule
     {
         #region KSPFields (Part Configuration)
 
         #region General Configuration
 
         [KSPField]
-        public string radarName;
+        public string sensorName;
 
         [KSPField]
         public string rotationTransformName = string.Empty;
         protected Transform rotationTransform;
 
-        [KSPField]
-        public string radarTransformName = string.Empty;
-        protected Transform radarTransform;
+        protected Transform sensorTransform;
 
         #endregion General Configuration
 
@@ -59,15 +56,15 @@ namespace BDArmory.Radar
         [KSPField]
         public string elevationFOV = "-1";             //FoV of the radar in the vertical axis
 
-        public float radarAzOffset = 0f;
-        public float radarAzFOV = 90f;
-        public float[] radarAzLimits = [-45f, 45f];
-        public float radarElOffset = 0f;
-        public float radarElFOV = 90f;
-        public float[] radarElLimits = [-45f, 45f];
+        public float sensorAzOffset = 0f;
+        public float sensorAzFOV = 90f;
+        public float[] sensorAzLimits = [-45f, 45f];
+        public float sensorElOffset = 0f;
+        public float sensorElFOV = 90f;
+        public float[] sensorElLimits = [-45f, 45f];
 
-        public float[] radarMinMaxAzLimits = [-45f, 45f];
-        public float[] radarMinMaxElLimits = [-45f, 45f];
+        public float[] sensorMinMaxAzLimits = [-45f, 45f];
+        public float[] sensorMinMaxElLimits = [-45f, 45f];
 
         [KSPField]
         public float scanRotationSpeed = 120; 		//in degrees per second, relevant for omni and directional
@@ -89,40 +86,25 @@ namespace BDArmory.Radar
         public abstract bool CanLock { get; }
 
         [KSPField]
-        public FloatCurve radarDetectionCurve = new FloatCurve();		//FloatCurve defining at what range which RCS size can be detected
+        public float boresightFOV = 10;				//relevant for boresight only
 
         [KSPField]
-        public FloatCurve radarVelocityGate = new FloatCurve();		//FloatCurve defining the reduction in received RCS due to a doppler gate
+        public float lockRotationSpeed = 120;		//in degrees per second, relevant for omni only
 
         [KSPField]
-        public FloatCurve radarRangeGate = new FloatCurve();		//FloatCurve defining the reduction in received RCS due to a range gate
+        public float lockRotationAngle = 4;         //???
 
         [KSPField]
-        public bool radarCanNotch = true;
+        public float multiLockFOV = 30;             //??
 
         [KSPField]
-        public float radarGroundClutterFactor = 0.25f; //Factor defining how effective the radar is for look-down, compensating for ground clutter (0=ineffective, 1=fully effective)
-                                                       //default to 0.25, so all cross sections of landed/splashed/submerged vessels are reduced to 1/4th, as these vessel usually a quite large
-        [KSPField]
-        public float radarChaffClutterFactor = 1.0f;     //Factor defining how effective the radar is at compensating for enemy chaff (0 = ineffective, 1 = no decrease in signal position/strength)
-                                                         //default to 1, since that's legacy behavior. Relevant for guiding SARH ordnance. Allows up to two values for modifying chaff and notchMod.
+        public float lockAttemptFOV = 2;            //??
 
         [KSPField]
-        public string radarChaffNotchClutterFactor = "1.0";
-
-        public float _radarChaffNotchVFac;
-        public float _radarChaffNotchRFac;
+        public int maxLocks = 1;					//how many targets can be locked/tracked simultaneously
 
         [KSPField]
-        public FloatCurve radarGlintCurve = new FloatCurve();		//FloatCurve defining the reduction in received RCS due to a range gate
-
-        [KSPField]
-        public float radarGlintMult = -1f;
-
-        [KSPField]
-        public int sonarType = 0; //0 = Radar; 1 == Active Sonar; 2 == Passive Sonar
-
-        public ModuleRadar.SonarModes sonarMode = ModuleRadar.SonarModes.None;
+        public bool canTrackWhileScan = false;      //when tracking/locking, can we still detect/scan?
 
         //animation
         [KSPField] public string deployAnimationName;
@@ -144,7 +126,7 @@ namespace BDArmory.Radar
         #region Persisted State in flight
 
         [KSPField(isPersistant = true)]
-        public bool radarEnabled;
+        public bool sensorEnabled;
 
         [KSPField(isPersistant = true)]
         public int rangeIndex = 99;
@@ -160,40 +142,53 @@ namespace BDArmory.Radar
         public Vector3 currUp;
         public Vector3 currRight;
 
+        private float DisplayUpdateTime = -1f;
+
+        // Rotated forward vector according to azimuth and elevation
+        // offsets for display purposes
+        public Vector3 currDisplayForward;
+
         #endregion Persisted State in flight
 
         #endregion KSPFields (Part Configuration)
 
         #region Part members
 
-        public float radarMinDistanceDetect
+        //locks
+        [KSPField(isPersistant = false, guiActive = true, guiActiveEditor = false, guiName = "#LOC_BDArmory_CurrentLocks")]//Current Locks
+        public int currLocks;
+
+        public bool locked
         {
-            get { return radarDetectionCurve.minTime; }
+            get { return currLocks > 0; }
         }
 
-        //[KSPField(isPersistant = false, guiActive = true, guiActiveEditor = true, guiName = "Detection Range")]
-        public float radarMaxDistanceDetect
+        public int currentLocks
         {
-            get { return radarDetectionCurve.maxTime; }
+            get { return currLocks; }
         }
 
-        public float radarMaxRangeGate
+        protected TargetSignatureData[] attemptedLocks;
+        //private bool[] lockSuccesses; // Removed as it was deemed unecessary
+        protected List<TargetSignatureData> lockedTargets;
+
+        public TargetSignatureData lockedTarget
         {
-            get { return radarRangeGate.maxTime; }
-        }
-        public float radarMinRangeGate
-        {
-            get { return radarRangeGate.minTime; }
+            get
+            {
+                if (currLocks == 0) return TargetSignatureData.noTarget;
+                else
+                {
+                    return lockedTargets[lockedTargetIndex];
+                }
+            }
         }
 
-        public float radarMaxVelocityGate
-        {
-            get { return radarVelocityGate.maxTime; }
-        }
+        protected int lockedTargetIndex;
 
-        public float radarMinVelocityGate
+        public int currentLockIndex
         {
-            get { return radarVelocityGate.minTime; }
+            get { return lockedTargetIndex; }
         }
 
         //linked vessels
@@ -207,12 +202,14 @@ namespace BDArmory.Radar
 
         //GUI
         public float signalPersistTime;
-        public float signalPersistTimeForRwr;
 
         //scanning
         protected float currentAngleLock;
         public Transform referenceTransform;
         protected float radialScanDirection = 1;
+
+        //locking
+        public float lockScanAngle;
 
         protected string myVesselID;
 
@@ -224,15 +221,24 @@ namespace BDArmory.Radar
 
         //vessel
         public abstract MissileFire WeaponManager { get; }
+        public VesselRadarData vesselRadarData;
 
         #endregion Part members
 
-        public abstract void EnableRadar();
-        public abstract void DisableRadar();
+        public abstract void EnableSensor();
+        public abstract void DisableSensor();
 
         void Start()
         {
             resourceID = PartResourceLibrary.Instance.GetDefinition(resourceName).id;
+            updateModel = (CanScan || CanLock);
+        }
+
+        public override void OnStart(StartState state)
+        {
+            base.OnStart(state);
+
+            AnimSetup();
         }
 
         protected void AnimSetup()
@@ -244,82 +250,42 @@ namespace BDArmory.Radar
             }
         }
 
-        protected void FlightSetup()
+        protected virtual void FlightSetup(string sensorTransformName)
         {
             myVesselID = vessel.id.ToString();
-            RadarUtils.SetupResources();
 
-            if (string.IsNullOrEmpty(radarName))
+            if (string.IsNullOrEmpty(sensorName))
             {
-                radarName = part.partInfo.title;
+                sensorName = part.partInfo.title;
             }
 
             SetRadarLimits();
-            SetNotchChaffFac();
 
             signalPersistTime = omnidirectional
                 ? 360 / (scanRotationSpeed + 5)
-                : radarAzFOV / (scanRotationSpeed + 5);
-
-            rwrType = (RadarWarningReceiver.RWRThreatTypes)rwrThreatType;
-            sonarMode = (SonarModes)sonarType;
-            if (rwrType == RadarWarningReceiver.RWRThreatTypes.Sonar)
-                signalPersistTimeForRwr = RadarUtils.ACTIVE_MISSILE_PING_PERSIST_TIME;
-            else
-            {
-                signalPersistTimeForRwr = signalPersistTime / 2;
-            }
+                : sensorAzFOV / (scanRotationSpeed + 5);
 
             if (rotationTransformName != string.Empty)
             {
                 rotationTransform = part.FindModelTransform(rotationTransformName);
             }
-            radarTransform = radarTransformName != string.Empty ? part.FindModelTransform(radarTransformName) : part.transform;
+            sensorTransform = sensorTransformName != string.Empty ? part.FindModelTransform(sensorTransformName) : part.transform;
 
             referenceTransform = (new GameObject()).transform;
-            referenceTransform.parent = radarTransform;
+            referenceTransform.parent = sensorTransform;
             referenceTransform.localPosition = Vector3.zero;
-        }
-
-        protected void SetNotchChaffFac()
-        {
-            string[] chaffStrings = radarChaffNotchClutterFactor.Split([',']);
-            if (chaffStrings.Length == 0)
-            {
-                _radarChaffNotchVFac = 1.0f;
-                _radarChaffNotchRFac = 1.0f;
-                return;
-            }
-
-            if (float.TryParse(chaffStrings[0], out float temp))
-            {
-                _radarChaffNotchVFac = temp;
-            }
-            else
-            {
-                _radarChaffNotchVFac = 1.0f;
-            }
-
-            if (chaffStrings.Length > 1 && float.TryParse(chaffStrings[1], out temp))
-            {
-                _radarChaffNotchRFac = temp;
-            }
-            else
-            {
-                _radarChaffNotchRFac = _radarChaffNotchVFac;
-            }
         }
 
         protected void SetRadarLimits()
         {
-            ParseRadarLimits(directionalFieldOfView, out radarAzOffset, out radarAzFOV, out radarAzLimits, out radarMinMaxAzLimits);
+            ParseRadarLimits(directionalFieldOfView, out sensorAzOffset, out sensorAzFOV, out sensorAzLimits, out sensorMinMaxAzLimits);
             // Retain old radar characteristics, if omnidirectional the radar should be able to see targets at +/- 90, otherwise
             // the radar could previously see targets at +/- 90 but not lock them, so we'll just lock it to a square FoV
-            ParseRadarLimits(elevationFOV, out radarElOffset, out radarElFOV, out radarElLimits, out radarMinMaxElLimits, true);
+            ParseRadarLimits(elevationFOV, out sensorElOffset, out sensorElFOV, out sensorElLimits, out sensorMinMaxElLimits, true);
             if (BDArmorySettings.DEBUG_RADAR)
             {
-                Debug.Log($"[BDArmory.ModuleRadar] radarAzOffset {radarAzOffset}, radarAzFOV: {radarAzFOV}, radarAzLimits: {radarAzLimits[0]},{radarAzLimits[1]}, radarMinMaxAzLimits: {radarMinMaxAzLimits[0]},{radarMinMaxAzLimits[1]}");
-                Debug.Log($"[BDArmory.ModuleRadar] radarElOffset {radarElOffset}, radarElFOV: {radarElFOV}, radarElLimits: {radarElLimits[0]},{radarElLimits[1]}, radarMinMaxAzLimits: {radarMinMaxElLimits[0]},{radarMinMaxElLimits[1]}");
+                Debug.Log($"[BDArmory.ModuleRadar] radarAzOffset {sensorAzOffset}, radarAzFOV: {sensorAzFOV}, radarAzLimits: {sensorAzLimits[0]},{sensorAzLimits[1]}, radarMinMaxAzLimits: {sensorMinMaxAzLimits[0]},{sensorMinMaxAzLimits[1]}");
+                Debug.Log($"[BDArmory.ModuleRadar] radarElOffset {sensorElOffset}, radarElFOV: {sensorElFOV}, radarElLimits: {sensorElLimits[0]},{sensorElLimits[1]}, radarMinMaxAzLimits: {sensorMinMaxElLimits[0]},{sensorMinMaxElLimits[1]}");
             }
         }
 
@@ -330,12 +296,12 @@ namespace BDArmory.Radar
             {
                 // Then consider if it's omnidirectional or not, by default, omni radars are allowed +/- 90° FoV
                 // Otherwise the default is a square radar scan area (based on radarAZLimits)
-                radarLimits = omnidirectional ? [-90f, 90f] : [radarAzLimits[0], radarAzLimits[1]];
+                radarLimits = omnidirectional ? [-90f, 90f] : [sensorAzLimits[0], sensorAzLimits[1]];
                 //radarMinMaxLimits = omnidirectional ? [90f, 90f] : [radarMinMaxAzLimits[0], radarMinMaxAzLimits[1]];
                 // Even if the azimuth is offset, we should start with no offset for elevation
-                radarMinMaxLimits = omnidirectional ? [90f, 90f] : [0.5f * radarAzFOV, 0.5f * radarAzFOV];
+                radarMinMaxLimits = omnidirectional ? [90f, 90f] : [0.5f * sensorAzFOV, 0.5f * sensorAzFOV];
                 // Default omnidirectional FoV is 180°
-                radarFOV = omnidirectional ? 180f : radarAzFOV;
+                radarFOV = omnidirectional ? 180f : sensorAzFOV;
             }
             else
             {
@@ -402,6 +368,58 @@ namespace BDArmory.Radar
             }
         }
 
+        protected IEnumerator StartUpRoutine()
+        {
+            if (BDArmorySettings.DEBUG_RADAR)
+                Debug.Log($"[BDArmory.ModuleSensor]: StartupRoutine: {sensorName} enabled: {sensorEnabled}");
+            yield return new WaitWhile(() => !FlightGlobals.ready || vessel.packed || !vessel.loaded);
+            yield return new WaitForFixedUpdate();
+
+            StartupRoutineActions();
+
+            startupComplete = true;
+        }
+
+        protected abstract void StartupRoutineActions();
+
+        public void EnsureVesselRadarData(bool addSensor = false)
+        {
+            if (vessel == null) return;
+            //myVesselID = vessel.id.ToString();
+
+            bool swappedVessels = false;
+            if (vesselRadarData == null || (swappedVessels = (vesselRadarData.vessel != vessel)) || vesselRadarData.weaponManager != WeaponManager)
+            {
+                // Technically it would be better if we linked to the previous vessel here, but theoretically speaking,
+                // if guard mode is enabled post-decouple on the child craft it should automatically datalink with all
+                // available VRDs post swap taking care of this. If we do want to ensure this functions properly even
+                // without guard mode being enabled post decouple we would add a `QueueVRDLink(vrd)` function to
+                // vesselRadarData, save the previous VRD in this if statement, and then queue the link
+                if (swappedVessels)
+                {
+                    RemoveSensorFromVRD();
+                }
+
+                vesselRadarData = vessel.gameObject.GetComponent<VesselRadarData>();
+                if (vesselRadarData == null)
+                    vesselRadarData = vessel.gameObject.AddComponent<VesselRadarData>();
+
+                vesselRadarData.weaponManager = WeaponManager;
+
+                // Something wasn't right with the previous VRD so make sure we add the radar, primarily to take care of the multi-craft case
+                addSensor = true;
+            }
+
+            if (addSensor && sensorEnabled)
+            {
+                AddSensorToVRD();
+            }
+        }
+
+        protected abstract void AddSensorToVRD();
+
+        protected abstract void RemoveSensorFromVRD();
+
         public void UpdateReferenceTransform()
         {
             if (ReferenceUpdateTime >= Time.time)
@@ -422,14 +440,27 @@ namespace BDArmory.Radar
                 // THIS IMPLEMENTS FULL ROLL STABILIZATION
                 // We assume the radar can *always* roll such that the up direction is the projection of
                 // the up vector onto the radarTransform up plane.
-                referenceTransform.rotation = Quaternion.LookRotation(radarTransform.up,
-                    vessel.up.ProjectOnPlanePreNormalized(radarTransform.up).normalized);
+                referenceTransform.rotation = Quaternion.LookRotation(sensorTransform.up,
+                    vessel.up.ProjectOnPlanePreNormalized(sensorTransform.up).normalized);
             }
             currForward = referenceTransform.forward;
             currUp = referenceTransform.up;
             currRight = referenceTransform.right;
 
             ReferenceUpdateTime = Time.time;
+        }
+
+        public void UpdateDisplayTransform()
+        {
+            if (DisplayUpdateTime >= Time.time)
+                return;
+            UpdateReferenceTransform();
+
+            if (sensorElOffset != 0 || sensorAzOffset != 0)
+                currDisplayForward = Quaternion.AngleAxis(sensorElOffset, currRight) * Quaternion.AngleAxis(-sensorAzOffset, currUp) * currForward;
+            else
+                currDisplayForward = currForward;
+            DisplayUpdateTime = Time.time;
         }
 
         protected void Deploy(bool forward)
@@ -483,7 +514,137 @@ namespace BDArmory.Radar
             deployAnimState.speed = 0;
         }
 
-        protected abstract void Scan();
+        protected void Scan()
+        {
+            float angleDelta = scanRotationSpeed * Time.fixedDeltaTime;
+            PerformScan(angleDelta);
+
+            if (omnidirectional)
+            {
+                currentAngle = Mathf.Repeat(currentAngle + angleDelta, 360f);
+            }
+            else
+            {
+                currentAngle += radialScanDirection * angleDelta;
+
+                if (locked)
+                {
+                    // If we're locked, then get the angle to the target
+                    float targetAngle = VectorUtils.GetAngleOnPlane(lockedTarget.position - currPosition, currForward, currRight);
+
+                    // And then set the left/right limits based on multiLockFOV, limited by the radarAzLimits
+                    leftLimit = Mathf.Clamp(targetAngle - (multiLockFOV * 0.5f), sensorAzLimits[0],
+                        sensorAzLimits[1]);
+                    rightLimit = Mathf.Clamp(targetAngle + (multiLockFOV * 0.5f), sensorAzLimits[0],
+                        sensorAzLimits[1]);
+
+                    if (radialScanDirection < 0 && currentAngle < leftLimit)
+                    {
+                        // If we're past the left limit, set the angle to the left limit and reverse the direction of the scan
+                        currentAngle = leftLimit;
+                        radialScanDirection = 1;
+                    }
+                    else if (radialScanDirection > 0 && currentAngle > rightLimit)
+                    {
+                        // If we're past the right limit, set the angle to the right limit and reverse the direction of the scan
+                        currentAngle = rightLimit;
+                        radialScanDirection = -1;
+                    }
+                }
+                else
+                {
+                    // If we're beyond the radar limits
+                    if (Mathf.Abs(currentAngle - sensorAzOffset) > sensorAzFOV * 0.5f)
+                    {
+                        // Set current angle to either the left/right limit
+                        currentAngle = currentAngle < 0f ? sensorAzLimits[0] : sensorAzLimits[1];
+                        // Reverse the scan direction
+                        radialScanDirection = -radialScanDirection;
+                    }
+                }
+            }
+        }
+
+        protected abstract void PerformScan(float angleDelta);
+
+        void FixedUpdate()
+        {
+            if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && startupComplete)
+            {
+                if (!vessel.IsControllable && sensorEnabled)
+                {
+                    DisableSensor();
+                }
+
+                if (sensorEnabled && isDeployed())
+                {
+                    UpdateReferenceTransform();
+
+                    DrainElectricity(); //physics behaviour, thus moved here from update
+
+                    EnabledUpdate();
+                }
+            }
+        }
+
+        protected abstract void EnabledUpdate();
+
+        bool updateModel = false;
+
+        void LateUpdate()
+        {
+            if (HighLogic.LoadedSceneIsFlight && updateModel)
+            {
+                UpdateModel();
+            }
+        }
+
+        void UpdateModel()
+        {
+            //model rotation
+            if (sensorEnabled && isDeployed())
+            {
+                EnabledModelUpdate();
+            }
+            else
+            {
+                DisabledModelUpdate();
+            }
+        }
+
+        protected virtual void EnabledModelUpdate()
+        {
+            if (rotationTransform)
+            {
+                Vector3 direction;
+                if (locked)
+                {
+                    direction =
+                        Quaternion.AngleAxis(canTrackWhileScan ? currentAngle : lockScanAngle, currUp) *
+                        currForward;
+                }
+                else
+                {
+                    direction = Quaternion.AngleAxis(currentAngle, currUp) * currForward;
+                }
+
+                Vector3 localDirection = rotationTransform.parent.InverseTransformDirection(direction).ProjectOnPlanePreNormalized(Vector3.up);
+                if (localDirection != Vector3.zero)
+                {
+                    rotationTransform.localRotation = Quaternion.Lerp(rotationTransform.localRotation,
+                        Quaternion.LookRotation(localDirection, Vector3.up), 10 * TimeWarp.fixedDeltaTime);
+                }
+            }
+        }
+
+        protected virtual void DisabledModelUpdate()
+        {
+            if (rotationTransform)
+            {
+                rotationTransform.localRotation = Quaternion.Lerp(rotationTransform.localRotation,
+                    Quaternion.identity, 5 * TimeWarp.fixedDeltaTime);
+            }
+        }
 
         /// <summary>
         /// Checks if targetPosition is within the radar's FoV limits
@@ -495,7 +656,7 @@ namespace BDArmory.Radar
             if (omnidirectional)
             {
                 // Check elevation only, determine angle from the vertical axis
-                return (Mathf.Abs(VectorUtils.GetElevation(targetPosition - currPosition, currUp) - radarElOffset) < 0.5f * radarElFOV);
+                return (Mathf.Abs(VectorUtils.GetElevation(targetPosition - currPosition, currUp) - sensorElOffset) < 0.5f * sensorElFOV);
             }
             else
             {
@@ -508,7 +669,7 @@ namespace BDArmory.Radar
                 float el = VectorUtils.GetElevation(relativePosition, currUp);
 
                 // Check if we're outside FoV
-                return (Mathf.Abs(az - radarAzOffset) < 0.5f * radarAzFOV && Mathf.Abs(el - radarElOffset) < 0.5f * radarElFOV);
+                return (Mathf.Abs(az - sensorAzOffset) < 0.5f * sensorAzFOV && Mathf.Abs(el - sensorElOffset) < 0.5f * sensorElFOV);
             }
         }
 
@@ -522,7 +683,7 @@ namespace BDArmory.Radar
             if (omnidirectional)
             {
                 // Check elevation only, determine angle from the vertical axis
-                return (Mathf.Abs(VectorUtils.GetElevationPreNorm(dir, currUp) - radarElOffset) < 0.5f * radarElFOV);
+                return (Mathf.Abs(VectorUtils.GetElevationPreNorm(dir, currUp) - sensorElOffset) < 0.5f * sensorElFOV);
             }
             else
             {
@@ -532,7 +693,7 @@ namespace BDArmory.Radar
                 float el = VectorUtils.GetElevationPreNorm(dir, currUp);
 
                 // Check if we're outside FoV
-                return (Mathf.Abs(az - radarAzOffset) < 0.5f * radarAzFOV && Mathf.Abs(el - radarElOffset) < 0.5f * radarElFOV);
+                return (Mathf.Abs(az - sensorAzOffset) < 0.5f * sensorAzFOV && Mathf.Abs(el - sensorElOffset) < 0.5f * sensorElFOV);
             }
         }
 
@@ -582,7 +743,7 @@ namespace BDArmory.Radar
                 {
                     ScreenMessages.PostScreenMessage($"{part.partInfo.title} {StringUtils.Localize("#autoLOC_244332")} {PartResourceLibrary.Instance.GetDefinition(resourceName).displayName}", 5.0f, ScreenMessageStyle.UPPER_CENTER);		// [part Title] Requires [localized resource name]
                 }
-                DisableRadar();
+                DisableSensor();
             }
         }
     }

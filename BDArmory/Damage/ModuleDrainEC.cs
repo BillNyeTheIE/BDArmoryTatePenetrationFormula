@@ -1,4 +1,4 @@
-﻿using BDArmory.Competition;
+using BDArmory.Competition;
 using BDArmory.Control;
 using BDArmory.Extensions;
 using BDArmory.Radar;
@@ -177,12 +177,12 @@ namespace BDArmory.Damage
                 foreach (var radar in VesselModuleRegistry.GetModules<ModuleRadar>(vessel))
                 {
                     if (radar.radarEnabled)
-                        radar.DisableRadar();
+                        radar.DisableSensor();
                 }
                 foreach (var spaceRadar in VesselModuleRegistry.GetModules<ModuleSpaceRadar>(vessel))
                 {
                     if (spaceRadar.radarEnabled)
-                        spaceRadar.DisableRadar();
+                        spaceRadar.DisableSensor();
                 }
                 foreach (var camera in VesselModuleRegistry.GetModules<ModuleTargetingCamera>(vessel))
                 {
@@ -302,12 +302,12 @@ namespace BDArmory.Damage
                 foreach (var radar in VesselModuleRegistry.GetModules<ModuleRadar>(vessel))
                 {
                     if (!radar.radarEnabled)
-                        radar.EnableRadar();
+                        radar.EnableSensor();
                 }
                 foreach (var spaceRadar in VesselModuleRegistry.GetModules<ModuleSpaceRadar>(vessel))
                 {
                     if (!spaceRadar.radarEnabled)
-                        spaceRadar.EnableRadar();
+                        spaceRadar.EnableSensor();
                 }
                 foreach (var camera in VesselModuleRegistry.GetModules<ModuleTargetingCamera>(vessel))
                 {

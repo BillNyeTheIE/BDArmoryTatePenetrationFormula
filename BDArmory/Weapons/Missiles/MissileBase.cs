@@ -1641,7 +1641,7 @@ namespace BDArmory.Weapons.Missiles
         {
             Vector3 TargetCoords_;
             Vector3 TargetLead;
-            ModuleSensor detectedByRadar = null;
+            ModuleRadarSensorBase detectedByRadar = null;
             bool activeDatalink = false;
             if (!setInertialTarget)
             {

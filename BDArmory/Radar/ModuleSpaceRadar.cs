@@ -1,4 +1,4 @@
-﻿using BDArmory.Extensions;
+using BDArmory.Extensions;
 
 namespace BDArmory.Radar
 {
@@ -16,7 +16,7 @@ namespace BDArmory.Radar
             if (!radarEnabled) return;
             if (!vessel.InVacuum()) // above an atm density of 0.007 the radar will not work
             {
-                DisableRadar(); // disable the radar
+                DisableSensor(); // disable the radar
             }
         }
     }

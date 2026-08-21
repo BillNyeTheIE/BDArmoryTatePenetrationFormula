@@ -17,7 +17,7 @@ using BDArmory.Competition;
 
 namespace BDArmory.Radar
 {
-    public class ModuleExternalSensor : ModuleSensor
+    public class ModuleExternalSensor : ModuleRadarSensorBase
     {
         #region KSPFields (Part Configuration)
 
@@ -66,13 +66,6 @@ namespace BDArmory.Radar
         }
 
         #region Persisted State in flight
-
-        // In case this is ever needed on an HSI or something
-        private float DisplayUpdateTime = -1f;
-
-        // Rotated forward vector according to azimuth and elevation
-        // offsets for display purposes
-        public Vector3 currDisplayForward;
 
         // Within range?
         protected bool[] linksActive;
@@ -158,18 +151,18 @@ namespace BDArmory.Radar
             WaitForFixedUpdate wait = new WaitForFixedUpdate();
             while (true)
             {
-                if (Time.time > deployTime && (!deployAltitudeTrigger || vessel.altitude < deployAltitude) && (!deployWhenLanded || vessel.LandedOrSplashed))
+                if (Time.time > deployTime && (!deployAltitudeTrigger || vessel.altitude < deployAltitude) && (!deployWhenLanded || (vessel.altitude < 1 || vessel.LandedOrSplashed)))
                 {
-                    EnableRadar();
+                    EnableSensor();
                     yield break;
                 }
                 yield return wait;
             }
         }
 
-        public override void EnableRadar()
+        public override void EnableSensor()
         {
-            radarEnabled = true;
+            sensorEnabled = true;
 
             linkedToVessels = BDATargetManager.RegisterExternalSensor(this);
             linksActive = new bool[linkedToVessels.Count];
@@ -177,9 +170,9 @@ namespace BDArmory.Radar
             Deploy(true);
         }
 
-        public override void DisableRadar()
+        public override void DisableSensor()
         {
-            radarEnabled = false;
+            sensorEnabled = false;
 
             List<VesselRadarData>.Enumerator vrd = linkedToVessels.GetEnumerator();
             while (vrd.MoveNext())
@@ -213,9 +206,9 @@ namespace BDArmory.Radar
         {
             if (HighLogic.LoadedSceneIsFlight)
             {
-                if (radarEnabled)
+                if (sensorEnabled)
                 {
-                    DisableRadar();
+                    DisableSensor();
                 }
 
                 referenceTransform = null;
@@ -228,7 +221,7 @@ namespace BDArmory.Radar
 
             if (HighLogic.LoadedSceneIsFlight)
             {
-                FlightSetup();
+                FlightSetup(radarTransformName);
 
                 mssl = part.FindModuleImplementing<MissileLauncher>();
                 baseModule = part.partInfo.partPrefab.FindModuleImplementing<ModuleExternalSensor>();
@@ -246,125 +239,23 @@ namespace BDArmory.Radar
         }
         */
 
-        IEnumerator StartUpRoutine()
+        protected override void StartupRoutineActions()
         {
-            if (BDArmorySettings.DEBUG_RADAR)
-                Debug.Log("[BDArmory.ModuleRadar]: StartupRoutine: " + radarName + " enabled: " + radarEnabled);
-            yield return new WaitWhile(() => !FlightGlobals.ready || vessel.packed || !vessel.loaded);
-            yield return new WaitForFixedUpdate();
-
-            // DISABLE RADAR
-            /*
-            if (radarEnabled)
-            {
-                EnableRadar();
-            }
-            */
-
-            // This is for when loading in to a save with already deployed external sensors, to ensure they're already loaded in
-            if (radarEnabled) EnableRadar();
-
-            startupComplete = true;
+            if (sensorEnabled) EnableSensor();
         }
 
-        public void UpdateDisplayTransform()
+        protected override void EnabledUpdate()
         {
-            if (DisplayUpdateTime >= Time.time)
-                return;
-            UpdateReferenceTransform();
-
-            if (radarElOffset != 0 || radarAzOffset != 0)
+            if (canScan)
             {
-                currDisplayForward = Quaternion.AngleAxis(radarElOffset, currRight) * Quaternion.AngleAxis(-radarAzOffset, currUp) * currForward;
-            }
-            else
-            { 
-                currDisplayForward = currForward; 
-            }
-            DisplayUpdateTime = Time.time;
-        }
-
-        void FixedUpdate()
-        {
-            if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && startupComplete)
-            {
-                if (radarEnabled && isDeployed())
-                {
-                    UpdateReferenceTransform();
-
-                    DrainElectricity(false); //physics behaviour, thus moved here from update
-
-                    if (BDArmorySettings.DEBUG_RADAR)
-                    {
-                        Debug.Log($"[BDArmory.ModuleRadar] Vessel: {vessel.vesselName}, {(sonarMode == ModuleRadar.SonarModes.None ? "Radar" : "Sonar")}: {name}, beginning lock checks.");
-                    }
-                    
-                    if (canScan)
-                    {
-                        CheckLinks();
-                        Scan();
-                    }
-                }
+                CheckLinks();
+                Scan();
             }
         }
 
-        void LateUpdate()
+        protected override void PerformScan(float angleDelta)
         {
-            if (HighLogic.LoadedSceneIsFlight && canScan)
-            {
-                UpdateModel();
-            }
-        }
-
-        void UpdateModel()
-        {
-            //model rotation
-            if (radarEnabled)
-            {
-                if (rotationTransform && canScan)
-                {
-                    Vector3 direction = Quaternion.AngleAxis(currentAngle, currUp) * currForward;
-
-                    Vector3 localDirection = rotationTransform.parent.InverseTransformDirection(direction).ProjectOnPlanePreNormalized(Vector3.up);
-                    if (localDirection != Vector3.zero)
-                    {
-                        rotationTransform.localRotation = Quaternion.Lerp(rotationTransform.localRotation,
-                            Quaternion.LookRotation(localDirection, Vector3.up), 10 * TimeWarp.fixedDeltaTime);
-                    }
-                }
-            }
-            else
-            {
-                if (rotationTransform)
-                {
-                    rotationTransform.localRotation = Quaternion.Lerp(rotationTransform.localRotation,
-                        Quaternion.identity, 5 * TimeWarp.fixedDeltaTime);
-                }
-            }
-        }
-
-        protected override void Scan()
-        {
-            float angleDelta = scanRotationSpeed * Time.fixedDeltaTime;
-            RadarUtils.ExternalSensorScan(WeaponManager, currentAngle, radarElOffset, angleDelta, radarElFOV, this);
-
-            if (omnidirectional)
-            {
-                currentAngle = Mathf.Repeat(currentAngle + angleDelta, 360f);
-            }
-            else
-            {
-                currentAngle += radialScanDirection * angleDelta;
-
-                // If we're beyond the radar limits
-                if (Mathf.Abs(currentAngle - radarAzOffset) > radarAzFOV * 0.5f)
-                {
-                    // Set current angle to either the left/right limit
-                    currentAngle = currentAngle < 0f ? radarAzLimits[0] : radarAzLimits[1];
-                    // Reverse the scan direction
-                    radialScanDirection = -radialScanDirection;
-                }
-            }
+            RadarUtils.ExternalSensorScan(WeaponManager, currentAngle, sensorElOffset, angleDelta, sensorElFOV, this);
         }
 
         bool isConnected = false;
@@ -372,7 +263,11 @@ namespace BDArmory.Radar
         public void CheckLinks()
         {
             // If < 0 we don't care about EITHER range or LoS
-            if (datalinkRange < 0f) return;
+            if (datalinkRange < 0f)
+            {
+                isConnected = true;
+                return;
+            }
             isConnected = false;
             Vector3 adjustedPos = vessel.LandedOrSplashed ? (vessel.CoM + vessel.up * ((vessel.mainBody.ocean && vessel.altitude < 0f) ? (5f - vessel.altitude) : 5f)) : vessel.CoM;
             for (int i = 0; i < linkedToVessels.Count; i++)
@@ -439,6 +334,13 @@ namespace BDArmory.Radar
             BDATargetManager.LinkExternalSensorGroup(vrd, BaseModule);
         }
 
+        protected override void AddSensorToVRD()
+        {
+            LinkToVRD(vesselRadarData);
+        }
+
+        protected override void RemoveSensorFromVRD() { }
+
         // RMB info in editor
         public override string GetInfo()
         {
@@ -452,8 +354,8 @@ namespace BDArmory.Radar
             SetRadarLimits();
 
             if (!omnidirectional)
-                output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000022", radarAzLimits[0], radarAzLimits[1]));
-            output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000041", radarElLimits[0], radarElLimits[1]));
+                output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000022", sensorAzLimits[0], sensorAzLimits[1]));
+            output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000041", sensorElLimits[0], sensorElLimits[1]));
             output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000023", getRWRType(rwrThreatType)));
 
             output.Append(Environment.NewLine);

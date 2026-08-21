@@ -275,13 +275,13 @@ namespace BDArmory.Radar
         }
 
         // Used for INS stuff
-        public (TargetSignatureData, ModuleSensor, bool) detectedRadarTargetGetRadar(Vessel desiredTarget, MissileFire mf) //passive sonar torpedoes, but could also be useful for LOAL missiles fired at detected but not locked targets, etc.
+        public (TargetSignatureData, ModuleRadarSensorBase, bool) detectedRadarTargetGetRadar(Vessel desiredTarget, MissileFire mf) //passive sonar torpedoes, but could also be useful for LOAL missiles fired at detected but not locked targets, etc.
         {
             int temp = detectedRadarTargetIndex(desiredTarget, mf);
             if (temp >= 0)
             {
                 RadarDisplayData t = displayedTargets[temp];
-                return (t.targetData, t.detectedByRadar, t.locked);
+                return (t.targetData, t.detectedByRadar as ModuleRadarSensorBase, t.locked);
             }
             else
                 return (TargetSignatureData.noTarget, null, false);
@@ -545,7 +545,7 @@ namespace BDArmory.Radar
                     {
                         if (BDArmorySettings.DEBUG_RADAR)
                         {
-                            Debug.Log($"[BDArmory.VesselRadarData] Vessel: {vessel.vesselName} with GUID: {vessel.id} recovered link to external sensor group: {availableExternalSensors[i].radarName}!");
+                            Debug.Log($"[BDArmory.VesselRadarData] Vessel: {vessel.vesselName} with GUID: {vessel.id} recovered link to external sensor group: {availableExternalSensors[i].sensorName}!");
                         }
                         LinkExternalSensorGroup(availableExternalSensors[i]);
                         externalSensorsToBeRecovered--;
@@ -747,7 +747,7 @@ namespace BDArmory.Radar
             while (radar.MoveNext())
             {
                 if (radar.Current == null) continue;
-                if (!radar.Current.radarEnabled || (radar.Current.vessel != vessel && !externalRadars.Contains(radar.Current)))
+                if (!radar.Current.sensorEnabled || (radar.Current.vessel != vessel && !externalRadars.Contains(radar.Current)))
                 {
                     radarsToRemove.Add(radar.Current);
                 }
@@ -774,7 +774,7 @@ namespace BDArmory.Radar
             while (irst.MoveNext())
             {
                 if (irst.Current == null) continue;
-                if (!irst.Current.irstEnabled || irst.Current.vessel != vessel)
+                if (!irst.Current.sensorEnabled || irst.Current.vessel != vessel)
                 {
                     IRSTsToRemove.Add(irst.Current);
                 }
@@ -835,7 +835,7 @@ namespace BDArmory.Radar
             }
             weaponManager.slavingTurrets = true;
             TargetSignatureData lockedTarget = lockedTargetData.targetData;
-            ModuleSensor detectedRadar = lockedTargetData.detectedByRadar;
+            ModuleRadar detectedRadar = lockedTarget.lockedByRadar;
             weaponManager.slavedPosition = lockedTarget.predictedPositionWithChaffFactor(detectedRadar.radarChaffClutterFactor, detectedRadar._radarChaffNotchVFac, detectedRadar._radarChaffNotchRFac);
             weaponManager.slavedVelocity = lockedTarget.velocity;
             weaponManager.slavedAcceleration = lockedTarget.acceleration;
@@ -1101,7 +1101,7 @@ namespace BDArmory.Radar
                     while (radar.MoveNext())
                     {
                         if (radar.Current == null) continue;
-                        radar.Current.DisableRadar();
+                        radar.Current.DisableSensor();
                     }
             }
             var irsts = VesselModuleRegistry.GetModules<ModuleIRST>(vessel);
@@ -1130,13 +1130,13 @@ namespace BDArmory.Radar
                         if (radar.Current == null) continue;
                         if (radar.Current.omnidirectional) return 360f;
                         // TODO: Account for radar orientation, as it is right now we just take the minimum azimuth limit!
-                        fov = Mathf.Max(fov, radar.Current.radarMinMaxAzLimits[0]);
+                        fov = Mathf.Max(fov, radar.Current.sensorMinMaxAzLimits[0]);
                     }
             }
             for (int i = 0; i < lockedTargetIndexes.Count; i++)
             {
                 // TODO: Account for radar orientation, as it is right now we just take the minimum azimuth limit!
-                fov = Mathf.Min(fov, displayedTargets[lockedTargetIndexes[i]].detectedByRadar.radarMinMaxAzLimits[0]);
+                fov = Mathf.Min(fov, displayedTargets[lockedTargetIndexes[i]].detectedByRadar.sensorMinMaxAzLimits[0]);
             }
 
             return fov;
@@ -1587,7 +1587,7 @@ namespace BDArmory.Radar
                         continue;
                     }
 
-                    radarFOVAngleArr[currIndex] = availableRadars[i].radarAzFOV * 0.5f;
+                    radarFOVAngleArr[currIndex] = availableRadars[i].sensorAzFOV * 0.5f;
 
                     currIndex++;
                 }
@@ -1638,7 +1638,7 @@ namespace BDArmory.Radar
             {
                 guiDispOmni = false;
 
-                directionalFieldOfView = (availableRadars.Count > 0) ? (availableRadars[0].radarMinMaxAzLimits[1]) : 0.5f * availableIRSTs[0].directionalFieldOfView;
+                directionalFieldOfView = (availableRadars.Count > 0) ? (availableRadars[0].sensorMinMaxAzLimits[1]) : 0.5f * availableIRSTs[0].directionalFieldOfView;
                 Rect scanRect = new Rect(0, 0, RadarDisplayRect.width, RadarDisplayRect.height);
 
                 //if (BDArmorySettings.DEBUG_RADAR)
@@ -1894,7 +1894,7 @@ namespace BDArmory.Radar
                 if (
                     GUI.Button(
                         new Rect(8, 8 + (linkRectEntryHeight * numberOfAvailableLinks), linkRectWidth - 16,
-                            linkRectEntryHeight), currSensor.radarName, style))
+                            linkRectEntryHeight), currSensor.sensorName, style))
                 {
                     if (linked)
                     {
@@ -1935,7 +1935,7 @@ namespace BDArmory.Radar
             queueLinks = false;
         }
 
-        public void RemoveDataFromRadar(ModuleSensor radar, bool updateLocks = true)
+        public void RemoveDataFromRadar(ModuleSensorBase radar, bool updateLocks = true)
         {
             displayedTargets.RemoveAll(t => t.detectedByRadar == radar);
             if (updateLocks)
@@ -1978,7 +1978,7 @@ namespace BDArmory.Radar
             while (mr.MoveNext())
             {
                 if (mr.Current == null) continue;
-                if (BDArmorySettings.DEBUG_RADAR) Debug.Log("[BDArmory.VesselRadarData]:  - Unlinking radar: " + mr.Current.radarName);
+                if (BDArmorySettings.DEBUG_RADAR) Debug.Log("[BDArmory.VesselRadarData]:  - Unlinking radar: " + mr.Current.sensorName);
                 UnlinkRadar(mr.Current);
             }
             mr.Dispose();
@@ -2249,11 +2249,12 @@ namespace BDArmory.Radar
             mr.AddExternalVRD(this);
         }
 
-        public void AddRadarContact(ModuleSensor sensor, TargetSignatureData contactData, bool _locked, bool receivedData = false)
+        public void AddRadarContact(ModuleRadarSensorBase sensor, TargetSignatureData contactData, bool _locked, bool receivedData = false)
         {
             if (!sensor) return;
             if (contactData.vessel == vessel) return;
 
+            // Is the below section even needed? That's taken care of by the radar code in RadarUtils no?
             if (!receivedData && sensor.sonarMode != ModuleRadar.SonarModes.None) //don't prevent VRD from e.g. getting datalinked sonar data from an ally boat despite being airborne
             {
                 if (!contactData.vessel.LandedOrSplashed) return; //Sonar should not detect Aircraft
@@ -2618,7 +2619,7 @@ namespace BDArmory.Radar
 
         private Vector2 UpdatedPingPosition(Vector3 worldPosition, ModuleRadar radar)
         {
-            return UpdatedPingPosition(worldPosition, radar.radarMinMaxAzLimits[1]);
+            return UpdatedPingPosition(worldPosition, radar.sensorMinMaxAzLimits[1]);
         }
 
         private Vector2 UpdatedPingPosition(Vector3 worldPosition, float directionalFieldOfView)

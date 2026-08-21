@@ -906,8 +906,8 @@ namespace BDArmory.Control
                                 // Only enable radars and passive sonar, wouldn't want to ping the enemy
                                 if (rd.Current.sonarMode != ModuleRadar.SonarModes.Active)
                                 {
-                                    rd.Current.EnableRadar();
-                                    float scanSpeed = rd.Current.radarAzFOV / rd.Current.scanRotationSpeed * 2;
+                                    rd.Current.EnableSensor();
+                                    float scanSpeed = rd.Current.sensorAzFOV / rd.Current.scanRotationSpeed * 2;
                                     if (GpsUpdateMax > 0 && scanSpeed < GpsUpdateMax) GpsUpdateMax = scanSpeed;
                                     if (rd.Current.sonarMode == ModuleRadar.SonarModes.None)
                                     {
@@ -2679,7 +2679,7 @@ namespace BDArmory.Control
                             {
                                 if ((rd.Current != null || rd.Current.CanLock) && rd.Current.sonarMode == ModuleRadar.SonarModes.None)
                                 {
-                                    rd.Current.EnableRadar();
+                                    rd.Current.EnableSensor();
                                     _radarsEnabled = true;
                                 }
                             }
@@ -8066,7 +8066,7 @@ namespace BDArmory.Control
                                         if (rd.Current != null && rd.Current.CanLock && rd.Current.sonarMode == ModuleRadar.SonarModes.None)
                                         {
                                             if (results.foundAntiRadiationMissile && rd.Current.DynamicRadar) continue;
-                                            rd.Current.EnableRadar();
+                                            rd.Current.EnableSensor();
                                             _radarsEnabled = true;
                                         }
                                     }
@@ -8081,9 +8081,9 @@ namespace BDArmory.Control
                                             if (rd.Current != null && rd.Current.sonarMode == ModuleRadar.SonarModes.None)
                                             {
                                                 if (rd.Current.DynamicRadar && results.foundAntiRadiationMissile) continue; //don't enable radar if incoming HARM, unless radar is specifically set to be used regardless
-                                                float scanSpeed = (rd.Current.locked && rd.Current.lockedTarget.vessel == targetVessel) ? rd.Current.multiLockFOV : rd.Current.radarAzFOV / rd.Current.scanRotationSpeed * 2;
+                                                float scanSpeed = (rd.Current.locked && rd.Current.lockedTarget.vessel == targetVessel) ? rd.Current.multiLockFOV : rd.Current.sensorAzFOV / rd.Current.scanRotationSpeed * 2;
                                                 if (GpsUpdateMax > 0 && scanSpeed < GpsUpdateMax) GpsUpdateMax = scanSpeed;
-                                                rd.Current.EnableRadar();
+                                                rd.Current.EnableSensor();
                                                 if (ml.GetWeaponClass() != WeaponClasses.SLW) _radarsEnabled = true;
                                                 else _sonarsEnabled = true;
                                             }
@@ -8128,7 +8128,7 @@ namespace BDArmory.Control
                                                 if (rd.Current != null && rd.Current.CanLock && rd.Current.sonarMode == ModuleRadar.SonarModes.None)
                                                 {
                                                     if (results.foundAntiRadiationMissile && rd.Current.DynamicRadar) continue;
-                                                    rd.Current.EnableRadar();
+                                                    rd.Current.EnableSensor();
                                                     _radarsEnabled = true;
                                                 }
                                             }
@@ -8240,7 +8240,7 @@ namespace BDArmory.Control
                                         if (rd.Current != null && rd.Current.sonarMode == ModuleRadar.SonarModes.Active)
                                         {
                                             if (results.foundTorpedo && results.foundHeatMissile && rd.Current.DynamicRadar) continue;
-                                            rd.Current.EnableRadar();
+                                            rd.Current.EnableSensor();
                                             _sonarsEnabled = true;
                                         }
 
@@ -8254,10 +8254,10 @@ namespace BDArmory.Control
                                         if (rd.Current != null && rd.Current.sonarMode != ModuleRadar.SonarModes.None)
                                         {
                                             if (rd.Current.sonarMode == ModuleRadar.SonarModes.Active && results.foundTorpedo && results.foundHeatMissile && rd.Current.DynamicRadar) continue;
-                                            rd.Current.EnableRadar();
+                                            rd.Current.EnableSensor();
                                             _sonarsEnabled = true;
                                         }
-                                        float scanSpeed = (rd.Current.locked && rd.Current.lockedTarget.vessel == targetVessel) ? rd.Current.multiLockFOV : rd.Current.radarAzFOV / rd.Current.scanRotationSpeed * 2;
+                                        float scanSpeed = (rd.Current.locked && rd.Current.lockedTarget.vessel == targetVessel) ? rd.Current.multiLockFOV : rd.Current.sensorAzFOV / rd.Current.scanRotationSpeed * 2;
                                         if (GpsUpdateMax > 0 && scanSpeed < GpsUpdateMax) GpsUpdateMax = scanSpeed;
                                     }
                             }
@@ -9337,7 +9337,7 @@ namespace BDArmory.Control
                                 while (rd.MoveNext())
                                 {
                                     if (rd.Current != null && (rd.Current.DynamicRadar || DynamicRadarOverride))
-                                        rd.Current.DisableRadar();
+                                        rd.Current.DisableSensor();
                                     _radarsEnabled = false;
                                 }
                             StopECM(); //disable jammers
@@ -9357,7 +9357,7 @@ namespace BDArmory.Control
                                         while (rd.MoveNext())
                                         {
                                             if (rd.Current != null && (rd.Current.DynamicRadar || DynamicRadarOverride))
-                                                rd.Current.DisableRadar();
+                                                rd.Current.DisableSensor();
                                             _radarsEnabled = false;
                                         }
                                 }
@@ -9431,7 +9431,7 @@ namespace BDArmory.Control
                                     while (rd.MoveNext())
                                     {
                                         if (rd.Current != null && rd.Current.sonarMode == ModuleRadar.SonarModes.Active) //kill active sonar
-                                            rd.Current.DisableRadar();
+                                            rd.Current.DisableSensor();
                                     }
                                 _sonarsEnabled = false;
                             }

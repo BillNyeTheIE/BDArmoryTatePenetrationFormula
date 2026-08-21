@@ -9,7 +9,7 @@ namespace BDArmory.Radar
         public Vessel vessel;
         public Vector2 pingPosition;
         public bool locked;
-        public ModuleSensor detectedByRadar;
+        public ModuleSensorBase detectedByRadar;
         public TargetSignatureData targetData;
         public float signalPersistTime;
         public float velAngle;
@@ -37,7 +37,7 @@ namespace BDArmory.Radar
             }
         }
 
-        public RadarDisplayData(Vessel _vessel, Vector2 _pingPosition, bool _locked, ModuleSensor _detectedByRadar, TargetSignatureData _targetData, float _signalPersistTime, float _velAngle)
+        public RadarDisplayData(Vessel _vessel, Vector2 _pingPosition, bool _locked, ModuleSensorBase _detectedByRadar, TargetSignatureData _targetData, float _signalPersistTime, float _velAngle)
         {
             vessel = _vessel;
             pingPosition = _pingPosition;

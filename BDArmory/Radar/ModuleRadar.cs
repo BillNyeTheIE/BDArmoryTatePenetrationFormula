@@ -15,7 +15,7 @@ using BDArmory.WeaponMounts;
 
 namespace BDArmory.Radar
 {
-    public class ModuleRadar : ModuleSensor
+    public class ModuleRadar : ModuleRadarSensorBase
     {
         #region KSPFields (Part Configuration)
 
@@ -29,22 +29,7 @@ namespace BDArmory.Radar
         #region Radar Capabilities
 
         [KSPField]
-        public float boresightFOV = 10;				//relevant for boresight only
-
-        [KSPField]
-        public float lockRotationSpeed = 120;		//in degrees per second, relevant for omni only
-
-        [KSPField]
-        public float lockRotationAngle = 4;         //???
-
-        [KSPField]
-        public float multiLockFOV = 30;             //??
-
-        [KSPField]
-        public float lockAttemptFOV = 2;            //??
-
-        [KSPField]
-        private bool canLock = true;				//radar has locking/tracking capabilities
+        protected bool canLock = true;				//radar has locking/tracking capabilities
 
         public override bool CanLock
         {
@@ -53,12 +38,6 @@ namespace BDArmory.Radar
                 return canLock;
             } 
         }
-
-        [KSPField]
-        public int maxLocks = 1;					//how many targets can be locked/tracked simultaneously
-
-        [KSPField]
-        public bool canTrackWhileScan = false;      //when tracking/locking, can we still detect/scan?
 
         [KSPField]
         public bool canReceiveRadarData = false;    //can radar data be received from friendly sources?
@@ -87,18 +66,16 @@ namespace BDArmory.Radar
 
         #region Persisted State in flight
 
+        [Obsolete]
+        [KSPField(isPersistant = true)]
+        public bool radarEnabled;
+
         [KSPField(isPersistant = true)]
         public string linkedVesselID;
 
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_RadarAutoRetract", advancedTweakable = true),//Retract radar on disable
             UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_false", scene = UI_Scene.All),]
         public bool retractOnDisable = false;
-
-        private float DisplayUpdateTime = -1f;
-
-        // Rotated forward vector according to azimuth and elevation
-        // offsets for display purposes
-        public Vector3 currDisplayForward;
 
         #endregion Persisted State in flight
 
@@ -121,26 +98,26 @@ namespace BDArmory.Radar
         [KSPAction("Toggle Radar")]
         public void AGEnable(KSPActionParam param)
         {
-            if (radarEnabled)
+            if (sensorEnabled)
             {
-                DisableRadar();
+                DisableSensor();
             }
             else
             {
-                EnableRadar();
+                EnableSensor();
             }
         }
 
         [KSPEvent(active = true, guiActive = true, guiActiveEditor = false, guiName = "#LOC_BDArmory_ToggleRadar")]//Toggle Radar
         public void Toggle()
         {
-            if (radarEnabled)
+            if (sensorEnabled)
             {
-                DisableRadar();
+                DisableSensor();
             }
             else
             {
-                EnableRadar();
+                EnableSensor();
             }
         }
 
@@ -161,9 +138,9 @@ namespace BDArmory.Radar
         {
             if (isDeployed())
             {
-                if (radarEnabled)
+                if (sensorEnabled)
                 {
-                    DisableRadar();
+                    DisableSensor();
                 }
                 Deploy(false);
             }
@@ -176,43 +153,6 @@ namespace BDArmory.Radar
         #endregion KSP Events & Actions
 
         #region Part members
-
-        //locks
-        [KSPField(isPersistant = false, guiActive = true, guiActiveEditor = false, guiName = "#LOC_BDArmory_CurrentLocks")]//Current Locks
-        public int currLocks;
-
-        public bool locked
-        {
-            get { return currLocks > 0; }
-        }
-
-        public int currentLocks
-        {
-            get { return currLocks; }
-        }
-
-        private TargetSignatureData[] attemptedLocks;
-        //private bool[] lockSuccesses; // Removed as it was deemed unecessary
-        private List<TargetSignatureData> lockedTargets;
-
-        public TargetSignatureData lockedTarget
-        {
-            get
-            {
-                if (currLocks == 0) return TargetSignatureData.noTarget;
-                else
-                {
-                    return lockedTargets[lockedTargetIndex];
-                }
-            }
-        }
-
-        private int lockedTargetIndex;
-
-        public int currentLockIndex
-        {
-            get { return lockedTargetIndex; }
-        }
 
         public float radarMinDistanceLockTrack
         {
@@ -234,7 +174,6 @@ namespace BDArmory.Radar
         public bool boresightScan;
 
         //locking
-        public float lockScanAngle;
         public bool slaveTurrets;
         public ModuleTurret lockingTurret;
 
@@ -256,48 +195,26 @@ namespace BDArmory.Radar
             }
         }
 
-        public VesselRadarData vesselRadarData;
-
         #endregion Part members
 
         void UpdateToggleGuiName()
         {
-            Events[nameof(Toggle)].guiName = radarEnabled ? StringUtils.Localize("#autoLOC_bda_1000000") : StringUtils.Localize("#autoLOC_bda_1000001");		// #autoLOC_bda_1000000 = Disable Radar		// #autoLOC_bda_1000001 = Enable Radar
+            Events[nameof(Toggle)].guiName = sensorEnabled ? StringUtils.Localize("#autoLOC_bda_1000000") : StringUtils.Localize("#autoLOC_bda_1000001");		// #autoLOC_bda_1000000 = Disable Radar		// #autoLOC_bda_1000001 = Enable Radar
         }
 
-        public void EnsureVesselRadarData(bool addRadar = false)
+        protected override void AddSensorToVRD()
         {
-            if (vessel == null) return;
-            //myVesselID = vessel.id.ToString();
-
-            bool swappedVessels = false;
-            if (vesselRadarData == null || (swappedVessels = (vesselRadarData.vessel != vessel)) || vesselRadarData.weaponManager != WeaponManager)
-            {
-                // Technically it would be better if we linked to the previous vessel here, but theoretically speaking,
-                // if guard mode is enabled post-decouple on the child craft it should automatically datalink with all
-                // available VRDs post swap taking care of this. If we do want to ensure this functions properly even
-                // without guard mode being enabled post decouple we would add a `QueueVRDLink(vrd)` function to
-                // vesselRadarData, save the previous VRD in this if statement, and then queue the link
-                if (swappedVessels)
-                    vesselRadarData.RemoveRadar(this);
-
-                vesselRadarData = vessel.gameObject.GetComponent<VesselRadarData>();
-                if (vesselRadarData == null)
-                    vesselRadarData = vessel.gameObject.AddComponent<VesselRadarData>();
-
-                vesselRadarData.weaponManager = WeaponManager;
-
-                // Something wasn't right with the previous VRD so make sure we add the radar, primarily to take care of the multi-craft case
-                addRadar = true;
-            }
-
-            if (addRadar && radarEnabled)
-                vesselRadarData.AddRadar(this);
+            vesselRadarData.AddRadar(this);
         }
 
-        public override void EnableRadar()
+        protected override void RemoveSensorFromVRD()
         {
-            radarEnabled = true;
+            vesselRadarData.RemoveRadar(this);
+        }
+
+        public override void EnableSensor()
+        {
+            sensorEnabled = true;
             EnsureVesselRadarData(true);
 
             UpdateToggleGuiName();
@@ -315,14 +232,14 @@ namespace BDArmory.Radar
             Deploy(true);
         }
 
-        public override void DisableRadar()
+        public override void DisableSensor()
         {
             if (locked)
             {
                 UnlockAllTargets();
             }
 
-            radarEnabled = false;
+            sensorEnabled = false;
             UpdateToggleGuiName();
 
             if (vesselRadarData)
@@ -354,7 +271,7 @@ namespace BDArmory.Radar
                             if (rd.Current == null || rd.Current.sonarMode != sonarMode) continue;
                             //mf._radarsEnabled = false;
                             detectorsEnabled = false;
-                            if (rd.Current != this && rd.Current.radarEnabled)
+                            if (rd.Current != this && rd.Current.sensorEnabled)
                             {
                                 //mf._radarsEnabled = true;
                                 detectorsEnabled = true;
@@ -418,10 +335,15 @@ namespace BDArmory.Radar
         {
             base.OnStart(state);
 
+            if (radarEnabled)
+            {
+                sensorEnabled = true;
+                radarEnabled = false;
+            }
+
             if (HighLogic.LoadedSceneIsFlight)
             {
-                AnimSetup();
-                FlightSetup();
+                FlightSetup(radarTransformName);
 
                 // linkedToVessels only needs to be created for ModuleRadars as they're independent sensors
                 linkedToVessels = new List<VesselRadarData>();
@@ -448,9 +370,6 @@ namespace BDArmory.Radar
             else if (HighLogic.LoadedSceneIsEditor)
             {
                 //Editor only:
-
-                AnimSetup();
-
                 List<ModuleTurret>.Enumerator tur = part.FindModulesImplementing<ModuleTurret>().GetEnumerator();
                 while (tur.MoveNext())
                 {
@@ -496,21 +415,8 @@ namespace BDArmory.Radar
         }
         */
 
-        IEnumerator StartUpRoutine()
+        protected override void StartupRoutineActions()
         {
-            if (BDArmorySettings.DEBUG_RADAR)
-                Debug.Log("[BDArmory.ModuleRadar]: StartupRoutine: " + radarName + " enabled: " + radarEnabled);
-            yield return new WaitWhile(() => !FlightGlobals.ready || vessel.packed || !vessel.loaded);
-            yield return new WaitForFixedUpdate();
-
-            // DISABLE RADAR
-            /*
-            if (radarEnabled)
-            {
-                EnableRadar();
-            }
-            */
-
             if (!vesselRadarData.hasLoadedExternalVRDs)
             {
                 RecoverLinkedVessels();
@@ -518,72 +424,39 @@ namespace BDArmory.Radar
             }
 
             UpdateToggleGuiName();
-            startupComplete = true;
         }
 
         void Update()
         {
-            drawGUI = (HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && !vessel.packed && radarEnabled &&
+            drawGUI = (HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && !vessel.packed && sensorEnabled &&
                        vessel.isActiveVessel && BDArmorySetup.GAME_UI_ENABLED && !MapView.MapIsEnabled);
         }
 
-        public void UpdateDisplayTransform()
+        protected override void EnabledUpdate()
         {
-            if (DisplayUpdateTime >= Time.time)
-                return;
-            UpdateReferenceTransform();
-
-            if (radarElOffset != 0 || radarAzOffset != 0)
-                currDisplayForward = Quaternion.AngleAxis(radarElOffset, currRight) * Quaternion.AngleAxis(-radarAzOffset, currUp) * currForward;
-            else
-                currDisplayForward = currForward;
-            DisplayUpdateTime = Time.time;
-        }
-
-        void FixedUpdate()
-        {
-            if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && startupComplete)
+            if (BDArmorySettings.DEBUG_RADAR)
             {
-                if (!vessel.IsControllable && radarEnabled)
+                Debug.Log($"[BDArmory.ModuleRadar] Vessel: {vessel.vesselName}, {(sonarMode == ModuleRadar.SonarModes.None ? "Radar" : "Sonar")}: {name}, beginning lock checks.");
+            }
+            if (locked)
+            {
+                for (int i = lockedTargets.Count - 1; i >= 0; --i) // We need to iterate backwards as UnlockTargetAt (in UpdateLock) can remove items from the lockedTargets list.
                 {
-                    DisableRadar();
+                    UpdateLock(i);
                 }
 
-                if (radarEnabled && isDeployed())
+                if (canTrackWhileScan)
                 {
-                    UpdateReferenceTransform();
-
-                    DrainElectricity(); //physics behaviour, thus moved here from update
-
-                    if (BDArmorySettings.DEBUG_RADAR)
-                    {
-                        Debug.Log($"[BDArmory.ModuleRadar] Vessel: {vessel.vesselName}, {(sonarMode == ModuleRadar.SonarModes.None ? "Radar" : "Sonar")}: {name}, beginning lock checks.");
-                    }
-                    if (locked)
-                    {
-                        for (int i = lockedTargets.Count - 1; i >= 0; --i) // We need to iterate backwards as UnlockTargetAt (in UpdateLock) can remove items from the lockedTargets list.
-                        {
-                            UpdateLock(i);
-                        }
-
-                        if (canTrackWhileScan)
-                        {
-                            Scan();
-                        }
-                    }
-                    else if (boresightScan)
-                    {
-                        BoresightScan();
-                    }
-                    else if (canScan)
-                    {
-                        Scan();
-                    }
+                    Scan();
                 }
-                //if (!vessel.packed && radarEnabled)
-                //{
-                //    //UpdateInputs();
-                //}
+            }
+            else if (boresightScan)
+            {
+                BoresightScan();
+            }
+            else if (canScan)
+            {
+                Scan();
             }
         }
 
@@ -603,118 +476,37 @@ namespace BDArmory.Radar
             }
         }
 
-        void LateUpdate()
+        protected override void EnabledModelUpdate()
         {
-            if (HighLogic.LoadedSceneIsFlight && (canScan || canLock))
+            base.EnabledModelUpdate();
+
+            //lock turret
+            if (lockingTurret && canLock)
             {
-                UpdateModel();
-            }
-        }
-
-        void UpdateModel()
-        {
-            //model rotation
-            if (radarEnabled)
-            {
-                if (rotationTransform && canScan)
+                if (locked)
                 {
-                    Vector3 direction;
-                    if (locked)
-                    {
-                        direction =
-                            Quaternion.AngleAxis(canTrackWhileScan ? currentAngle : lockScanAngle, currUp) *
-                            currForward;
-                    }
-                    else
-                    {
-                        direction = Quaternion.AngleAxis(currentAngle, currUp) * currForward;
-                    }
-
-                    Vector3 localDirection = rotationTransform.parent.InverseTransformDirection(direction).ProjectOnPlanePreNormalized(Vector3.up);
-                    if (localDirection != Vector3.zero)
-                    {
-                        rotationTransform.localRotation = Quaternion.Lerp(rotationTransform.localRotation,
-                            Quaternion.LookRotation(localDirection, Vector3.up), 10 * TimeWarp.fixedDeltaTime);
-                    }
+                    lockingTurret.AimToTarget(lockedTarget.predictedPosition, lockingPitch, lockingYaw);
                 }
-
-                //lock turret
-                if (lockingTurret && canLock)
-                {
-                    if (locked)
-                    {
-                        lockingTurret.AimToTarget(lockedTarget.predictedPosition, lockingPitch, lockingYaw);
-                    }
-                    else
-                    {
-                        lockingTurret.ReturnTurret();
-                    }
-                }
-            }
-            else
-            {
-                if (rotationTransform)
-                {
-                    rotationTransform.localRotation = Quaternion.Lerp(rotationTransform.localRotation,
-                        Quaternion.identity, 5 * TimeWarp.fixedDeltaTime);
-                }
-
-                if (lockingTurret)
+                else
                 {
                     lockingTurret.ReturnTurret();
                 }
             }
         }
 
-        protected override void Scan()
+        protected override void DisabledModelUpdate()
         {
-            float angleDelta = scanRotationSpeed * Time.fixedDeltaTime;
-            RadarUtils.RadarUpdateScanLock(WeaponManager, currentAngle, radarElOffset, angleDelta, radarElFOV, this, false, ref attemptedLocks);
+            base.DisabledModelUpdate();
 
-            if (omnidirectional)
+            if (lockingTurret)
             {
-                currentAngle = Mathf.Repeat(currentAngle + angleDelta, 360f);
+                lockingTurret.ReturnTurret();
             }
-            else
-            {
-                currentAngle += radialScanDirection * angleDelta;
+        }
 
-                if (locked)
-                {
-                    // If we're locked, then get the angle to the target
-                    float targetAngle = VectorUtils.GetAngleOnPlane(lockedTarget.position - currPosition, currForward, currRight);
-
-                    // And then set the left/right limits based on multiLockFOV, limited by the radarAzLimits
-                    leftLimit = Mathf.Clamp(targetAngle - (multiLockFOV * 0.5f), radarAzLimits[0],
-                        radarAzLimits[1]);
-                    rightLimit = Mathf.Clamp(targetAngle + (multiLockFOV * 0.5f), radarAzLimits[0],
-                        radarAzLimits[1]);
-
-                    if (radialScanDirection < 0 && currentAngle < leftLimit)
-                    {
-                        // If we're past the left limit, set the angle to the left limit and reverse the direction of the scan
-                        currentAngle = leftLimit;
-                        radialScanDirection = 1;
-                    }
-                    else if (radialScanDirection > 0 && currentAngle > rightLimit)
-                    {
-                        // If we're past the right limit, set the angle to the right limit and reverse the direction of the scan
-                        currentAngle = rightLimit;
-                        radialScanDirection = -1;
-                    }
-                }
-                else
-                {
-                    // If we're beyond the radar limits
-                    if (Mathf.Abs(currentAngle - radarAzOffset) > radarAzFOV * 0.5f)
-                    {
-                        // Set current angle to either the left/right limit
-                        currentAngle = currentAngle < 0f ? radarAzLimits[0] : radarAzLimits[1];
-                        // Reverse the scan direction
-                        radialScanDirection = -radialScanDirection;
-                    }
-                }
-            }
+        protected override void PerformScan(float angleDelta)
+        {
+            RadarUtils.RadarUpdateScanLock(WeaponManager, currentAngle, sensorElOffset, angleDelta, sensorElFOV, this, false, ref attemptedLocks);
         }
 
         public bool TryLockTarget(Vector3 position, Vessel targetVessel = null)
@@ -728,9 +520,9 @@ namespace BDArmory.Radar
             if (BDArmorySettings.DEBUG_RADAR)
             {
                 if (targetVessel == null)
-                    Debug.Log("[BDArmory.ModuleRadar]: Trying to radar lock target with (" + radarName + ")");
+                    Debug.Log("[BDArmory.ModuleRadar]: Trying to radar lock target with (" + sensorName + ")");
                 else
-                    Debug.Log("[BDArmory.ModuleRadar]: Trying to radar lock target " + targetVessel.vesselName + " with (" + radarName + ")");
+                    Debug.Log("[BDArmory.ModuleRadar]: Trying to radar lock target " + targetVessel.vesselName + " with (" + sensorName + ")");
             }
 
             var weaponManager = WeaponManager;
@@ -939,7 +731,7 @@ namespace BDArmory.Radar
                 }
 
             if (BDArmorySettings.DEBUG_RADAR)
-                Debug.Log("[BDArmory.ModuleRadar]: Radar Targets were cleared (" + radarName + ").");
+                Debug.Log("[BDArmory.ModuleRadar]: Radar Targets were cleared (" + sensorName + ").");
         }
 
         public void SetActiveLock(TargetSignatureData target)
@@ -1225,8 +1017,8 @@ namespace BDArmory.Radar
                 SetRadarLimits();
 
                 if (!omnidirectional)
-                    output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000022", radarAzLimits[0], radarAzLimits[1]));
-                output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000041", radarElLimits[0], radarElLimits[1]));
+                    output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000022", sensorAzLimits[0], sensorAzLimits[1]));
+                output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000041", sensorElLimits[0], sensorElLimits[1]));
                 output.AppendLine(StringUtils.Localize("#autoLOC_bda_1000023", getRWRType(rwrThreatType)));
 
                 output.Append(Environment.NewLine);

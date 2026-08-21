@@ -248,10 +248,11 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Radar\ModuleIRST.cs" />
     <Compile Include="Radar\ModuleExternalSensor.cs" />
-    <Compile Include="Radar\ModuleSensor.cs" />
+    <Compile Include="Radar\ModuleSensorBase.cs" />
     <Compile Include="Radar\ModuleRadar.cs" />
     <Compile Include="Radar\ModuleSpaceRadar.cs" />
     <Compile Include="Radar\RadarDisplayData.cs" />
+    <Compile Include="Radar\ModuleRadarSensorBase.cs" />
     <Compile Include="Radar\RadarUtils.cs" />
     <Compile Include="Radar\RadarWarningReceiver.cs" />
     <Compile Include="Radar\VesselRadarData.cs" />
