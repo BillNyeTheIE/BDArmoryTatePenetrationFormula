@@ -113,6 +113,10 @@ namespace BDArmory.Radar
         [KSPField] public float deployAnimationSpeed = 1;
         [KSPField] public bool deployRotationBlock = false;
 
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_RadarAutoRetract", advancedTweakable = true),//Retract radar on disable
+            UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_false", scene = UI_Scene.All),]
+        public bool retractOnDisable = false;
+
         public bool isDeployed()
         {
             return !hasDeployAnimation || deployAnimState.normalizedTime > 0.99;
@@ -225,8 +229,36 @@ namespace BDArmory.Radar
 
         #endregion Part members
 
-        public abstract void EnableSensor();
-        public abstract void DisableSensor();
+        public virtual void EnableSensor()
+        {
+            sensorEnabled = true;
+
+            Deploy(true);
+        }
+
+        /// <summary>
+        /// Disables sensor, setting sensorEnabled to false, unlinking from linked vessels and removing the sensor from its VRD.
+        /// NOTE: Because this removes the sensor from its VRD, this should be run AFTER any manipulations on VRD are complete!
+        /// This includes unlocking all targets, removing contacts, etc.
+        /// </summary>
+        public virtual void DisableSensor()
+        {
+            sensorEnabled = false;
+
+            List<VesselRadarData>.Enumerator vrd = linkedToVessels.GetEnumerator();
+            while (vrd.MoveNext())
+            {
+                UnlinkFromVRD(vrd.Current);
+            }
+            vrd.Dispose();
+
+            RemoveSensorFromVRD();
+
+            if (retractOnDisable)
+            {
+                Deploy(false);
+            }
+        }
 
         void Start()
         {
@@ -700,6 +732,8 @@ namespace BDArmory.Radar
         public abstract void ReceiveContactData(TargetSignatureData contactData, bool _locked);
 
         protected abstract void LinkToVRD(VesselRadarData vrd);
+
+        protected abstract void UnlinkFromVRD(VesselRadarData vrd);
 
         public string getRWRType(int i)
         {

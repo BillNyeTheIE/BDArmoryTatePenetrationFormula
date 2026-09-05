@@ -946,10 +946,10 @@ namespace BDArmory.UI
             {
                 noiseScore += jammer.jammerStrength / 2; //acoustic spam to overload sensor/obsfucate exact position, while effective against *Active* sonar, is going make you light up like a christmas tree on Passive soanr
             }
-            using (var sonar = VesselModuleRegistry.GetModules<ModuleSensorBase>(v).GetEnumerator())
+            using (var sonar = VesselModuleRegistry.GetModules<ModuleRadarSensorBase>(v).GetEnumerator())
                 while (sonar.MoveNext())
                 {
-                    if (sonar.Current == null || !sonar.Current.radarEnabled || sonar.Current.sonarMode != ModuleRadar.SonarModes.Active) continue;
+                    if (sonar.Current == null || !sonar.Current.sensorEnabled || sonar.Current.sonarMode != ModuleRadar.SonarModes.Active) continue;
                     float ping = sensorPosition != default(Vector3) ? Vector3.Distance(sonar.Current.transform.position, sensorPosition) / 1000 : 0;
                     if (ping < sonar.Current.radarMaxDistanceDetect * 2)
                     {

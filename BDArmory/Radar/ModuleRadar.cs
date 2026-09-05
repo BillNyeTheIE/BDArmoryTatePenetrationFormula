@@ -73,10 +73,6 @@ namespace BDArmory.Radar
         [KSPField(isPersistant = true)]
         public string linkedVesselID;
 
-        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_RadarAutoRetract", advancedTweakable = true),//Retract radar on disable
-            UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_false", scene = UI_Scene.All),]
-        public bool retractOnDisable = false;
-
         #endregion Persisted State in flight
 
         #region DEPRECATED! ->see Radar Capabilities section for new detectionCurve + trackingCurve
@@ -204,62 +200,15 @@ namespace BDArmory.Radar
 
         protected override void AddSensorToVRD()
         {
+            if (vesselRadarData == null) return;
             vesselRadarData.AddRadar(this);
         }
 
         protected override void RemoveSensorFromVRD()
         {
+            if (vesselRadarData == null) return;
+            MissileFire weaponManager = vesselRadarData.weaponManager;
             vesselRadarData.RemoveRadar(this);
-        }
-
-        public override void EnableSensor()
-        {
-            sensorEnabled = true;
-            EnsureVesselRadarData(true);
-
-            UpdateToggleGuiName();
-            //vesselRadarData.AddRadar(this); // Moved this to EnsureVesselRadarData() to account for the multi-craft case
-            var wm = WeaponManager;
-            if (wm != null)
-            {
-                if (wm.guardMode) vesselRadarData.queueLinks = true;
-                if (sonarMode == SonarModes.None)
-                    wm._radarsEnabled = true;
-                else if (sonarMode == SonarModes.Active)
-                    wm._sonarsEnabled = true;
-            }
-
-            Deploy(true);
-        }
-
-        public override void DisableSensor()
-        {
-            if (locked)
-            {
-                UnlockAllTargets();
-            }
-
-            sensorEnabled = false;
-            UpdateToggleGuiName();
-
-            if (vesselRadarData)
-            {
-                vesselRadarData.RemoveRadar(this);
-            }
-
-            List<VesselRadarData>.Enumerator vrd = linkedToVessels.GetEnumerator();
-            while (vrd.MoveNext())
-            {
-                if (vrd.Current == null) continue;
-                vrd.Current.UnlinkDisabledRadar(this);
-            }
-            vrd.Dispose();
-            var weaponManager = WeaponManager;
-            using (var loadedvessels = BDATargetManager.LoadedVessels.GetEnumerator())
-                while (loadedvessels.MoveNext())
-                {
-                    BDATargetManager.ClearRadarReport(loadedvessels.Current, weaponManager); //reset radar contact status
-                }
             if (weaponManager != null)
             {
                 if (weaponManager.radars.Count > 1)
@@ -292,11 +241,44 @@ namespace BDArmory.Radar
                         weaponManager._sonarsEnabled = false;
                 }
             }
+        }
 
-            if (retractOnDisable)
+        public override void EnableSensor()
+        {
+            base.EnableSensor();
+
+            EnsureVesselRadarData(true);
+
+            UpdateToggleGuiName();
+            //vesselRadarData.AddRadar(this); // Moved this to EnsureVesselRadarData() to account for the multi-craft case
+            var wm = WeaponManager;
+            if (wm != null)
             {
-                Deploy(false);
+                if (wm.guardMode) vesselRadarData.queueLinks = true;
+                if (sonarMode == SonarModes.None)
+                    wm._radarsEnabled = true;
+                else if (sonarMode == SonarModes.Active)
+                    wm._sonarsEnabled = true;
             }
+        }
+
+        public override void DisableSensor()
+        {
+            if (locked)
+            {
+                UnlockAllTargets();
+            }
+            UpdateToggleGuiName();
+
+            var weaponManager = WeaponManager;
+            using (var loadedvessels = BDATargetManager.LoadedVessels.GetEnumerator())
+                while (loadedvessels.MoveNext())
+                {
+                    BDATargetManager.ClearRadarReport(loadedvessels.Current, weaponManager); //reset radar contact status
+                }
+
+            // Needs to be called LAST because it removes the sensor from VRD
+            base.DisableSensor();
         }
 
         void OnDestroy()
@@ -396,7 +378,7 @@ namespace BDArmory.Radar
             // check for not updated legacy part:
             if ((canScan && (radarMinDistanceDetect == float.MaxValue)) || (canLock && (radarMinDistanceLockTrack == float.MaxValue)))
             {
-                Debug.Log("[BDArmory.ModuleRadar]: WARNING: " + part.name + " has legacy definition, missing new radarDetectionCurve and radarLockTrackCurve definitions! Please update for the part to be usable!");
+                Debug.Log($"[BDArmory.ModuleRadar]: WARNING: {part.name} has legacy definition, missing new radarDetectionCurve and radarLockTrackCurve definitions! Please update for the part to be usable!");
             }
 
             if (canRecieveRadarData)
@@ -998,7 +980,14 @@ namespace BDArmory.Radar
 
         protected override void LinkToVRD(VesselRadarData vrd)
         {
+            if (vrd == null) return;
             vesselRadarData.LinkVRD(vrd);
+        }
+
+        protected override void UnlinkFromVRD(VesselRadarData vrd)
+        {
+            if (vrd == null) return;
+            vrd.UnlinkDisabledRadar(this);
         }
 
         // RMB info in editor

@@ -28,9 +28,6 @@ namespace BDArmory.Radar
         public bool detonateOnDisable = false;
 
         [KSPField]
-        public bool retractOnDisable = false;
-
-        [KSPField]
         public bool requireDirectConnection = false;
 
         [KSPField]
@@ -162,25 +159,16 @@ namespace BDArmory.Radar
 
         public override void EnableSensor()
         {
-            sensorEnabled = true;
+            base.EnableSensor();
 
             linkedToVessels = BDATargetManager.RegisterExternalSensor(this);
             linksActive = new bool[linkedToVessels.Count];
-
-            Deploy(true);
         }
 
         public override void DisableSensor()
         {
-            sensorEnabled = false;
+            base.DisableSensor();
 
-            List<VesselRadarData>.Enumerator vrd = linkedToVessels.GetEnumerator();
-            while (vrd.MoveNext())
-            {
-                if (vrd.Current == null) continue;
-                vrd.Current.RemoveDataFromRadar(this);
-            }
-            vrd.Dispose();
             //var weaponManager = WeaponManager;
             //using (var loadedvessels = BDATargetManager.LoadedVessels.GetEnumerator())
             //    while (loadedvessels.MoveNext())
@@ -188,17 +176,9 @@ namespace BDArmory.Radar
             //        BDATargetManager.ClearRadarReport(loadedvessels.Current, weaponManager); //reset radar contact status
             //    }
 
-            // Remove our link...
-            linkedToVessels = null;
-            BDATargetManager.RemoveExternalSensor(this);
-
             if (detonateOnDisable)
             {
                 mssl.Detonate();
-            }
-            else
-            {
-                if (retractOnDisable) Deploy(false);
             }
         }
 
@@ -215,6 +195,14 @@ namespace BDArmory.Radar
             }
         }
 
+        public override void OnAwake()
+        {
+            base.OnAwake();
+            Fields[nameof(retractOnDisable)].isPersistant = false;
+            Fields[nameof(retractOnDisable)].guiActive = false;
+            Fields[nameof(retractOnDisable)].guiActiveEditor = false;
+        }
+
         public override void OnStart(StartState state)
         {
             base.OnStart(state);
@@ -225,6 +213,7 @@ namespace BDArmory.Radar
 
                 mssl = part.FindModuleImplementing<MissileLauncher>();
                 baseModule = part.partInfo.partPrefab.FindModuleImplementing<ModuleExternalSensor>();
+                retractOnDisable = baseModule.retractOnDisable; // Safeguard in case the `OnAwake` `isPersistant = false` setting doesn't work...
 
                 StartCoroutine(StartUpRoutine());
             }
@@ -331,15 +320,27 @@ namespace BDArmory.Radar
 
         protected override void LinkToVRD(VesselRadarData vrd)
         {
+            if (vrd == null) return;
             BDATargetManager.LinkExternalSensorGroup(vrd, BaseModule);
+        }
+
+        protected override void UnlinkFromVRD(VesselRadarData vrd)
+        {
+            if (vrd == null) return;
+            vrd.RemoveDataFromRadar(this);
         }
 
         protected override void AddSensorToVRD()
         {
-            LinkToVRD(vesselRadarData);
+            linkedToVessels = BDATargetManager.RegisterExternalSensor(this);
+            linksActive = new bool[linkedToVessels.Count];
         }
 
-        protected override void RemoveSensorFromVRD() { }
+        protected override void RemoveSensorFromVRD()
+        {
+            linkedToVessels = null;
+            BDATargetManager.RemoveExternalSensor(this);
+        }
 
         // RMB info in editor
         public override string GetInfo()

@@ -1111,7 +1111,7 @@ namespace BDArmory.Radar
                     while (irst.MoveNext())
                     {
                         if (irst.Current == null) continue;
-                        irst.Current.DisableIRST();
+                        irst.Current.DisableSensor();
                     }
             }
         }
@@ -1597,7 +1597,7 @@ namespace BDArmory.Radar
                 for (int i = 0; i < iCount; i++)
                 {
                     if (availableIRSTs[i] == null || availableIRSTs[i].gameObject == null) continue;
-                    if (!availableIRSTs[i].canScan || availableIRSTs[i].vessel != vessel) continue;
+                    if (!availableIRSTs[i].CanScan || availableIRSTs[i].vessel != vessel) continue;
 
                     float currentAngle = availableIRSTs[i].currentAngle;
 
@@ -1628,7 +1628,7 @@ namespace BDArmory.Radar
                         currIndex++;
                         continue;
                     }
-                    radarFOVAngleArr[currIndex] = availableIRSTs[i].directionalFieldOfView * 0.5f;
+                    radarFOVAngleArr[currIndex] = availableIRSTs[i].sensorAzFOV * 0.5f;
                     currIndex++;
                 }
 
@@ -1638,7 +1638,7 @@ namespace BDArmory.Radar
             {
                 guiDispOmni = false;
 
-                directionalFieldOfView = (availableRadars.Count > 0) ? (availableRadars[0].sensorMinMaxAzLimits[1]) : 0.5f * availableIRSTs[0].directionalFieldOfView;
+                directionalFieldOfView = (availableRadars.Count > 0) ? (availableRadars[0].sensorMinMaxAzLimits[1]) : (availableIRSTs[0].sensorMinMaxAzLimits[1]);
                 Rect scanRect = new Rect(0, 0, RadarDisplayRect.width, RadarDisplayRect.height);
 
                 //if (BDArmorySettings.DEBUG_RADAR)
@@ -1690,7 +1690,7 @@ namespace BDArmory.Radar
                 for (int i = 0; i < iCount; i++)
                 {
                     if (availableIRSTs[i] == null || availableIRSTs[i].gameObject == null) continue;
-                    if (!availableIRSTs[i].canScan || availableIRSTs[i].vessel != vessel) continue;
+                    if (!availableIRSTs[i].CanScan || availableIRSTs[i].vessel != vessel) continue;
                     float currentAngle = availableIRSTs[i].currentAngle;
                     float indicatorAngle = currentAngle; //locked ? lockScanAngle : currentAngle;
                     scanPosArr[currIndex] =
@@ -2332,7 +2332,7 @@ namespace BDArmory.Radar
             rData.detectedByIRST = irst;
             rData.magnitude = magnitude;
             rData.targetData = contactData;
-            rData.pingPosition = UpdatedPingPosition(contactData.position, irst);
+            rData.pingPosition = UpdatedPingPosition(contactData.position, directionalFieldOfView);
 
             int replaceIndex = -1;
             for (int i = 0; i < displayedIRTargets.Count; i++)
@@ -2617,9 +2617,9 @@ namespace BDArmory.Radar
             }
         }
 
-        private Vector2 UpdatedPingPosition(Vector3 worldPosition, ModuleRadar radar)
+        private Vector2 UpdatedPingPosition(Vector3 worldPosition, ModuleSensorBase sensor)
         {
-            return UpdatedPingPosition(worldPosition, radar.sensorMinMaxAzLimits[1]);
+            return UpdatedPingPosition(worldPosition, sensor.sensorMinMaxAzLimits[1]);
         }
 
         private Vector2 UpdatedPingPosition(Vector3 worldPosition, float directionalFieldOfView)
@@ -2633,20 +2633,6 @@ namespace BDArmory.Radar
             {
                 return RadarUtils.WorldToRadarRadial(worldPosition, referenceTransform, RadarDisplayRect,
                     rIncrements[rangeIndex], directionalFieldOfView);
-            }
-        }
-
-        private Vector2 UpdatedPingPosition(Vector3 worldPosition, ModuleIRST irst)
-        {
-            if (rangeIndex < 0 || rangeIndex > rIncrements.Length - 1) rangeIndex = rIncrements.Length - 1;
-            if (omniDisplay)
-            {
-                return RadarUtils.WorldToRadar(worldPosition, referenceTransform, RadarDisplayRect, rIncrements[rangeIndex]);
-            }
-            else
-            {
-                return RadarUtils.WorldToRadarRadial(worldPosition, referenceTransform, RadarDisplayRect,
-                    rIncrements[rangeIndex], irst.directionalFieldOfView / 2);
             }
         }
 
@@ -3115,7 +3101,13 @@ namespace BDArmory.Radar
                         newData.signalPersistTime = t.signalPersistTime;
                         newData.targetData = t.targetData;
                         newData.vessel = t.vessel;*/
-                        t.pingPosition = UpdatedPingPosition(tData.position, t.detectedByIRST);
+                        if (guiDispOmni)
+                            t.pingPosition = RadarUtils.WorldToRadar(tData.position, referenceTransform, RadarDisplayRect,
+                                rIncrements[rangeIndex]);
+                        else
+                            t.pingPosition = RadarUtils.WorldToRadarRadial(tData.position, referenceTransform,
+                                RadarDisplayRect, rIncrements[rangeIndex],
+                                directionalFieldOfView);
                         displayedIRTargets[i] = t;
                     }
                     Vector2 pingPosition = t.pingPosition;

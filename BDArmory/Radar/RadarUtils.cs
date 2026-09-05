@@ -2431,6 +2431,7 @@ namespace BDArmory.Radar
                 return false;
             }
         }
+        
         /// <summary>
         /// Main scanning and locking method called from ModuleIRST.
         /// scanning both for omnidirectional and boresight scans.
@@ -2518,7 +2519,7 @@ namespace BDArmory.Radar
 
                     if (target.Splashed)
                     {
-                        if (target.IsUnderwater()) 
+                        if (target.IsUnderwater())
                             continue; // No underwater detection!
 
                         if (TerrainCheck(position, target.CoM + target.upAxis * (target.altitude < 0f ? -target.altitude + 2f : 0f), FlightGlobals.currentMainBody))
@@ -2559,8 +2560,8 @@ namespace BDArmory.Radar
                             {
                                 BDATargetManager.ReportVessel(target, myWpnManager, true);
                             }
-                            irst.ReceiveContactData(new TargetSignatureData(target, signature), signature);
-                            if (BDArmorySettings.DEBUG_RADAR) Debug.Log("[IRSTdebugging] sent data to IRST for " + target.GetName() + "'s thermalSig");
+                            irst.ReceiveContactData(new TargetSignatureData(target, signature), false);
+                            if (BDArmorySettings.DEBUG_RADAR) Debug.Log($"[IRSTdebugging] sent data to IRST for {target.GetName()}'s thermalSig");
                         }
                     }
                 }
