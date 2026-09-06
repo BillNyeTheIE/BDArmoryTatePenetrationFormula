@@ -156,6 +156,7 @@ namespace BDArmory.Settings
         [BDAPersistentSettingsField] public static bool COMPETITION_START_DESPITE_FAILURES = false;    // Start competition despite failures.
         [BDAPersistentSettingsField] public static int TOURNAMENT_START_DESPITE_FAILURES_ON_ATTEMPT = 3;// When start despite failures is enabled, use it in tournaments on the Nth attempt.
         [BDAPersistentSettingsField] public static float DEBRIS_CLEANUP_DELAY = 15f;                   // Clean up debris after 30s.
+        [BDAPersistentSettingsField] public static bool CLEAN_DEBRIS_ALWAYS = false;                   // Always clean up debris or only during competitions.
         [BDAPersistentSettingsField] public static int MAX_NUM_BULLET_DECALS = 200;
         [BDAPersistentSettingsField] public static int TERRAIN_ALERT_FREQUENCY = 1;                    // Controls how often terrain avoidance checks are made (gets scaled by 1+(radarAltitude/500)^2)
         [BDAPersistentSettingsField] public static int CAMERA_SWITCH_FREQUENCY = 10;                    // Controls the minimum time between automated camera switches
@@ -214,6 +215,7 @@ namespace BDArmory.Settings
         [BDAPersistentSettingsField] public static float HMDCostPerSeat = 500f;
         [BDAPersistentSettingsField] public static float LASER_ATM_GAMMA = 0.000158f;                // Transmission factor for laser in atmosphere. ~75% transmission over 1800m. Based on Figure 6: https://www.mdpi.com/2073-4433/12/7/918
         [BDAPersistentSettingsField] public static float LASER_WATER_GAMMA = 0.151f;                  // Transmission factor for laser in water. 15% at 10m, ~3% at 20m, ~0% at 30m. Based on transmittance (c, Table 2) coefficient for clear water https://www.mdpi.com/1424-8220/25/10/3057.
+        [BDAPersistentSettingsField] public static float CUSTOM_TURRET_AIM_ASSIST = 3;                //give weapons on custom turrets this many degrees of free Turret traverse to assist vs stock robotics suckiness
         #endregion
 
         #region FX
@@ -364,6 +366,7 @@ namespace BDArmory.Settings
         [BDAPersistentSettingsField] public static bool VESSEL_SPAWN_INITIAL_VELOCITY = false;     // Set planes at their idle speed after dropping them at the start of a competition.
         [BDAPersistentSettingsField] public static bool VESSEL_SPAWN_CS_FOLLOWS_CENTROID = false;  // The continuous spawning spawn point follows the brawl centroid with bias back to the original spawn point.
         [BDAPersistentSettingsField] public static int VESSEL_SPAWN_KERBAL_SUIT_TYPE = -1;
+        [BDAPersistentSettingsField] public static bool DISABLE_KERBAL_SUIT_SELECTION = false;     // Completely disable the kerbal suit selection logic.
         #endregion
 
         #region Vessel Mover settings

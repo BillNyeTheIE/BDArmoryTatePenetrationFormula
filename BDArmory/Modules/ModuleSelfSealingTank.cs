@@ -13,7 +13,7 @@ using BDArmory.Utils;
 
 namespace BDArmory.Modules
 {
-    class ModuleSelfSealingTank : PartModule, IPartMassModifier
+    class ModuleSelfSealingTank : BDAPartModule, IPartMassModifier
     {
         public float GetModuleMass(float baseMass, ModifierStagingSituation situation)
         {
@@ -38,6 +38,7 @@ namespace BDArmory.Modules
                         if (resource.Current == null) continue;
                         resource.Current.maxAmount = Math.Floor(resource.Current.maxAmount * 1.11112);
                         resource.Current.amount = Math.Min(resource.Current.amount, resource.Current.maxAmount);
+                        GUIUtils.RefreshPAWResource(part, resource.Current);
                     }
             }
             else
@@ -50,9 +51,9 @@ namespace BDArmory.Modules
                         if (resource.Current == null) continue;
                         resource.Current.maxAmount *= 0.9;
                         resource.Current.amount = Math.Min(resource.Current.amount, resource.Current.maxAmount);
+                        GUIUtils.RefreshPAWResource(part, resource.Current);
                     }
             }
-            GUIUtils.RefreshAssociatedWindows(part);
             using (List<Part>.Enumerator pSym = part.symmetryCounterparts.GetEnumerator())
                 while (pSym.MoveNext())
                 {
@@ -73,6 +74,7 @@ namespace BDArmory.Modules
                                 if (resource.Current == null) continue;
                                 resource.Current.maxAmount = Math.Floor(resource.Current.maxAmount * 1.11112);
                                 resource.Current.amount = Math.Min(resource.Current.amount, resource.Current.maxAmount);
+                                GUIUtils.RefreshPAWResource(pSym.Current, resource.Current);
                             }
                     }
                     else
@@ -85,9 +87,9 @@ namespace BDArmory.Modules
                                 if (resource.Current == null) continue;
                                 resource.Current.maxAmount *= 0.9;
                                 resource.Current.amount = Math.Min(resource.Current.amount, resource.Current.maxAmount);
+                                GUIUtils.RefreshPAWResource(pSym.Current, resource.Current);
                             }
                     }
-                    GUIUtils.RefreshAssociatedWindows(pSym.Current);
                 }
         }
 
@@ -115,7 +117,6 @@ namespace BDArmory.Modules
                 Fields[nameof(FBRemaining)].guiActive = false;
             }
             partmass = (FISmass + ArmorMass + FBmass);
-            GUIUtils.RefreshAssociatedWindows(part);
             using (List<Part>.Enumerator pSym = part.symmetryCounterparts.GetEnumerator())
                 while (pSym.MoveNext())
                 {
@@ -141,7 +142,6 @@ namespace BDArmory.Modules
                         tank.Fields[nameof(FBRemaining)].guiActive = false;
                     }
                     tank.partmass = (tank.FISmass + tank.ArmorMass + tank.FBmass);
-                    GUIUtils.RefreshAssociatedWindows(pSym.Current);
                 }
             if (HighLogic.LoadedSceneIsEditor && EditorLogic.fetch != null)
                 GameEvents.onEditorShipModified.Fire(EditorLogic.fetch.ship);
@@ -165,7 +165,6 @@ namespace BDArmory.Modules
                 ArmorMass = 0.2f * part.CrewCapacity;
             }
             partmass = (FISmass + ArmorMass + FBmass);
-            GUIUtils.RefreshAssociatedWindows(part);
             using (List<Part>.Enumerator pSym = part.symmetryCounterparts.GetEnumerator())
                 while (pSym.MoveNext())
                 {
@@ -187,7 +186,6 @@ namespace BDArmory.Modules
                         tank.ArmorMass = 0.2f * part.CrewCapacity;
                     }
                     tank.partmass = (tank.FISmass + tank.ArmorMass + tank.FBmass);
-                    GUIUtils.RefreshAssociatedWindows(pSym.Current);
                 }
             if (HighLogic.LoadedSceneIsEditor && EditorLogic.fetch != null)
                 GameEvents.onEditorShipModified.Fire(EditorLogic.fetch.ship);
@@ -333,7 +331,6 @@ namespace BDArmory.Modules
                 Fields[nameof(FireBottles)].guiActiveEditor = false;
                 Fields[nameof(FBRemaining)].guiActive = false;
             }
-            GUIUtils.RefreshAssociatedWindows(part);
             partmass = (FISmass + ArmorMass + FBmass);
             if (HighLogic.LoadedSceneIsEditor && EditorLogic.fetch != null)
                 GameEvents.onEditorShipModified.Fire(EditorLogic.fetch.ship);
@@ -449,9 +446,7 @@ namespace BDArmory.Modules
                     tank.FBRemaining = FBRemaining;
                     tank.partmass = partmass + FISmass + ArmorMass;
                     tank.externallyCalled = false;
-                    GUIUtils.RefreshAssociatedWindows(pSym.Current);
                 }
-            GUIUtils.RefreshAssociatedWindows(part);
         }
 
         public override string GetInfo()
@@ -522,7 +517,6 @@ namespace BDArmory.Modules
             {
                 FireBottles--;
                 FBRemaining = FireBottles;
-                GUIUtils.RefreshAssociatedWindows(part);
                 //Debug.Log("[BDArmory.SelfSealingTank]: Consuming firebottle. FB remaining: " + FireBottles);
                 isOnFire = false;
             }

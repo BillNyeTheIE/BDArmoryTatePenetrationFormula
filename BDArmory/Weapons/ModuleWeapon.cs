@@ -272,6 +272,7 @@ namespace BDArmory.Weapons
         [KSPField] public int turretID = 0;
         public ModuleTurret turret;
         public List<ModuleCustomTurret> customTurret = new List<ModuleCustomTurret>();
+        public Transform customTurretRefTransform;
         public MissileFire WeaponManager
         {
             get
@@ -896,7 +897,18 @@ namespace BDArmory.Weapons
                 Fields[nameof(AmmoTypeNum)].guiActiveEditor = true;
                 useCustomBelt = false;
             }
-            GUIUtils.RefreshAssociatedWindows(part);
+            foreach (var sym in part.symmetryCounterparts)
+            {
+                if (sym == null) continue;
+                var wep = sym.GetComponent<ModuleWeapon>();
+                wep.advancedAmmoOption = advancedAmmoOption;
+                wep.Events[nameof(ToggleAmmoConfig)].guiName = Events[nameof(ToggleAmmoConfig)].guiName;
+                wep.Events[nameof(ConfigAmmo)].guiActive = Events[nameof(ConfigAmmo)].guiActive;
+                wep.Events[nameof(ConfigAmmo)].guiActiveEditor = Events[nameof(ConfigAmmo)].guiActiveEditor;
+                wep.Fields[nameof(AmmoTypeNum)].guiActive = Fields[nameof(AmmoTypeNum)].guiActive;
+                wep.Fields[nameof(AmmoTypeNum)].guiActiveEditor = Fields[nameof(AmmoTypeNum)].guiActiveEditor;
+                wep.useCustomBelt = useCustomBelt;
+            }
         }
         [KSPField(advancedTweakable = true, isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_useBelt")]//Using Custom Loadout
         public bool useCustomBelt = false;
@@ -1038,7 +1050,6 @@ namespace BDArmory.Weapons
                                 {
                                     weapon.Current.useThisWeaponForAim = false;
                                     weapon.Current.Events[nameof(setAimOverride)].guiName = StringUtils.Localize("#LOC_BDArmory_AimOverrideFalse");//"Aim With This Weapon"
-                                    GUIUtils.RefreshAssociatedWindows(weapon.Current.part);
                                 }
                             }
                     }
@@ -1713,13 +1724,24 @@ namespace BDArmory.Weapons
                 float yaw = 0;
                 float minP = 0;
                 float maxP = 0;
+                if (!turret || turret.yawRange / 2 + turret.maxPitch < 2) //gun has a slight gimbal to provide a degree of aimassist vs a full turreted weapon
+                {
+                    customTurretRefTransform = (new GameObject()).transform; //we need a ref transform cloned from fireTransform, because servoes use firetransform foraiming
+                    customTurretRefTransform.SetParent(fireTransforms[0].parent); //if fireTransform also turreted to give some wiggle to compensate for lack of granularity
+                    customTurretRefTransform.localPosition = Vector3.zero; //with stock Robotics, then servoes aren't going to be able to aim currectly
+                    customTurretRefTransform.rotation = Quaternion.FromToRotation(customTurretRefTransform.forward, fireTransforms[0].forward); //as their aim reference point is also moving, throwing off aim error
+                    customTurretRefTransform.RotateAround(customTurretRefTransform.position, customTurretRefTransform.transform.forward, VectorUtils.Angle(customTurretRefTransform.up, fireTransforms[0].up)); //rotate model on horizontal plane towards last gate
+                    //pitchTransform needs to have a localRotation of 0! if using fireTransform, need to have fireTransform parented to something that has Z+ forward, Y+ up, X+ right 
+                    fireTransforms[0].SetParent(customTurretRefTransform);
+                }
                 using (var servo = VesselModuleRegistry.GetModules<ModuleCustomTurret>(vessel).GetEnumerator())
                     while (servo.MoveNext())
                     {
                         if (servo.Current == null) continue;
+                        if (servo.Current.isLocked) continue;
                         if ((int)servo.Current.turretID != (int)customTurretID) continue;
                         customTurret.Add(servo.Current);
-                        servo.Current.SetReferenceTransform(fireTransforms[0]);
+                        servo.Current.SetReferenceTransform(customTurretRefTransform);
                         if (servo.Current.fullRotation) yaw = 360;
                         else
                         {
@@ -1734,6 +1756,23 @@ namespace BDArmory.Weapons
                 customMinPitch = minP;
                 customMaxPitch = maxP;
                 if (customTurret.Count == 0) customTurretID = 0;
+                if (customTurretID > 0 && maxP - minP + yaw > 0) //no mounting a gun on a locked servo for free gimbal
+                {
+                    if (!turret)
+                    {
+                        turret = (ModuleTurret)part.AddModule("ModuleTurret");
+                        turret.baseTransform = customTurretRefTransform;
+                        turret.pitchTransform = fireTransforms[0];
+                        turret.yawTransform = fireTransforms[0]; //reasonably certain there aren't any multibarrel fixed guns out there...
+                        turret.SetReferenceTransform(fireTransforms[0]);
+                        turret.turretWeapon = this;
+                    }
+                    turret.minPitch = -BDArmorySettings.CUSTOM_TURRET_AIM_ASSIST / 2;
+                    turret.maxPitch = BDArmorySettings.CUSTOM_TURRET_AIM_ASSIST / 2;
+                    turret.yawRange = BDArmorySettings.CUSTOM_TURRET_AIM_ASSIST;
+                    turret.pitchSpeedDPS = 50;
+                    turret.yawSpeedDPS = 50;
+                }
             }
             //setup animations
             if (hasDeployAnim)
@@ -1824,7 +1863,7 @@ namespace BDArmory.Weapons
 			}*/
             if (eWeaponType != WeaponTypes.Laser)
             {
-                SetupAmmo(null, null);
+                SetupAmmo(null, null, false);
 
                 if (eWeaponType == WeaponTypes.Rocket)
                 {
@@ -2009,45 +2048,42 @@ namespace BDArmory.Weapons
                 Events[nameof(setAimOverride)].guiName = StringUtils.Localize("#LOC_BDArmory_AimOverrideTrue");//"Revert Aim Override"
             else
                 Events[nameof(setAimOverride)].guiName = StringUtils.Localize("#LOC_BDArmory_AimOverrideFalse");//"Aim With This Weapon"
-
-            GUIUtils.RefreshAssociatedWindows(part);
         }
 
         [KSPEvent(advancedTweakable = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_FireAngleOverride_Enable", active = true)]//Disable fire angle override
         public void ToggleOverrideAngle()
         {
             FireAngleOverride = !FireAngleOverride;
-            if (!FireAngleOverride)
-            {
-                Events[nameof(ToggleOverrideAngle)].guiName = StringUtils.Localize("#LOC_BDArmory_FireAngleOverride_Enable");// Enable Firing Angle Override
-            }
-            else
-            {
-                Events[nameof(ToggleOverrideAngle)].guiName = StringUtils.Localize("#LOC_BDArmory_FireAngleOverride_Disable");// Disable Firing Angle Override
-            }
-
+            Events[nameof(ToggleOverrideAngle)].guiName = StringUtils.Localize(FireAngleOverride ? "#LOC_BDArmory_FireAngleOverride_Disable" : "#LOC_BDArmory_FireAngleOverride_Enable");// Enable/Disable Firing Angle Override
             Fields[nameof(FiringTolerance)].guiActive = FireAngleOverride;
             Fields[nameof(FiringTolerance)].guiActiveEditor = FireAngleOverride;
-
-            GUIUtils.RefreshAssociatedWindows(part);
+            foreach (var sym in part.symmetryCounterparts)
+            {
+                if (sym == null) continue;
+                var wep = sym.GetComponent<ModuleWeapon>();
+                wep.FireAngleOverride = FireAngleOverride;
+                wep.Events[nameof(ToggleOverrideAngle)].guiName = StringUtils.Localize(FireAngleOverride ? "#LOC_BDArmory_BurstLengthOverride_Disable" : "#LOC_BDArmory_BurstLengthOverride_Enable");
+                wep.Fields[nameof(FiringTolerance)].guiActive = FireAngleOverride;
+                wep.Fields[nameof(FiringTolerance)].guiActiveEditor = FireAngleOverride;
+            }
         }
+
         [KSPEvent(advancedTweakable = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_BurstLengthOverride_Enable", active = true)]//Burst length override
         public void ToggleBurstLengthOverride()
         {
             BurstOverride = !BurstOverride;
-            if (!BurstOverride)
-            {
-                Events[nameof(ToggleBurstLengthOverride)].guiName = StringUtils.Localize("#LOC_BDArmory_BurstLengthOverride_Enable");// Enable Firing Angle Override
-            }
-            else
-            {
-                Events[nameof(ToggleBurstLengthOverride)].guiName = StringUtils.Localize("#LOC_BDArmory_BurstLengthOverride_Disable");// Disable Firing Angle Override
-            }
-
+            Events[nameof(ToggleBurstLengthOverride)].guiName = StringUtils.Localize(BurstOverride ? "#LOC_BDArmory_BurstLengthOverride_Disable" : "#LOC_BDArmory_BurstLengthOverride_Enable");// Enable Firing Angle Override
             Fields[nameof(fireBurstLength)].guiActive = BurstOverride;
             Fields[nameof(fireBurstLength)].guiActiveEditor = BurstOverride;
-
-            GUIUtils.RefreshAssociatedWindows(part);
+            foreach (var sym in part.symmetryCounterparts)
+            {
+                if (sym == null) continue;
+                var wep = sym.GetComponent<ModuleWeapon>();
+                wep.BurstOverride = BurstOverride;
+                wep.Events[nameof(ToggleBurstLengthOverride)].guiName = StringUtils.Localize(BurstOverride ? "#LOC_BDArmory_BurstLengthOverride_Disable" : "#LOC_BDArmory_BurstLengthOverride_Enable");
+                wep.Fields[nameof(fireBurstLength)].guiActive = BurstOverride;
+                wep.Fields[nameof(fireBurstLength)].guiActiveEditor = BurstOverride;
+            }
         }
 
         public bool toggleDeployState = true;
@@ -2055,29 +2091,15 @@ namespace BDArmory.Weapons
         public void ToggleDeploy()
         {
             toggleDeployState = !toggleDeployState;
-
-            if (toggleDeployState == false)
+            Events[nameof(ToggleDeploy)].guiName = StringUtils.Localize(toggleDeployState ? "#autoLOC_6001339" : "#autoLOC_6001080");//"Retract" : "Extended"
+            if (deployState != null) deployState.normalizedTime = HighLogic.LoadedSceneIsFlight ? 0 : toggleDeployState ? 1 : 0;
+            foreach (var sym in part.symmetryCounterparts)
             {
-                Events[nameof(ToggleDeploy)].guiName = StringUtils.Localize("#autoLOC_6001080");//"Deploy"
-            }
-            else
-            {
-                Events[nameof(ToggleDeploy)].guiName = StringUtils.Localize("#autoLOC_6001339");//""Retract"
-            }
-            if (deployState != null)
-            {
-                deployState.normalizedTime = HighLogic.LoadedSceneIsFlight ? 0 : toggleDeployState ? 1 : 0;
-                using (List<Part>.Enumerator pSym = part.symmetryCounterparts.GetEnumerator())
-                    while (pSym.MoveNext())
-                    {
-                        if (pSym.Current == null) continue;
-                        if (pSym.Current != part && pSym.Current.vessel == vessel)
-                        {
-                            var wep = pSym.Current.FindModuleImplementing<ModuleWeapon>();
-                            if (wep == null) continue;
-                            wep.deployState.normalizedTime = toggleDeployState ? 1 : 0;
-                        }
-                    }
+                if (sym == null) continue;
+                var wep = sym.FindModuleImplementing<ModuleWeapon>();
+                wep.toggleDeployState = toggleDeployState;
+                wep.Events[nameof(ToggleDeploy)].guiName = StringUtils.Localize(toggleDeployState ? "#autoLOC_6001339" : "#autoLOC_6001080");//"Retract" : "Extended"
+                if (wep.deployState != null) wep.deployState.normalizedTime = toggleDeployState ? 1 : 0;
             }
         }
 
@@ -2955,7 +2977,7 @@ namespace BDArmory.Weapons
                                                 damage += Impulse / 100;
                                             }
                                         }
-                                        if (graviticWeapon)
+                                        if (massAdjustment != 0)
                                         {
                                             if (p.rb != null && p.rb.mass > 0)
                                             {
@@ -3237,7 +3259,7 @@ namespace BDArmory.Weapons
                                                     damage += Impulse / 100;
                                                 }
                                             }
-                                            if (graviticWeapon)
+                                            if (massAdjustment != 0)
                                             {
                                                 if (hitPart.rb != null && hitPart.rb.mass > 0)
                                                 {
@@ -3946,7 +3968,7 @@ namespace BDArmory.Weapons
             if (customAmmoBelt.Count < 1) return;
             if (AmmoIntervalCounter == 0 || (AmmoIntervalCounter > 0 && customAmmoBeltIndexes[AmmoIntervalCounter] != customAmmoBeltIndexes[AmmoIntervalCounter - 1]))
             {
-                SetupAmmo(null, null);
+                SetupAmmo(null, null, false);
             }
             AmmoIntervalCounter++;
             if (AmmoIntervalCounter == customAmmoBelt.Count)
@@ -4189,9 +4211,16 @@ namespace BDArmory.Weapons
 
             Vector3 finalTarget = targetPosition;
             bool manualAiming = false;
-            if (aiControlled && !slaved && wm != null && (!targetAcquired || (wm.staleTarget && wm.detectedTargetTimeout > 0)))
+            bool staleTarget = false;
+            float timeout = 0;
+            if (wm && wm.guardMode && lastVisualTargetVessel != null)
             {
-                if (wm.staleTarget && staleGoodTargetTime > 0 && staleGoodTargetTime <= wm.detectedTargetTimeout) //cap staletarget prediction to point when target forgotten
+                if (wm.staleTarget.ContainsKey(lastVisualTargetVessel)) staleTarget = wm.staleTarget[lastVisualTargetVessel];
+                if (wm.detectedTargetTimeout.ContainsKey(lastVisualTargetVessel)) timeout = wm.detectedTargetTimeout[lastVisualTargetVessel];
+            }
+            if (aiControlled && !slaved && wm != null && (!targetAcquired || (staleTarget && timeout > 0)))
+            {
+                if (staleTarget && staleGoodTargetTime > 0 && staleGoodTargetTime <= wm.detectedTargetTimeout[lastVisualTargetVessel]) //cap staletarget prediction to point when target forgotten
                 {
                     if (BDKrakensbane.IsActive)
                     {
@@ -4228,6 +4257,7 @@ namespace BDArmory.Weapons
                     {
                         if (customTurret[i] == null) continue;
                         if (customTurret[i].vessel != vessel) continue;
+                        if (customTurret[i].isLocked) continue;
                         customTurret[i].ReturnTurret();
                     }
                 }
@@ -4312,7 +4342,7 @@ namespace BDArmory.Weapons
                             }
                         }
                     }
-                    else if (!targetAcquired && (wm == null || !wm.staleTarget))
+                    else if (!targetAcquired && (wm == null || !staleTarget))
                     {
                         float maxAimRange = targetAcquired ? (targetPosition - fireTransform.position).magnitude : maxTargetingRange;
                         targetPosition = fireTransform.position + fireTransform.forward * maxAimRange; // For fixed weapons, aim straight ahead (needed for targetDistance below for the trajectory sim) if no current target.
@@ -4545,6 +4575,7 @@ namespace BDArmory.Weapons
             if (slaved && !targetAcquired) return;
             if (turret)
             {
+                if (customTurret.Count > 0 && customTurret[0].isLocked && turret.Yaw <= BDArmorySettings.CUSTOM_TURRET_AIM_ASSIST) return;
                 bool origSmooth = turret.smoothRotation;
                 if (aiControlled || slaved)
                 {
@@ -4557,6 +4588,7 @@ namespace BDArmory.Weapons
             {
                 if (customTurret[i] == null) continue;
                 if (customTurret[i].vessel != vessel) continue;
+                if (customTurret[i].isLocked) continue;
                 customTurret[i].AimToTarget(finalAimTarget); //no aimbot turrets when target out of sight
             }
         }
@@ -5128,11 +5160,15 @@ namespace BDArmory.Weapons
                     autoFireFailReason = "Not safe";
                 }
                 var wm = WeaponManager;
-                if (autoFire && wm.staleTarget && (lastVisualTargetVessel != null && lastVisualTargetVessel.LandedOrSplashed && vessel.LandedOrSplashed))
+                if (autoFire && (lastVisualTargetVessel != null && lastVisualTargetVessel.LandedOrSplashed && vessel.LandedOrSplashed))
                 {
-                    autoFire = false; //ground Vee engaging another ground Vee which has ducked out of sight, don't fire
-                                      // won't catch cloaked tanks, but oh well.
-                    autoFireFailReason = "Stale target";
+                    if (wm.staleTarget.ContainsKey(lastVisualTargetVessel) && wm.staleTarget[lastVisualTargetVessel])
+                    {
+                        autoFire = false; //ground Vee engaging another ground Vee which has ducked out of sight, don't fire
+                                          // won't catch cloaked tanks, but oh well.
+                        autoFireFailReason = "Stale target";
+                    }
+                    else Debug.LogError($"[BDArmory.ModuleWeapon] staleTarget has null entry for {lastVisualTargetVessel.name}");
                 }
 
                 // if (eWeaponType != WeaponTypes.Rocket) //guns/lasers
@@ -6173,6 +6209,7 @@ namespace BDArmory.Weapons
                     {
                         if (customTurret[i] == null) continue;
                         if (customTurret[i].vessel != vessel) continue;
+                        if (customTurret[i].isLocked) continue;
                         customTurret[i].ReturnTurret();
                     }
                 }
@@ -6432,6 +6469,7 @@ namespace BDArmory.Weapons
                 {
                     if (customTurret[i] == null) continue;
                     if (customTurret[i].vessel != vessel) continue;
+                    if (customTurret[i].isLocked) continue;
                     yield return new WaitWhileFixed(() => !customTurret[i].ReturnTurret()); //wait till turret has returned
                 }
             }
@@ -6695,7 +6733,8 @@ namespace BDArmory.Weapons
             }
         }
 
-        public void SetupAmmo(BaseField field, object obj)
+        public void SetupAmmo(BaseField field, object obj) => SetupAmmo(field, obj, true);
+        public void SetupAmmo(BaseField field, object obj, bool updateSymmetric)
         {
             if (useCustomBelt && customAmmoBelt.Count > 0)
             {
@@ -6715,6 +6754,13 @@ namespace BDArmory.Weapons
                 currentTypeIndex = ammoTypeIndex;
             }
             ParseAmmoStats();
+
+            if (updateSymmetric) foreach (var sym in part.symmetryCounterparts)
+            {
+                if (sym is null) continue;
+                var wep = sym.GetComponent<ModuleWeapon>();
+                wep.SetupAmmo(field != null ? wep.Fields[field.name] : null, obj, false);
+            }
         }
         public void ParseAmmoStats()
         {

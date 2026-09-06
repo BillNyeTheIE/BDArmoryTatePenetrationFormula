@@ -139,7 +139,7 @@ namespace BDArmory.Control
         public float MaxEngagementRange = 4000;
 
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_MaintainEngagementRange"),//Maintain min Range
-    UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_false")]//true; false
+            UI_Toggle(enabledText = "#LOC_BDArmory_true", disabledText = "#LOC_BDArmory_false")]//true; false
         public bool maintainMinRange = false;
 
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_ManeuverRCS"),//RCS active
@@ -161,7 +161,7 @@ namespace BDArmory.Control
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "#LOC_BDArmory_AI_GoesUp", advancedTweakable = true),//Goes up to 
             UI_Toggle(enabledText = "#LOC_BDArmory_AI_GoesUp_enabledText", disabledText = "#LOC_BDArmory_AI_GoesUp_disabledText", scene = UI_Scene.All),]//eleven--ten
         bool upToEleven = false;
-        public bool UpToEleven { get { return upToEleven; } set { if (upToEleven != value) { upToEleven = value; TurnItUpToEleven(); } } }
+        public bool UpToEleven { get { return upToEleven; } set { if (upToEleven != (upToEleven = value)) this.UpdateToggle(Fields[nameof(upToEleven)]); } }
 
         const float AttackAngleAtMaxRange = 30f;
 
@@ -262,10 +262,8 @@ namespace BDArmory.Control
                 motorControl.Deactivate();
         }
 
-        public void SetChooseOptions()
+        void SetChooseOptions()
         {
-            UI_ChooseOption broadside = (UI_ChooseOption)(HighLogic.LoadedSceneIsFlight ? Fields[nameof(OrbitDirectionName)].uiControlFlight : Fields[nameof(OrbitDirectionName)].uiControlEditor);
-            broadside.onFieldChanged = ChooseOptionsUpdated;
             UI_ChooseOption surface = (UI_ChooseOption)(HighLogic.LoadedSceneIsFlight ? Fields[nameof(SurfaceTypeName)].uiControlFlight : Fields[nameof(SurfaceTypeName)].uiControlEditor);
             surface.onFieldChanged = ChooseOptionsUpdated;
             ChooseOptionsUpdated(null, null);
@@ -299,11 +297,7 @@ namespace BDArmory.Control
             Fields[nameof(CombatAltitude)].guiActiveEditor = SurfaceType == AIUtils.VehicleMovementType.Submarine;
             Fields[nameof(maintainMinRange)].guiActive = SurfaceType == AIUtils.VehicleMovementType.Land;
             Fields[nameof(maintainMinRange)].guiActiveEditor = SurfaceType == AIUtils.VehicleMovementType.Land;
-            part.RefreshAssociatedWindows();
-            if (BDArmoryAIGUI.Instance != null)
-            {
-                BDArmoryAIGUI.Instance.SetChooseOptionSliders();
-            }
+            this.DefaultChooseOptionHandler(field, obj);
         }
 
         public void SetBroadsideDirection(string direction)
@@ -340,6 +334,7 @@ namespace BDArmory.Control
                 field.UpdateLimits(altValues.Item1, altValues.Item2, altValues.Item3);
                 altSemiLogValues[fieldName] = temp;
             }
+            this.UpdateToggle(Fields[nameof(upToEleven)]);
         }
 
         IEnumerator SetVar(string name, float value)
@@ -362,8 +357,8 @@ namespace BDArmory.Control
             }
             foreach (var hit in debugHits) GUIUtils.DrawLineBetweenWorldPositions(hit.Item1, hit.Item1 + 5 * hit.Item2, 5 - 5 / debugHitFadeTime * (Time.time - hit.Item3), Color.magenta); // Collision Avoidance (width fades before they're removed)
             GUIUtils.DrawLineBetweenWorldPositions(vesselTransform.position, vesselTransform.position + targetDirection * 10f, 2, Color.blue);
-            GUIUtils.DrawLineBetweenWorldPositions(vessel.CoM + vehicleWidth * vesselTransform.right, vessel.CoM + vehicleWidth * vesselTransform.right + (wasReversing ? -vessel.vesselTransform.up : vessel.vesselTransform.up) * (vehicleWidth + terrainAlertDetectionRadius), 2, Color.red);
-            GUIUtils.DrawLineBetweenWorldPositions(vessel.CoM - vehicleWidth * vesselTransform.right, vessel.CoM - vehicleWidth * vesselTransform.right + (wasReversing ? -vessel.vesselTransform.up : vessel.vesselTransform.up) * (vehicleWidth + terrainAlertDetectionRadius), 2, Color.red);
+            GUIUtils.DrawLineBetweenWorldPositions(vessel.CoM + vehicleWidth * vesselTransform.right, vessel.CoM + vehicleWidth * vesselTransform.right + (wasReversing ? -vesselTransform.up : vesselTransform.up) * (vehicleWidth + terrainAlertDetectionRadius), 2, Color.red);
+            GUIUtils.DrawLineBetweenWorldPositions(vessel.CoM - vehicleWidth * vesselTransform.right, vessel.CoM - vehicleWidth * vesselTransform.right + (wasReversing ? -vesselTransform.up : vesselTransform.up) * (vehicleWidth + terrainAlertDetectionRadius), 2, Color.red);
             //GUIUtils.DrawLineBetweenWorldPositions(vesselTransform.position + (0.05f * vesselTransform.right), vesselTransform.position + (0.05f * vesselTransform.right), 2, Color.green);
             GUIUtils.DrawLineBetweenWorldPositions(vesselTransform.position, vesselTransform.position + vessel.srf_vel_direction.ProjectOnPlanePreNormalized(upDir) * 10f, 2, Color.green);
             GUIUtils.DrawLineBetweenWorldPositions(vesselTransform.position, vesselTransform.position + vesselTransform.up * 10f, 5, Color.red);
@@ -775,45 +770,52 @@ namespace BDArmory.Control
                                     if (maintainMinRange) //for some reason ignored if both vessel and targetvessel using Mk2roverCans?
                                     {
                                         //Add LoS provisions if target is behind hill/building?
-                                        if (distance <= MinEngagementRange) //rolled to a stop inside minRange/target has encroached
+                                        if (weaponManager.staleTarget.ContainsKey(targetVessel))
                                         {
-                                            //if (Vector3.Dot(vessel.vesselTransform.up, vessel.srf_vel_direction.ProjectOnPlanePreNormalized(upDir)) > 0) //we're still moving forward
-                                            //brakes = true;
-                                            //else brakes = false;//come to a stop and reversing, stop braking
-                                            if (Vector3.Dot(targetDirection, vesselTransform.up) < 0)
+                                            if (!weaponManager.staleTarget[targetVessel])
                                             {
-                                                targetVelocity = MaxSpeed;
-                                                targetDirection = -targetDirection;
-                                                extendingTarget = targetVessel;
-                                                SetStatus($"Extending {distance:0}m/{MinEngagementRange:0}m");
+                                                if (distance <= MinEngagementRange) //rolled to a stop inside minRange/target has encroached
+                                                {
+                                                    //if (Vector3.Dot(vessel.vesselTransform.up, vessel.srf_vel_direction.ProjectOnPlanePreNormalized(upDir)) > 0) //we're still moving forward
+                                                    //brakes = true;
+                                                    //else brakes = false;//come to a stop and reversing, stop braking
+                                                    if (Vector3.Dot(targetDirection, vesselTransform.up) < 0)
+                                                    {
+                                                        targetVelocity = MaxSpeed;
+                                                        targetDirection = -targetDirection;
+                                                        extendingTarget = targetVessel;
+                                                        SetStatus($"Extending {distance:0}m/{MinEngagementRange:0}m");
+                                                    }
+                                                    else
+                                                    {
+                                                        doReverse = true;
+                                                        targetVelocity = -MaxSpeed;
+                                                        SetStatus($"Reversing");
+                                                    }
+                                                    return;
+                                                }
+                                                else if (vessel.srfSpeed < 0.1f * MaxSpeed && weaponManager && !weaponManager.recentlyFiring)
+                                                {
+                                                    if (distance < 1.125f * MinEngagementRange)
+                                                    {
+                                                        targetVelocity = -0.1f * MaxSpeed;
+                                                        doReverse = true;
+                                                    }
+                                                    else
+                                                    {
+                                                        targetVelocity = 0.1f * MaxSpeed;
+                                                    }
+                                                    SetStatus($"Adjusting alignment");
+                                                }
+                                                else if (targetVessel.srfSpeed < 0.1f * MaxSpeed)
+                                                {
+                                                    targetVelocity = 0;
+                                                    SetStatus($"Braking");
+                                                }
+                                                return;
                                             }
-                                            else
-                                            {
-                                                doReverse = true;
-                                                targetVelocity = -MaxSpeed;
-                                                SetStatus($"Reversing");
-                                            }
-                                            return;
                                         }
-                                        else if (vessel.srfSpeed < 0.1f * MaxSpeed && weaponManager && !weaponManager.recentlyFiring)
-                                        {
-                                            if (distance < 1.125f * MinEngagementRange)
-                                            {
-                                                targetVelocity = -0.1f * MaxSpeed;
-                                                doReverse = true;
-                                            }
-                                            else
-                                            {
-                                                targetVelocity = 0.1f * MaxSpeed;
-                                            }
-                                            SetStatus($"Adjusting alignment");
-                                        }
-                                        else if (targetVessel.srfSpeed < 0.1f * MaxSpeed)
-                                        {
-                                            targetVelocity = 0;
-                                            SetStatus($"Braking");
-                                        }
-                                        return;
+                                        else Debug.LogError($"[BDArmory.SurfaceAI] weaponmanager.staleTarget does not contain {targetVessel.name}");
                                     }
                                     else
                                     {

@@ -7,7 +7,7 @@ using BDArmory.Utils;
 
 namespace BDArmory.Weapons.Missiles
 {
-    public class ModuleMissileMagazine : PartModule, IPartMassModifier, IPartCostModifier
+    public class ModuleMissileMagazine : BDAPartModule, IPartMassModifier, IPartCostModifier
     {
         public float GetModuleMass(float baseMass, ModifierStagingSituation situation) => Mathf.Max(ammoCount, 0) * missileMass;
 
@@ -17,6 +17,8 @@ namespace BDArmory.Weapons.Missiles
 
         private float missileMass = 0;
         private float missileCost = 0;
+
+        public float MissileMass => missileMass;
 
         [KSPField(isPersistant = true, guiActive = true, guiName = "#LOC_BDArmory_WeaponName", guiActiveEditor = false), UI_Label(affectSymCounterparts = UI_Scene.All, scene = UI_Scene.All)]//Weapon Name 
         public string loadedMissileName = "";
@@ -97,7 +99,6 @@ UI_FloatRange(minValue = 1f, maxValue = 4, stepIncrement = 1f, scene = UI_Scene.
                 ordnance.maxValue = ammoCount;
                 ammoRemaining = ammoCount;
             }
-            GUIUtils.RefreshAssociatedWindows(part);
             StartCoroutine(DelayedStart());
         }
 
@@ -224,7 +225,6 @@ UI_FloatRange(minValue = 1f, maxValue = 4, stepIncrement = 1f, scene = UI_Scene.
                                     Fields[nameof(loadedMissileName)].guiActive = true;
                                     Fields[nameof(loadedMissileName)].guiActiveEditor = true;
                                     loadedMissileName = MLConfig.GetShortName();
-                                    GUIUtils.RefreshAssociatedWindows(part);
                                     missileMass = AccountForAmmo ? missile.partInfo.partPrefab.mass : 0;
                                     missileCost = AccountForAmmo ? missile.partInfo.cost : 0;
                                     EditorLogic.DeletePart(missile);
