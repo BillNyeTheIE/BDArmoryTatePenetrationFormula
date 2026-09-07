@@ -288,11 +288,11 @@ namespace BDArmory.Utils
             var up = (body.GetWorldSurfacePosition(latlon.x, latlon.y, 1000) - surfacePoint).normalized;
             var north = -Math.Sign(latlon.x) * (body.GetWorldSurfacePosition(latlon.x - Math.Sign(latlon.x), latlon.y, 0) - surfacePoint).ProjectOnPlanePreNormalized(up).normalized;
             */
-            //body.GetLatLonAlt(position, out double lat, out double lon, out double alt);
-            //Vector3d up = (body.position - position) / (body.Radius + alt);
-            var latlon = body.GetLatitudeAndLongitude(position);
-            var up = GetUpDirection(position, out double alt);
-            Vector3 north = (-Math.Sign(latlon.x) * body.GetWorldSurfacePosition(latlon.x - Math.Sign(latlon.x), latlon.y, alt) - position).ProjectOnPlanePreNormalized(up).normalized;
+            body.GetLatLonAlt(position, out double lat, out double lon, out double alt);
+            Vector3d up = (body.position - position) / (body.Radius + alt);
+            /*var latlon = body.GetLatitudeAndLongitude(position);
+            var up = GetUpDirection(position, out double alt);*/
+            Vector3 north = (-Math.Sign(lat) * body.GetWorldSurfacePosition(lat - Math.Sign(lat), lon, alt) - position).ProjectOnPlanePreNormalized(up).normalized;
             return north;
         }
 
