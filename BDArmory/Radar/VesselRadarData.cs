@@ -1,3 +1,7 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
 using BDArmory.Competition;
 using BDArmory.Control;
 using BDArmory.Extensions;
@@ -7,10 +11,6 @@ using BDArmory.UI;
 using BDArmory.Utils;
 using BDArmory.Weapons;
 using BDArmory.Weapons.Missiles;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 
 namespace BDArmory.Radar
 {
@@ -1601,7 +1601,9 @@ namespace BDArmory.Radar
 
                     float currentAngle = availableIRSTs[i].currentAngle;
 
-                    float radarAngle = VectorUtils.GetAngleOnPlane(availableIRSTs[i].irstForward, projectedVesselFwd, left);
+                    availableIRSTs[i].UpdateDisplayTransform();
+                    float radarAngle = VectorUtils.GetAngleOnPlane(availableIRSTs[i].currDisplayForward, projectedVesselFwd, left);
+                    //float radarAngle = VectorUtils.GetAngleOnPlane(availableIRSTs[i].irstForward, projectedVesselFwd, left);
 
                     if (!availableIRSTs[i].omnidirectional)
                     {

@@ -15,7 +15,7 @@ using static UnityEngine.GraphicsBuffer;
 
 namespace BDArmory.Radar
 {
-    public abstract class ModuleSensorBase : PartModule
+    public abstract class ModuleSensorBase : BDAPartModule
     {
         #region KSPFields (Part Configuration)
 

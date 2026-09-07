@@ -26,10 +26,10 @@ namespace BDArmory.Radar
 
         [KSPField]
         public string irstTransformName = string.Empty;
-        public Vector3 irstForward
+        /*public Vector3 irstForward
         {
             get { return sensorTransform.up; }
-        }
+        }*/
 
         #endregion General Configuration
 

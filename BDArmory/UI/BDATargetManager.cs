@@ -1,3 +1,11 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Collections;
+using System.Collections.Generic;
+using System.Text;
+using UnityEngine;
+
 using BDArmory.Bullets;
 using BDArmory.Competition;
 using BDArmory.Control;
@@ -9,14 +17,6 @@ using BDArmory.Targeting;
 using BDArmory.Utils;
 using BDArmory.Weapons;
 using BDArmory.Weapons.Missiles;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using UnityEngine;
-using static BaseEventDetails;
 
 namespace BDArmory.UI
 {
@@ -67,6 +67,8 @@ namespace BDArmory.UI
             }
 
             GPSTargets = new Dictionary<BDTeam, List<GPSTargetInfo>>();
+
+            CleanExternalSensorList();
 
             GameEvents.onVesselLoaded.Remove(AddVessel);
             GameEvents.onVesselGoOnRails.Remove(RemoveVessel);
