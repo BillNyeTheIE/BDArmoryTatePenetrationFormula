@@ -932,8 +932,8 @@ namespace BDArmory.Control
                         {
                             if (rd.Current != null)
                             {
-                                rd.Current.EnableIRST();
-                                float scanSpeed = rd.Current.directionalFieldOfView / rd.Current.scanRotationSpeed * 2;
+                                rd.Current.EnableSensor();
+                                float scanSpeed = rd.Current.sensorAzFOV / rd.Current.scanRotationSpeed * 2;
                                 if (GpsUpdateMax > 0 && scanSpeed < GpsUpdateMax) GpsUpdateMax = scanSpeed;
                                 _irstsEnabled = true;
                             }
@@ -8132,9 +8132,9 @@ namespace BDArmory.Control
                                         {
                                             if (rd.Current != null)
                                             {
-                                                float scanSpeed = rd.Current.directionalFieldOfView / rd.Current.scanRotationSpeed * 2;
+                                                float scanSpeed = rd.Current.sensorAzFOV / rd.Current.scanRotationSpeed * 2;
                                                 if (GpsUpdateMax > 0 && scanSpeed < GpsUpdateMax) GpsUpdateMax = scanSpeed;
-                                                rd.Current.EnableIRST();
+                                                rd.Current.EnableSensor ();
                                                 _irstsEnabled = true;
                                             }
                                             _irstsEnabled = true;

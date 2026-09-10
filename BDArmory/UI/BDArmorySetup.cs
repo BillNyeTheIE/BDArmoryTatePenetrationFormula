@@ -2061,7 +2061,7 @@ namespace BDArmory.UI
                         {
                             if (mr.Current == null) continue;
                             numberOfModules++;
-                            GUIStyle moduleStyle = mr.Current.radarEnabled ? centerLabelBlue : centerLabel;
+                            GUIStyle moduleStyle = mr.Current.sensorEnabled ? centerLabelBlue : centerLabel;
                             string label = mr.Current.sensorName;
                             if (GUI.Button(new Rect(leftIndent, +(moduleLines * entryHeight), columnWidth - 2 * leftIndent, entryHeight),
                                 label, moduleStyle))

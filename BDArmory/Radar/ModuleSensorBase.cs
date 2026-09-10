@@ -122,7 +122,6 @@ namespace BDArmory.Radar
             return !hasDeployAnimation || deployAnimState.normalizedTime > 0.99;
         }
 
-        bool editorDeployed;
         Coroutine deployAnimRoutine;
 
         #endregion Radar Capabilities
