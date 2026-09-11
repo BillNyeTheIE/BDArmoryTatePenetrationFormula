@@ -22,6 +22,9 @@ namespace BDArmory.Radar
         #region General Configuration
 
         [KSPField]
+        private string IRSTName;
+
+        [KSPField]
         public int turretID = 0;
 
         [KSPField]
@@ -228,6 +231,11 @@ namespace BDArmory.Radar
         public override void OnStart(StartState state)
         {
             base.OnStart(state);
+
+            if (!string.IsNullOrEmpty(IRSTName))
+            {
+                sensorName = IRSTName;
+            }
 
             if (irstEnabled)
             {

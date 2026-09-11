@@ -22,6 +22,9 @@ namespace BDArmory.Radar
         #region General Configuration
 
         [KSPField]
+        private string radarName;
+
+        [KSPField]
         public int turretID = 0;
 
         #endregion General Configuration
@@ -316,6 +319,11 @@ namespace BDArmory.Radar
         public override void OnStart(StartState state)
         {
             base.OnStart(state);
+
+            if (!string.IsNullOrEmpty(radarName))
+            {
+                sensorName = radarName;
+            }
 
             if (radarEnabled)
             {
