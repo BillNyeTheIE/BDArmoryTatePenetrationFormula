@@ -509,7 +509,7 @@ namespace BDArmory.Radar
             weaponManager.linkedExternalSensors = linkedSensorGroups;
         }
 
-        int externalSensorsToBeRecovered = 9999;
+        int externalSensorsToBeRecovered;
 
         public void RecoverLinkedExternalSensors()
         {

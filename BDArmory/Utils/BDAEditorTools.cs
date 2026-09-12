@@ -53,13 +53,13 @@ namespace BDArmory.Utils
                 dumpParts();
         }
 
-        public static List<ModuleRadar> getRadars()
+        public static List<ModuleRadarSensorBase> getRadars()
         {
-            List<ModuleRadar> results = new List<ModuleRadar>(150);
+            List<ModuleRadarSensorBase> results = new List<ModuleRadarSensorBase>(150);
 
             foreach (var item in radars)
             {
-                var radar = item.partPrefab.GetComponent<ModuleRadar>();
+                var radar = item.partPrefab.GetComponent<ModuleRadarSensorBase>();
                 if (radar != null && (radar.CanScan || radar.CanLock))
                     results.Add(radar);
             }

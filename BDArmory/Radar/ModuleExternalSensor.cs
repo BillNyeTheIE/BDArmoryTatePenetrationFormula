@@ -1,17 +1,12 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using KSP.Localization;
 
 using BDArmory.Control;
-using BDArmory.Extensions;
-using BDArmory.Settings;
 using BDArmory.Targeting;
 using BDArmory.UI;
 using BDArmory.Utils;
-using BDArmory.WeaponMounts;
 using BDArmory.Weapons.Missiles;
 using BDArmory.Competition;
 
@@ -52,15 +47,7 @@ namespace BDArmory.Radar
             } 
         }
 
-        ModuleExternalSensor baseModule = null;
-
-        public ModuleExternalSensor BaseModule
-        {
-            get
-            {
-                return baseModule;
-            }
-        }
+        public ModuleExternalSensor BaseModule { get; private set; }
 
         #region Persisted State in flight
 
@@ -72,64 +59,55 @@ namespace BDArmory.Radar
         #region Part members
 
         //vessel
-        private MissileLauncher mssl;
-
-        public MissileLauncher Missile
-        {
-            get
-            {
-                return mssl;
-            }
-        }
+        public MissileLauncher Missile { get; private set; }
 
         public BDTeam Team
         {
             get
             {
-                return mssl ? mssl.Team : null;
+                return Missile ? Missile.Team : null;
             }
         }
-
-        private MissileFire wpmr;
 
         public override MissileFire WeaponManager
         {
             get
             {
-                if (!wpmr) GetWPMR();
-                return wpmr;
+                if (!field) GetWPMR();
+                return field;
             }
+            protected set;
         }
 
         public void GetWPMR()
         {
             // If somehow the missile is gone the sensor *should* be dead...
-            if (!mssl)
+            if (!Missile)
             {
-                wpmr = null;
+                WeaponManager = null;
                 return;
             }
             // Return FiredByWM
-            if (mssl.FiredByWM)
+            if (Missile.FiredByWM)
             {
-                wpmr = mssl.FiredByWM;
+                WeaponManager = Missile.FiredByWM;
                 return;
             }
             // If dead, return the first linkedToVessels
             if (linkedToVessels == null)
             {
-                wpmr = null;
+                WeaponManager = null;
                 return;
             }
             for (int i = 0; i < linkedToVessels.Count; i++)
             {
                 if (linkedToVessels[i] != null)
                 {
-                    wpmr = linkedToVessels[i].weaponManager;
+                    WeaponManager = linkedToVessels[i].weaponManager;
                     return;
                 }
             }
-            wpmr = null;
+            WeaponManager = null;
             return;
         }
 
@@ -178,7 +156,7 @@ namespace BDArmory.Radar
 
             if (detonateOnDisable)
             {
-                mssl.Detonate();
+                Missile.Detonate();
             }
         }
 
@@ -211,9 +189,9 @@ namespace BDArmory.Radar
             {
                 FlightSetup(radarTransformName);
 
-                mssl = part.FindModuleImplementing<MissileLauncher>();
-                baseModule = part.partInfo.partPrefab.FindModuleImplementing<ModuleExternalSensor>();
-                retractOnDisable = baseModule.retractOnDisable; // Safeguard in case the `OnAwake` `isPersistant = false` setting doesn't work...
+                Missile = part.FindModuleImplementing<MissileLauncher>();
+                BaseModule = part.partInfo.partPrefab.FindModuleImplementing<ModuleExternalSensor>();
+                retractOnDisable = BaseModule.retractOnDisable; // Safeguard in case the `OnAwake` `isPersistant = false` setting doesn't work...
 
                 StartCoroutine(StartUpRoutine());
             }

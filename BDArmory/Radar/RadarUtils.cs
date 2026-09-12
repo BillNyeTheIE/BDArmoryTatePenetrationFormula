@@ -2468,7 +2468,7 @@ namespace BDArmory.Radar
                     Vessel target = loadedvessels.Current;
                     if (target == null || !target.loaded) continue;
                     if (target == myWpnManager.vessel) continue;
-                    if (target.vesselType == VesselType.Debris) continue;
+                    if (VesselModuleRegistry.IgnoredVesselTypes.Contains(target.vesselType)) continue;
 
                     // ignore too close ones
                     Vector3 vectorToTarget = target.CoM - position;

@@ -1,13 +1,10 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using KSP.Localization;
 
 using BDArmory.Control;
 using BDArmory.Extensions;
-using BDArmory.Settings;
 using BDArmory.Targeting;
 using BDArmory.UI;
 using BDArmory.Utils;
@@ -133,16 +130,15 @@ namespace BDArmory.Radar
         public bool lockingYaw = true;
 
         //vessel
-        private MissileFire wpmr;
-
         public override MissileFire WeaponManager
         {
             get
             {
-                if (wpmr == null || !wpmr.IsPrimaryWM || wpmr.vessel != vessel)
-                    wpmr = vessel && vessel.loaded ? vessel.ActiveController().WM : null;
-                return wpmr;
+                if (field == null || !field.IsPrimaryWM || field.vessel != vessel)
+                    field = vessel && vessel.loaded ? vessel.ActiveController().WM : null;
+                return field;
             }
+            protected set;
         }
 
         #endregion Part members
@@ -237,11 +233,13 @@ namespace BDArmory.Radar
                 sensorName = IRSTName;
             }
 
+            #pragma warning disable 0612 // Disable obsolete warning for this valid use.
             if (irstEnabled)
             {
                 sensorEnabled = true;
                 irstEnabled = false;
             }
+            #pragma warning restore 0612
 
             if (HighLogic.LoadedSceneIsFlight)
             {

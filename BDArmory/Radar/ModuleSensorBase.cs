@@ -2,16 +2,10 @@ using BDArmory.Control;
 using BDArmory.Extensions;
 using BDArmory.Settings;
 using BDArmory.Targeting;
-using BDArmory.UI;
 using BDArmory.Utils;
-using BDArmory.WeaponMounts;
-using KSP.Localization;
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
 
 namespace BDArmory.Radar
 {
@@ -223,7 +217,7 @@ namespace BDArmory.Radar
         protected int snapshotTicker;
 
         //vessel
-        public abstract MissileFire WeaponManager { get; }
+        public abstract MissileFire WeaponManager { get; protected set; }
         public VesselRadarData vesselRadarData;
 
         #endregion Part members
@@ -733,33 +727,6 @@ namespace BDArmory.Radar
         protected abstract void LinkToVRD(VesselRadarData vrd);
 
         protected abstract void UnlinkFromVRD(VesselRadarData vrd);
-
-        public string getRWRType(int i)
-        {
-            switch (i)
-            {
-                case 0:
-                    return StringUtils.Localize("#autoLOC_bda_1000002");		// #autoLOC_bda_1000002 = SAM
-
-                case 1:
-                    return StringUtils.Localize("#autoLOC_bda_1000003");		// #autoLOC_bda_1000003 = FIGHTER
-
-                case 2:
-                    return StringUtils.Localize("#autoLOC_bda_1000004");		// #autoLOC_bda_1000004 = AWACS
-
-                case 3:
-                case 4:
-                    return StringUtils.Localize("#autoLOC_bda_1000005");		// #autoLOC_bda_1000005 = MISSILE
-
-                case 5:
-                    return StringUtils.Localize("#autoLOC_bda_1000006");		// #autoLOC_bda_1000006 = DETECTION
-
-                case 6:
-                    return StringUtils.Localize("#autoLOC_bda_1000017");		// #autoLOC_bda_1000017 = SONAR
-            }
-            return StringUtils.Localize("#autoLOC_bda_1000007");		// #autoLOC_bda_1000007 = UNKNOWN
-            //{SAM = 0, Fighter = 1, AWACS = 2, MissileLaunch = 3, MissileLock = 4, Detection = 5, Sonar = 6}
-        }
 
         protected void DrainElectricity(bool showMessage = true)
         {

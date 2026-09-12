@@ -1,3 +1,4 @@
+using BDArmory.Utils;
 using static BDArmory.Radar.ModuleRadar;
 
 namespace BDArmory.Radar
@@ -121,6 +122,33 @@ namespace BDArmory.Radar
             {
                 signalPersistTimeForRwr = signalPersistTime / 2;
             }
+        }
+
+        public string getRWRType(int i)
+        {
+            switch (i)
+            {
+                case 0:
+                    return StringUtils.Localize("#autoLOC_bda_1000002");		// #autoLOC_bda_1000002 = SAM
+
+                case 1:
+                    return StringUtils.Localize("#autoLOC_bda_1000003");		// #autoLOC_bda_1000003 = FIGHTER
+
+                case 2:
+                    return StringUtils.Localize("#autoLOC_bda_1000004");		// #autoLOC_bda_1000004 = AWACS
+
+                case 3:
+                case 4:
+                    return StringUtils.Localize("#autoLOC_bda_1000005");		// #autoLOC_bda_1000005 = MISSILE
+
+                case 5:
+                    return StringUtils.Localize("#autoLOC_bda_1000006");		// #autoLOC_bda_1000006 = DETECTION
+
+                case 6:
+                    return StringUtils.Localize("#autoLOC_bda_1000017");		// #autoLOC_bda_1000017 = SONAR
+            }
+            return StringUtils.Localize("#autoLOC_bda_1000007");		// #autoLOC_bda_1000007 = UNKNOWN
+            //{SAM = 0, Fighter = 1, AWACS = 2, MissileLaunch = 3, MissileLock = 4, Detection = 5, Sonar = 6}
         }
     }
 }
